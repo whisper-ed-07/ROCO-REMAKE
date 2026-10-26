@@ -1,0 +1,29 @@
+work/
+*.tmp
+Thumbs.db
+.DS_Store
+
+# ===== 构建产物（exe 打包预留） =====
+node_modules/
+dist/
+release/
+build/
+*.exe
+*.asar
+*.pdb
+
+# ===== 编辑器与系统杂项 =====
+.vscode/
+.idea/
+*.log
+*.bak
+*.orig
+*.swp
+*~
+desktop.ini
+
+# ===== 备份与压缩包 =====
+*_backup*/
+*.zip
+*.rar
+*.7z
