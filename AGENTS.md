@@ -29,27 +29,28 @@
 
 | 区域 | 位置(约) | 说明 |
 |---|---|---|
-| `<script>` 开始/结束 | 527 / 2919 | 引擎全部代码 |
-| `ELEMENTS` | 556 | 17 系属性表,含 `_emoji`/name/color/bg;加新属性三处都要补 |
-| `TYPE_CHART` / `setEff(atk,def,val)` | 584 | 克制表;未声明 = 1 |
-| `DEFAULT_SKILLS` | 627 | 内置技能数组 |
-| `DEFAULT_PETS` | 1294 | 内置宠物数组 |
-| localStorage 键 | 1609 | `pbg_custom_pets` / `pbg_custom_skills` |
-| `class BattlePet` | 1626 | 战斗实例 |
-| `gameState` | 1751 | 全局状态 |
-| `createBattleContext()` | 1763 | ctx API(技能/血脉唯一交互入口) |
-| `processBloodlines` / `processTurnEffects` | 1912 / 1921 | 回合开始处理 |
-| `postDamageProcessing` / `forceSwitchPet` | 1941 / 1955 | 致死结算 / 强制换宠 |
-| `TURN_TIME_LIMIT=20` / `startTurnTimer` | 1970 | 回合计时,超时自动用第一个有 PP 的技能 |
-| `processField` / `processWeather` | 2011 / 2017 | 环境 / 天气结算 |
-| `calcDamage` / `applyEffect` | 2052 / 2073 | legacy 伤害 / 异常状态 |
-| `playerUseSkill` / `aiDecideAndResolve` | 2110 / 2140 | 指令入口 / AI 选招 |
-| `resolveTurn` | 2167 | 回合主管线(顺序见 §8) |
-| `executeSkillTurn` | 2297 | 单技能执行(命中/混乱/PP/onUse/反弹) |
-| `applyLegacyStatusSkill` | 2442 | 无 onUse 的变化技(技能名硬编码) |
-| `playerSwitch` / `checkFaints` / `endBattle` | 2464 / 2477 / 2484 | 换宠 / 濒死 / 终局 |
-| `updateBattleUI` 及渲染函数 | 2487 | UI 刷新 |
-| 宠物/技能管理 UI | 2763 起 | 编辑器表单;自定义数据只走 localStorage |
+| `<script>` 开始/结束 | 832 / 3292 | 引擎全部代码 |
+| `ELEMENTS` | 861 | 19 系属性表,含 `_icon`/`_emoji`/name/color/bg;加新属性三处都要补 |
+| `TYPE_CHART` / `setEff(atk,def,val)` | 912 | 克制表;未声明 = 1 |
+| `DEFAULT_SKILLS` | 974 | 内置技能数组 |
+| `DEFAULT_PETS` | 1643 | 内置宠物数组 |
+| localStorage 键 | 1958 | `pbg_custom_pets` / `pbg_custom_skills` |
+| `class BattlePet` | 1975 | 战斗实例 |
+| `gameState` | 2100 | 全局状态(含 `skipPlayerAction`) |
+| `createBattleContext()` | 2112 | ctx API(技能/血脉唯一交互入口) |
+| `processBloodlines` / `processTurnEffects` | 2265 / 2274 | 回合开始处理 / 回合效果计时 |
+| `postDamageProcessing` / `forceSwitchPet` | 2298 / 2312 | 致死结算 / 强制换宠 |
+| `TURN_TIME_LIMIT=20` / `startTurnTimer` | 2328 | 回合计时,超时自动用第一个有 PP 的技能 |
+| `tickEnvironments` / `processField` / `processWeather` | 2373 / 2368 / 2384 | 天气环境计时 / 环境 / 天气伤害 |
+| `calcDamage` / `applyEffect` | 2417 / 2438 | legacy 伤害 / 异常状态 |
+| `playerUseSkill` / `aiDecideAndResolve` | 2475 / 2492 | 指令入口 / AI 选招 |
+| `makeStruggleSkill` | 2520 | 无技能可用时的兜底动作(不占 PP,25% 反伤) |
+| `resolveTurn` | 2525 | 回合主管线(顺序见 §8) |
+| `executeSkillTurn` | 2666 | 单技能执行(命中/混乱/PP/onUse/反弹) |
+| `applyLegacyStatusSkill` | 2819 | 无 onUse 的变化技(技能名硬编码) |
+| `playerSwitch` / `checkFaints` / `endBattle` | 2841 / 2854 / 2862 | 换宠 / 濒死 / 终局 |
+| `updateBattleUI` 及渲染函数 | 2865 | UI 刷新 |
+| 宠物/技能管理 UI | 3141 起 | 编辑器表单;自定义数据只走 localStorage |
 
 ## 3. 数据模型
 
@@ -156,3 +157,12 @@
 - 字体走 Google Fonts `@import`,离线/桌面端需留意字体回退(`--font-game-*` 有本地回退链)。
 - `gameState.messages` 渲染只取最后 50 条,数组本身不截断。
 - 编辑此文件时保持 LF/CRLF 一致(git 有 autocrlf 警告,提交后以 git 为准)。
+
+## 13. 回合与兜底约定(2026-10 修复后新增)
+
+- **状态回合只推进一次**:睡眠/冰冻/恐惧的 `statusTurns` 递减只在 `resolveTurn` 内做,`playerUseSkill` 不再处理,避免一回合扣两次。
+- **无技能可用 = 挣扎**:双方 PP 全空时由 `makeStruggleSkill()` 生成临时动作(普通系物理 40 威力、25% 反伤、不占 PP 槽);`skipPlayerAction` 用于换宠回合抑制玩家挣扎。
+- **天气/环境在回合末计时**:`tickEnvironments()` 统一递减,`processWeather` 只负责每回合伤害;"持续 N 回合"= 恰好 N 次结算。
+- **回合效果可自我续期**:`processTurnEffects` 先快照再清空,onTick 内 `addTurnEffect` 注册的新效果会保留到下一回合。
+- **伤害上下限**:`ctx.doDamage` 支持 `opts.maxDamage` / `opts.minDamage`(在血脉钩子之后、保底 1 之前);`preventCritNext` 优先于 `guaranteedCrit`。
+- **主异常互斥包含恐惧**:fear 存在 `pet.status` 槽,不能覆盖烧伤/中毒等主异常(与 §7 "fear 独立"的旧表述冲突,见 OPEN-QUESTIONS Q6)。
