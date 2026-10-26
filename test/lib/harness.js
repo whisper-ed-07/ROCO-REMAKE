@@ -7,7 +7,8 @@ const vm = require('vm');
 
 function makeEl() {
   const el = {
-    style: {}, dataset: {}, children: [],
+    style: { setProperty(k, v) { this[k] = v; }, getPropertyValue(k) { return this[k] || ''; }, removeProperty(k) { delete this[k]; } },
+    dataset: {}, children: [],
     innerHTML: '', textContent: '', value: '', className: '', id: '',
     disabled: false, scrollTop: 0, scrollHeight: 0,
     classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },

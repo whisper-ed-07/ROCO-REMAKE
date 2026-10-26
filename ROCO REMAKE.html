@@ -10,14 +10,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Orbitron:wght@700;900&family=Noto+Serif+SC:wght@700;900&display=swap');
 
 :root {
-  --bg: #0d1117; --surface: #1a1f2e; --surface2: #252b3a;
-  --text: #f0e6d3; --text2: #a09880; --accent: #f0725a;
-  --accent2: #ff8a70; --gold: #e2b04a; --green: #4caf84;
-  --hp-green: #3fb950; --hp-yellow: #e2b04a; --hp-red: #f85149;
-  --shield-color: #58a6ff; --border: #3a3440; --radius: 14px;
-  --shadow: 0 6px 24px rgba(0,0,0,0.6);
-  --glow-gold: 0 0 16px rgba(226,176,74,0.3);
-  --glow-accent: 0 0 16px rgba(240,114,90,0.3);
+  /* 墨蓝底 + 香槟金 + 珊瑚红：一套克制的"典藏版"配色 */
+  --bg: #070910; --surface: #11141f; --surface2: #171b29;
+  --text: #ece7dc; --text2: #98a1b6; --accent: #ff7a66;
+  --accent2: #ff9d8a; --gold: #e8c37a; --green: #4ec9a0;
+  --hp-green: #46cf8b; --hp-yellow: #e8c37a; --hp-red: #ff5d5d;
+  --shield-color: #6cb6ff; --border: #262b3a; --radius: 16px;
+  --shadow: 0 18px 44px rgba(0,0,0,0.55);
+  --glow-gold: 0 0 0 1px rgba(232,195,122,0.35), 0 8px 28px rgba(232,195,122,0.18);
+  --glow-accent: 0 0 0 1px rgba(255,122,102,0.4), 0 8px 28px rgba(255,122,102,0.2);
+  --line: rgba(232,195,122,0.22);
+  --line-soft: rgba(255,255,255,0.07);
+  --panel: linear-gradient(165deg, rgba(24,28,42,0.92), rgba(12,15,23,0.94));
   --font-game: 'Microsoft YaHei','PingFang SC','Helvetica Neue',sans-serif;
   --font-game-cn: 'Noto Serif SC','Microsoft YaHei',serif;   /* 全局中文字体 */
   --font-game-en: 'Cinzel',sans-serif;                        /* 全局英文字体 */
@@ -549,6 +553,277 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 [data-theme="light"] .modal { background:rgba(255,255,255,0.95); }
 [data-theme="light"] .hp-bar-outer { background:#e0e4ea; border-color:#dfe4ea; }
 [data-theme="light"] .turn-timer { background:rgba(255,255,255,0.7); }
+
+/* ============================================================
+   视觉升级 2026-10：墨底 + 香槟金，统一层级、边框与动效节奏
+   ============================================================ */
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1100px 560px at 50% -12%, rgba(232,195,122,0.075), transparent 62%),
+    radial-gradient(780px 520px at 10% 28%, rgba(255,122,102,0.05), transparent 62%),
+    radial-gradient(900px 620px at 92% 72%, rgba(108,182,255,0.05), transparent 62%);
+  letter-spacing: 0.01em;
+}
+#app { max-width: 560px; }
+.screen { padding: 22px clamp(14px, 4vw, 28px) 26px; }
+
+/* ---------- 面板质感 ---------- */
+.pet-card, .pet-info-card, .battle-messages, .modal, .pet-detail-card, .mgmt-item {
+  background: var(--panel);
+  border-color: var(--line-soft);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  border-radius: 14px; font-weight: 800; letter-spacing: 0.05em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.btn::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 36%, rgba(255,255,255,0.26) 50%, transparent 64%);
+  transform: translateX(-130%); transition: transform 0.6s ease;
+}
+.btn:hover::before { transform: translateX(130%); }
+.btn-primary {
+  background: linear-gradient(160deg, #f6dfa6, #e3b768 46%, #c8912f);
+  color: #241a07;
+  box-shadow: 0 10px 26px rgba(232,195,122,0.22), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+.btn-primary:hover { box-shadow: 0 14px 34px rgba(232,195,122,0.34), inset 0 1px 0 rgba(255,255,255,0.7); }
+.btn-secondary {
+  background: rgba(255,255,255,0.045); border: 1px solid var(--line-soft); color: var(--text);
+}
+.btn-secondary:hover { border-color: var(--line); background: rgba(232,195,122,0.08); }
+.btn-danger { background: linear-gradient(160deg, #ff8f7d, #d94a3c); color: #fff; }
+
+/* ---------- 主菜单 ---------- */
+.menu-header { padding: clamp(34px, 9vh, 74px) 0 4px; }
+.menu-header::after {
+  content: ''; display: block; width: 128px; height: 1px; margin: 20px auto 0;
+  background: linear-gradient(90deg, transparent, var(--line), transparent);
+}
+.menu-logo .roco-mark { width: 164px; height: 106px; }
+.menu-title-cn { font-size: clamp(23px, 6.2vw, 30px); letter-spacing: 0.18em; }
+.menu-title-en { font-size: 11px; letter-spacing: 0.52em; opacity: 0.9; margin-top: 8px; }
+.menu-subtitle { font-size: 10px; letter-spacing: 0.34em; opacity: 0.5; margin-top: 10px; }
+.menu-buttons { gap: 12px; padding: 10px 6px 42px; }
+.menu-card { background: rgba(12,15,23,0.55); border: 1px solid var(--line-soft); }
+
+/* ---------- 通用页头 ---------- */
+.screen-header { border-bottom: 1px solid var(--line-soft); padding-bottom: 14px; margin-bottom: 18px; }
+.screen-title { font-size: 17px; letter-spacing: 0.08em; font-weight: 800; }
+.screen-header .back-btn { border-width: 1px; border-color: var(--line-soft); width: 36px; height: 36px; }
+
+/* ---------- 选宠卡片 ---------- */
+.pet-card { border-radius: 18px; border-width: 1px; }
+.pet-card:hover { border-color: rgba(232,195,122,0.45); transform: translateY(-3px); }
+.pet-card.selected {
+  outline: none; border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 12px 30px rgba(232,195,122,0.16);
+  animation: none;
+}
+.pet-card-emoji { font-size: 42px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.45)); }
+
+/* ---------- 战斗顶栏 ---------- */
+.battle-top { padding: 10px clamp(10px, 3vw, 20px) 2px; gap: 8px; }
+.turn-indicator {
+  margin: 6px auto; padding: 5px 18px; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(232,195,122,0.14), rgba(232,195,122,0.03));
+  border: 1px solid var(--line); color: #f4dcab;
+  font-size: 12px; letter-spacing: 0.22em;
+  box-shadow: 0 0 22px rgba(232,195,122,0.12);
+}
+.turn-timer {
+  margin: 4px auto; padding: 4px 14px; border-radius: 999px;
+  border: 1px solid var(--line-soft); background: rgba(8,10,16,0.55);
+}
+.turn-timer-bar { background: rgba(255,255,255,0.08); height: 3px; }
+.turn-timer-fill { background: linear-gradient(90deg, #6fe0b0, #2fa96a); }
+.flee-btn { border-radius: 999px; font-weight: 700; letter-spacing: 0.04em; }
+
+/* ---------- 宠物信息卡 ---------- */
+.pet-info-card { border: 1px solid var(--line-soft); border-radius: 18px; padding: 14px 16px; margin: 10px 14px; overflow: hidden; }
+.pet-info-card::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(140px 70px at 100% 0%, rgba(255,255,255,0.06), transparent 70%);
+}
+.pet-info-name { font-size: 17px; letter-spacing: 0.02em; }
+.pet-info-lv { font-family: var(--font-game-en); letter-spacing: 0.08em; border: 1px solid var(--line-soft); background: rgba(0,0,0,0.35); }
+.pet-info-element { border: 1px solid rgba(255,255,255,0.14); }
+
+/* ---------- 血条 / 护盾 / 状态 ---------- */
+.hp-bar-outer {
+  height: 12px; border: 1px solid rgba(0,0,0,0.6); background: #0a0c12;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.7); border-radius: 999px;
+}
+.hp-bar-outer::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: 999px;
+  background-image: repeating-linear-gradient(90deg, transparent 0 11px, rgba(0,0,0,0.38) 11px 12px);
+  opacity: 0.55;
+}
+.hp-bar-inner { border-radius: 999px; background: linear-gradient(180deg, #63e6a1, #2fa96a); box-shadow: 0 0 12px rgba(70,207,139,0.35); }
+.hp-bar-inner.low { background: linear-gradient(180deg, #ffd98a, #e0ae4a); }
+.hp-bar-inner.critical { background: linear-gradient(180deg, #ff8a8a, #e03b3b); }
+.hp-text { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text2); }
+.shield-bar-outer { height: 7px; border: 1px solid rgba(108,182,255,0.28); background: #0a0c12; }
+.shield-bar-inner { background: linear-gradient(90deg, #4f9dff, #8fd0ff); }
+.shield-value { font-variant-numeric: tabular-nums; }
+.status-badge {
+  border-radius: 999px; padding: 2px 9px; font-size: 11px; letter-spacing: 0.02em;
+  border: 1px solid rgba(255,255,255,0.16); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.stage-pill { border-radius: 7px; font-variant-numeric: tabular-nums; font-size: 11px; border: 1px solid transparent; }
+.stage-pill.up { border-color: rgba(70,207,139,0.4); }
+.stage-pill.down { border-color: rgba(255,93,93,0.4); }
+.bloodline-tag { border-radius: 999px; font-size: 11px; }
+
+/* ---------- 战斗日志 ---------- */
+.battle-messages {
+  border: 1px solid var(--line-soft); border-radius: 16px;
+  padding: 12px 14px; line-height: 1.75;
+  font-family: var(--font-game); color: #b9c1d3;
+}
+.battle-messages .msg { padding: 3px 2px; border-bottom: 1px solid rgba(255,255,255,0.035); }
+.battle-messages .msg.msg-turn {
+  margin: 9px 0 7px; padding: 0; text-align: center; border-bottom: none;
+  color: #d9bf8c; font-size: 11px; letter-spacing: 0.2em; opacity: 0.9;
+}
+.battle-messages .msg:last-child {
+  background: rgba(232,195,122,0.07); border-radius: 8px;
+  box-shadow: inset 2px 0 0 var(--gold);
+  padding: 4px 8px; color: var(--text);
+}
+
+/* ---------- 技能按钮 ---------- */
+.battle-actions { gap: 10px; padding: 12px; }
+.skill-btn {
+  border: 1px solid rgba(255,255,255,0.07); border-radius: 14px;
+  background: linear-gradient(160deg, rgba(30,35,52,0.95), rgba(12,15,23,0.96));
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.skill-btn::before {
+  content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--el, var(--gold));
+  opacity: 0.85; box-shadow: 0 0 10px var(--el, var(--gold));
+}
+.skill-btn:hover:not(:disabled) {
+  border-color: var(--el, var(--gold)); transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0,0,0,0.45), 0 0 0 1px var(--el, var(--gold));
+}
+.skill-btn:active:not(:disabled) { transform: translateY(0) scale(0.985); }
+.skill-btn-icon {
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 8px rgba(0,0,0,0.4);
+}
+.skill-btn-name { letter-spacing: 0.02em; }
+.skill-btn-body { font-variant-numeric: tabular-nums; }
+.skill-btn-prio { border-radius: 6px; font-size: 11px; }
+.struggle-btn { --el: #8f98ab; }
+.struggle-btn .skill-btn-name { color: #c9cfdd; }
+.action-btn { border: 1px solid var(--line-soft); border-radius: 12px; background: rgba(255,255,255,0.04); }
+
+/* ---------- 换宠 / 弹窗 / 表单 ---------- */
+.switch-panel {
+  border-radius: 20px 20px 0 0; border-top: 1px solid var(--line);
+  background: rgba(9,11,17,0.94);
+  box-shadow: 0 -20px 50px rgba(0,0,0,0.5);
+}
+.switch-pet-btn { border: 1px solid var(--line-soft); border-radius: 14px; background: rgba(255,255,255,0.03); }
+.switch-pet-btn:hover { border-color: var(--line); background: rgba(232,195,122,0.06); }
+.modal { border-radius: 20px; border: 1px solid var(--line-soft); }
+.modal h3 { letter-spacing: 0.06em; }
+.form-group input, .form-group select, .form-group textarea {
+  border: 1px solid var(--line-soft); background: rgba(6,8,13,0.7); border-radius: 10px;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: var(--gold); box-shadow: 0 0 0 3px rgba(232,195,122,0.16);
+}
+.skill-swap-item { border-width: 1px; border-radius: 12px; background: rgba(255,255,255,0.03); }
+.skill-swap-item.equipped { border-color: rgba(70,207,139,0.5); background: rgba(70,207,139,0.07); }
+
+/* ---------- 结算 ---------- */
+.result-overlay { background: radial-gradient(circle at 50% 40%, rgba(24,19,9,0.78), rgba(3,4,7,0.97)); }
+.result-text { font-family: var(--font-game-cn); letter-spacing: 0.2em; }
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
+::-webkit-scrollbar-thumb:hover { background: rgba(232,195,122,0.4); }
+
+/* ---------- 宽屏 ---------- */
+@media (min-width: 1024px) {
+  #app { max-width: 1440px; }
+  .battle-row { gap: 20px; }
+  .pet-info-card { width: 100%; max-width: 380px; }
+  .skill-btn { min-height: 76px; }
+}
+@media (max-width: 380px) {
+  .skill-btn-name { font-size: 12px; }
+  .battle-actions { gap: 8px; padding: 10px; }
+  .status-badge { font-size: 10px; padding: 2px 7px; }
+}
+
+/* ---------- 无障碍：尊重系统的减弱动效 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- 战场氛围 / 移动端紧凑化 ---------- */
+.battle-side .pet-sprite::before {
+  content: ''; position: absolute; inset: -16%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,0.07), transparent 66%);
+}
+.player-side .pet-sprite::before { background: radial-gradient(circle, rgba(108,182,255,0.16), transparent 66%); }
+.enemy-side .pet-sprite::before { background: radial-gradient(circle, rgba(255,122,102,0.15), transparent 66%); }
+.stage-vs { font-family: var(--font-game-en); font-size: 15px; letter-spacing: 0.3em; color: var(--gold); opacity: 0.55; }
+
+@media (min-width: 1024px) {
+  .pet-info-card { max-width: 420px; min-height: 158px; }
+}
+
+@media (max-width: 1023px) {
+  .battle-row { flex: 1 1 auto; justify-content: space-evenly; padding: 2px 0 0; }
+  .battle-side { gap: 2px; }
+  .battle-side .pet-sprite { width: 88px; height: 88px; font-size: 42px; }
+  .pet-info-card { margin: 2px 10px; padding: 10px 12px; border-radius: 14px; }
+  .pet-info-top { margin-bottom: 5px; }
+  .pet-info-name { font-size: 15px; }
+  .hp-bar-outer { height: 10px; }
+  .hp-text { margin-top: 2px; font-size: 11px; }
+  .shield-bar-outer { height: 5px; }
+  .stage-grid { gap: 3px; }
+  .stage-pill { font-size: 10px; padding: 1px 5px; }
+  .battle-messages { min-height: 0; max-height: 21vh; font-size: 11.5px; padding: 10px 12px; margin: 4px 10px; }
+  .battle-actions { padding: 8px 10px 10px; gap: 8px; }
+  .skill-btn { min-height: 48px; }
+  .skill-btn-header { padding: 6px 8px 2px; gap: 6px; }
+  .skill-btn-icon { width: 32px; height: 32px; font-size: 17px; }
+  .skill-btn-name { font-size: 12px; }
+  .skill-btn-body { padding: 2px 8px 6px; font-size: 11px; }
+  .action-btn { padding: 10px; font-size: 12px; }
+  .battle-top { padding: 6px 10px 0; }
+  .turn-timer { padding: 3px 10px; }
+  .flee-btn { padding: 6px 12px; font-size: 12px; }
+}
+
+/* ---------- 窄屏兜底：网格子项允许收缩，避免横向溢出 ---------- */
+.battle-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.skill-btn, .skill-btn-name, .pet-info-card, .stage-grid { min-width: 0; }
+@media (max-width: 400px) {
+  .skill-btn-icon { width: 28px; height: 28px; font-size: 15px; }
+  .skill-btn-name { font-size: 11.5px; }
+  .skill-btn-prio { font-size: 10px; padding: 1px 5px; }
+  .skill-btn-body { font-size: 10.5px; gap: 4px; }
+  .skill-btn-body .skill-ext { display: none; }
+  .pet-info-top { gap: 3px; }
+  .status-badge, .bloodline-tag { font-size: 10px; }
+}
 </style>
 </head>
 <body>
@@ -686,7 +961,11 @@ var SKILL_ICONS = {
   sk_jydm_1: "\u{1F506}", sk_jydm_2: "\u2694\uFE0F", sk_jydm_3: "\u2728", sk_jydm_4: "\u2744\uFE0F", sk_jydm_5: "\u{1F525}",
   sk_cszn: "\u{1F514}", sk_nlex: "\u{1F6E1}\uFE0F", sk_mszw: "\u{1F451}", sk_fthy: "\u{1F9E5}", sk_cyjy: "\u{1F31F}"
 };
-function getSkillIcon(skill) { return getElementEmoji(skill ? skill.element : ''); }
+function getSkillIcon(skill) {
+  if (!skill) return getElementEmoji('');
+  // 专用图标优先；未登记的技能回退到系别图标
+  return SKILL_ICONS[skill.id] || getElementEmoji(skill.element);
+}
 
 function getEffectiveness(atkEl, defEl) { return TYPE_CHART[atkEl]?.[defEl] ?? 1; }
 function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0.5 && val > 0) return "效果不佳..."; if (val === 0) return "没有效果！"; return ""; }
@@ -1019,7 +1298,7 @@ const DEFAULT_SKILLS = [
     desc: "灭世陨落，威能震世。70威力武系物理攻击。先手时：额外追加对方最大HP30%的固定伤害并施加恐惧。后手时：必中必爆，删除对方全体(1+自身负面强化数)PP；若伤害被抵抗则清空对方上次使用技能的全部PP。若处于创世之能回合内：威力提升至170，物攻按+3级计算，回复200HP。若创世之能PP为空、有2个技能PP为空、且剩余PP总数<8时：追加9999固伤并回满所有技能PP。",
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了灭世之威！");
-      var isFirst = gameState.isPlayerTurn; // player goes first = this skill is first
+      var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === user ? "player" : "ai"));
       var r;
       if (isFirst) {
         // 先手: 额外追加30%对方最大HP伤害 + 恐惧
@@ -1175,7 +1454,7 @@ const DEFAULT_SKILLS = [
   },
   { id: "sk_qy_3", name: "残念余梦", element: "ice", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 7,
     desc: "残念化梦，余韵悠长。强制清除场上所有天气，召唤梦境1回合。返还上次受到的伤害，追加固定伤害（基于双方速度差×残风临霜已损PP×空PP技能数），上限600。后手时令对方沉睡（自身无法换宠直到对方解除）；沉睡失败则删除对方全体1PP。【残脉】固伤增幅至(1.8+当前HP比例)倍，上限1000，有抗性时分4段结算。【清念】使用后清空本技能PP直到重新进入清念。",
-    onUse: function(u, t, ctx) { var bd=u.bloodlineData||{}; ctx.msg(u.name+" 释放了残念余梦！"); gameState.weather=null;gameState.weatherTurns=0;gameState.field=null;gameState.fieldTurns=0;ctx.setField("dream",1);ctx.msg("梦境降临！"); var qe=u.skills.filter(function(s){return s.pp===0}).length; var cf=u.skills.find(function(s){return s.id==="sk_qy_4"})||{maxPp:4,pp:4}; var fd=Math.min(600,Math.floor(0.3*Math.abs(u.getStat("spd")-t.getStat("spd"))*(cf.maxPp-cf.pp)*qe)); if(fd>0){ctx.doFixedDamage(t,fd);ctx.msg("固伤"+fd)} if(bd.mode==="残脉"){fd=Math.min(1000,Math.floor(fd*(1.8+u.hp/u.maxHp))); var segs=t.damageCapTurns>0?4:1; for(var i=0;i<segs;i++){ctx.doFixedDamage(t,Math.floor(fd/segs))} ctx.msg("残脉增幅:"+fd)} ctx.applyStatus(t,"sleep"); if(t.status!=="sleep"){ctx.deletePP(t,-1,1);ctx.msg("沉睡失败!")}else{u.switchLocked=true} if(bd.mode==="清念"){var ts=u.skills.find(function(s){return s.id==="sk_qy_3"});if(ts)ts.pp=0} }
+    onUse: function(u, t, ctx) { var bd=u.bloodlineData||{}; ctx.msg(u.name+" 释放了残念余梦！"); gameState.weather=null;gameState.weatherTurns=0;gameState.field=null;gameState.fieldTurns=0;ctx.setField("dream",1);ctx.msg("梦境降临！"); var qe=u.skills.filter(function(s){return s.pp===0}).length; var cf=u.skills.find(function(s){return s.id==="sk_qy_4"})||{maxPp:4,pp:4}; var fd=Math.min(600,Math.floor(0.3*Math.abs(u.getStat("spd")-t.getStat("spd"))*(cf.maxPp-cf.pp)*qe)); if(fd>0){ctx.doFixedDamage(t,fd);ctx.msg("固伤"+fd)} if(bd.mode==="残脉"){fd=Math.min(1000,Math.floor(fd*(1.8+u.hp/u.maxHp))); var segs=t.damageCapTurns>0?4:1; for(var i=0;i<segs;i++){ctx.doFixedDamage(t,Math.floor(fd/segs))} ctx.msg("残脉增幅:"+fd)} ctx.applyStatus(t,"sleep"); if(t.status!=="sleep"){ctx.deletePP(t,-1,1);ctx.msg("沉睡失败!")}else{u.switchLocked=true;ctx.addTurnEffect(u,"残念锁足",99,function(p){if(!t||t.status!=="sleep")p.switchLocked=false;},function(p){p.switchLocked=false;});} if(bd.mode==="清念"){var ts=u.skills.find(function(s){return s.id==="sk_qy_3"});if(ts)ts.pp=0} }
   },
   { id: "sk_qy_4", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12,
     desc: "残风凛冽，临霜万物。本技能免疫PP删除，仅能被清翎覆尘回复。冰冻对方：成功则驱逐对方，对下一个上场宠物施加睡眠（睡眠失败则造成999固伤分3段）。冰冻失败则删除对方使用次数>6的技能PP，若对方空PP技能≥2则驱逐。结算后自身速度降低30%，获得基于速度差和已损HP比例的护盾。若未携带清翎覆尘则进入残脉状态。", immuneToPP: true,
@@ -1227,13 +1506,14 @@ const DEFAULT_SKILLS = [
       power = Math.min(power, cap);
       bd.lastWjPower = power;
       ctx.msg(u.name + " 使用了万念俱灰！实际威力" + power + (firstZero ? "（首格PP=0，上限1000）" : ""));
-      var res = calcDamage(u, t, { power: power, category: "physical", element: "ghost", accuracy: 100 });
+      var res = ctx.doDamage(u, t, power, "physical", "ghost", {
+        guaranteedCrit: firstZero,
+        maxDamage: firstZero ? undefined : Math.floor(t.maxHp * 0.9),
+        minDamage: firstZero ? Math.floor(u.maxHp * 0.3) : 0
+      });
       var dealt = res.damage;
-      if (firstZero) { dealt = Math.max(dealt, Math.floor(u.maxHp * 0.3)); dealt = Math.floor(dealt * 1.5); ctx.msg("首格PP=0：必定暴击且伤害不低于30%最大精力！"); }
-      else dealt = Math.min(dealt, Math.floor(t.maxHp * 0.9));
-      t.takeDamage(dealt);
-      ctx._lastEff = res.effectiveness; ctx._lastDmg = dealt; u.lastOutputDmg = dealt;
-      ctx.msg("造成 " + dealt + " 点伤害！");
+      if (firstZero) ctx.msg("首格PP=0：必定暴击且伤害不低于30%最大精力！");
+      ctx.msg("造成 " + dealt + " 点伤害！" + getEffLabel(res.effectiveness) + (res.isCrit ? " 命中要害！" : ""));
       ctx.doHeal(u, 150);
       var wjImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear"];
       u.statusImmunities = u.statusImmunities || [];
@@ -1630,7 +1910,7 @@ const DEFAULT_PETS = [
         if (dmgType === "power") {
           var el = attacker.skills.find(function(s) { return s.pp < s.maxPp; })?.element || attacker.element;
           var eff = getEffectiveness(el, pet.element);
-          if (eff >= 2) {
+          if (eff >= 2 && !(gameState.banEffects && gameState.banEffects.dmgReduction)) {
             dmg = Math.floor(dmg * 0.6);
             ctx.msg("【不灭魂体】受到克制伤害，降低40%！");
             return dmg;
@@ -1823,7 +2103,7 @@ var gameState = {
   messages: [], isPlayerTurn: true,
   battleOver: false, waitingForSwitch: false, pendingPlayerSkill: null, pendingAISkill: null, turnTimer: null, turnTimeLeft: 0,
   selectedTeamIds: [], opponentTeamIds: [],
-  turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null,
+  turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null, skipPlayerAction: false,
   snapshots: [],       // 状态快照历史
   ppHistory: []        // 全局PP历史 [{turn, pets: [{id,pp}]}]
 };
@@ -1843,7 +2123,8 @@ function createBattleContext() {
       dmg = Math.floor(dmg * eff);
       dmg = Math.floor(dmg * getWeatherDamageMod(el, def.element));
       var isCrit = false;
-      if (cat !== "status" && (opts.guaranteedCrit || (Math.random() < (0.0625 + (att.critRateBonus || 0)) && !att.preventCritNext))) {
+      var critBlocked = !!att.preventCritNext;
+      if (cat !== "status" && !critBlocked && (opts.guaranteedCrit || Math.random() < (0.0625 + (att.critRateBonus || 0)))) {
         dmg = Math.floor(dmg * 1.5); isCrit = true;
       }
       if (att.preventCritNext) att.preventCritNext = false;
@@ -1854,6 +2135,9 @@ function createBattleContext() {
       if (def.bloodline && def.bloodline.onBeforeDamage) {
         dmg = def.bloodline.onBeforeDamage(def, dmg, "power", att, this);
       }
+      // 技能级伤害上下限（万念俱灰等）：在全部修正之后、保底 1 之前生效
+      if (opts.maxDamage !== undefined) dmg = Math.min(dmg, opts.maxDamage);
+      if (opts.minDamage) dmg = Math.max(dmg, opts.minDamage);
       dmg = Math.max(1, dmg);
       this._lastEff = eff; this._lastDmg = dmg;
       // 明念：每次造成伤害追加（40+15×双方强化数）固伤
@@ -1883,7 +2167,7 @@ function createBattleContext() {
     addShield: function(target, amount) { if (gameState.banEffects && gameState.banEffects.shield) { addMessage("护盾已被微灵封体永久限制！"); return; } var amt = Math.floor(amount); target.shield += amt; if (amt > 0) spawnFloatText(target, amt, "shield"); },
     applyStatus: function(target, status) {
       if (target.statusImmunities && target.statusImmunities.indexOf(status) >= 0) { var sn2=({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧",bind:"束缚"}[status]||status); addMessage(target.name + "免疫了"+sn2+"！"); return; }
-      if (target.status && status !== "confuse" && status !== "fear") return;
+      if (target.status && status !== "confuse") return;
       applyEffect(target, status);
     },
     fear: function(target) {
@@ -1989,11 +2273,15 @@ function processBloodlines() {
 
 function processTurnEffects(pet) {
   if (!pet || pet.isFainted()) return;
-  pet.turnEffects = pet.turnEffects.filter(function(e) {
+  // 先快照再清空：onTick 内注册的新效果写入新数组，不会被本轮结果覆盖
+  var queue = pet.turnEffects.slice();
+  pet.turnEffects = [];
+  queue.forEach(function(e) {
+    if (!e) return;
     if (e.onTick) e.onTick(pet);
     e.turnsLeft--;
-    if (e.turnsLeft <= 0) { if (e.onExpire) e.onExpire(pet); return false; }
-    return true;
+    if (e.turnsLeft <= 0) { if (e.onExpire) e.onExpire(pet); }
+    else pet.turnEffects.push(e);
   });
   // Decrement damage cap turns
   if (pet.damageCapTurns > 0) pet.damageCapTurns--;
@@ -2078,15 +2366,23 @@ function stopTurnTimer() {
 
 // ---------- WEATHER SYSTEM ----------
 function processField() {
-  if (!gameState.field || gameState.fieldTurns <= 0) return;
-  gameState.fieldTurns--;
-  if (gameState.fieldTurns <= 0) { gameState.field = null; addMessage("环境消散了..."); }
+  if (gameState.field && gameState.fieldTurns <= 0) { gameState.field = null; addMessage("环境消散了..."); }
+}
+
+// 天气/环境计时在回合末统一递减，保证"持续 N 回合"恰好结算 N 次
+function tickEnvironments() {
+  if (gameState.weather) {
+    gameState.weatherTurns--;
+    if (gameState.weatherTurns <= 0) { gameState.weather = null; gameState.weatherTurns = 0; addMessage("天气消散了..."); }
+  }
+  if (gameState.field) {
+    gameState.fieldTurns--;
+    if (gameState.fieldTurns <= 0) { gameState.field = null; gameState.fieldTurns = 0; addMessage("环境消散了..."); }
+  }
 }
 
 function processWeather() {
   if (!gameState.weather || gameState.weatherTurns <= 0) return;
-  gameState.weatherTurns--;
-  if (gameState.weatherTurns <= 0) { gameState.weather = null; return; }
   var p = gameState.playerActive, a = gameState.aiActive;
   switch(gameState.weather) {
     case "sandstorm":
@@ -2141,7 +2437,7 @@ function calcDamage(attacker, defender, skill) {
 
 function applyEffect(pet, effect) {
   if (pet.statusImmunities && pet.statusImmunities.indexOf(effect) >= 0) { var sn=({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧",bind:"束缚",confuse:"混乱"}[effect]||effect); addMessage(pet.name + "免疫了"+sn+"！"); return; }
-  if (pet.status && effect !== "confuse" && effect !== "fear" && effect !== "bind") return;
+  if (pet.status && effect !== "confuse" && effect !== "bind") return;
   switch(effect) {
     case "burn": pet.status = "burn"; addMessage(pet.name + " 烧伤了！"); break;
     case "freeze": pet.status = "freeze"; pet.statusTurns = 0; addMessage(pet.name + " 被冰冻了！"); break;
@@ -2181,20 +2477,7 @@ function playerUseSkill(skillIdx) {
   var player = gameState.playerActive;
   var skill = player.skills[skillIdx];
   if (!skill || skill.pp <= 0) return;
-  
-  // 如果状态不允许行动
-  if (!player.canAct()) {
-    if (player.status === "sleep") {
-      player.statusTurns--;
-      if (player.statusTurns <= 0) { player.status = null; addMessage(player.name + " 醒过来了！"); }
-      else { addMessage(player.name + " 正在睡觉..."); gameState.pendingPlayerSkill = null; aiDecideAndResolve(); return; }
-    } else if (player.status === "freeze") {
-      if (Math.random() < 0.2) { player.status = null; addMessage(player.name + " 解冻了！"); }
-      else { addMessage(player.name + " 被冰冻了，无法行动！"); gameState.pendingPlayerSkill = null; aiDecideAndResolve(); return; }
-    } else if (player.status === "paralyze") { addMessage(player.name + " 因麻痹无法行动！"); gameState.pendingPlayerSkill = null; aiDecideAndResolve(); return; }
-    else if (player.status === "fear") { player.statusTurns--; if (player.statusTurns <= 0) { player.status = null; addMessage(player.name + " 从恐惧中恢复！"); } else { addMessage(player.name + " 被恐惧了，无法行动！"); endTurnCleanup(); return; } }
-  }
-
+  // 状态判定与回合递减统一在 resolveTurn 内处理，避免同一回合扣两次
   gameState.pendingPlayerSkill = skillIdx; stopTurnTimer();
   // 禁用按钮
   var btns = document.querySelectorAll("#battle-actions button");
@@ -2233,14 +2516,27 @@ function aiDecideAndResolve() {
   resolveTurn();
 }
 
+// 无技能可用时的兜底动作：不占 PP 槽、普通系物理、25% 反伤
+function makeStruggleSkill() {
+  return { id: "__struggle", name: "挣扎", element: "normal", power: 40, pp: 0, maxPp: 0, accuracy: 100,
+    category: "physical", priority: 8, __struggle: true, desc: "无技能可用时的拼死一搏" };
+}
+
 function resolveTurn() {
   if (gameState.battleOver) return;
   var player = gameState.playerActive, ai = gameState.aiActive;
   var pSkillIdx = gameState.pendingPlayerSkill;
   var aSkillIdx = gameState.pendingAISkill;
-  var pSkill = player.skills[pSkillIdx];
-  var aSkill = ai.skills[aSkillIdx];
-  
+  // 无法行动的一方本回合强制空过；状态回合只在这里推进一次
+  if (!player.canAct()) pSkillIdx = -1;
+  if (!ai.canAct()) aSkillIdx = -1;
+  var playerSkipped = !!gameState.skipPlayerAction;  // 本回合玩家已用"换宠"占用行动
+  gameState.skipPlayerAction = false;
+  var pSkill = pSkillIdx >= 0 ? player.skills[pSkillIdx] : null;
+  var aSkill = aSkillIdx >= 0 ? ai.skills[aSkillIdx] : null;
+  if (pSkill && pSkill.pp <= 0) pSkill = null;
+  if (aSkill && aSkill.pp <= 0) aSkill = null;
+
   // 玩家无法行动：推进状态（睡眠/冰冻/恐惧/麻痹回合递减），本回合不出招
   if (!pSkill && !player.canAct()) {
     if (player.status === "sleep") {
@@ -2275,6 +2571,9 @@ function resolveTurn() {
       addMessage(ai.name + " 因麻痹无法行动！");
     }
   }
+  // 有行动能力却没有可用技能（PP 耗尽）→ 挣扎，避免整局无法推进
+  if (!pSkill && !playerSkipped && player.canAct() && !player.isFainted()) pSkill = makeStruggleSkill();
+  if (!aSkill && ai.canAct() && !ai.isFainted()) aSkill = makeStruggleSkill();
   // 双方都无法行动：直接结束回合
   if (!pSkill && !aSkill) { endTurnCleanup(); return; }
   
@@ -2350,6 +2649,7 @@ function resolveTurn() {
   postDamageProcessing();
   updateBattleUI();
   checkFaints();
+  if (!gameState.battleOver) tickEnvironments();
   
   gameState.pendingPlayerSkill = null;
   gameState.pendingAISkill = null;
@@ -2372,19 +2672,20 @@ function executeSkillTurn(user, target, skill, who) {
   }
   var lastEff = 1, lastDmgVal = 0;
   var ctx = createBattleContext();
+  var ppCostOnMiss = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
   
   // 命中判定：半必中（semiSure）仅在对方"必定闪避"时 miss，其余必中
   if (skill.semiSure) {
     if (target.sureDodge) {
       var missBefore = skill.pp;
-      skill.pp--;
+      skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
       addMessage(target.name + " 必定闪避了 " + user.name + " 的 " + skill.name + "！（PP " + missBefore + "→" + skill.pp + "）");
       if (skill.onMiss) skill.onMiss(user, target, ctx);
       return;
     }
   } else if (skill.accuracy < 100 && Math.random() * 100 > skill.accuracy) {
     var missBefore = skill.pp;
-    skill.pp--;
+    skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
     addMessage(user.name + " 的 " + skill.name + " 没有命中！（PP " + missBefore + "→" + skill.pp + "）");
     return;
   }
@@ -2392,7 +2693,7 @@ function executeSkillTurn(user, target, skill, who) {
   var userIsBackhand = gameState.pendingFirstMove !== (isPlayer ? "player" : "ai");
   if (!skill.semiSure && target.dodgeNextNonSure && skill.accuracy < 100 && userIsBackhand) {
     var dodgeBefore = skill.pp;
-    skill.pp--;
+    skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
     addMessage(target.name + " 闪避了后手非必中技能！视物攻+2！（PP " + dodgeBefore + "→" + skill.pp + "）");
     target.atkStage = Math.min(6, target.atkStage + 2);
     target.dodgeNextNonSure = false;
@@ -2424,8 +2725,12 @@ function executeSkillTurn(user, target, skill, who) {
   // PP消耗倍率（化念作刃/极影光幕效果；extraPPCost 为极影光幕连续技惩罚）
   var ppCost = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
   var ppBeforeUse = skill.pp;
-  skill.pp = Math.max(0, skill.pp - ppCost);
-  addMessage(user.name + " 使用了 " + skill.name + "（PP " + ppBeforeUse + "→" + skill.pp + (ppCost > 1 ? " ×" + ppCost : "") + "）！");
+  if (skill.__struggle) {
+    addMessage(user.name + " 已无技能可用，只能拼命挣扎！");
+  } else {
+    skill.pp = Math.max(0, skill.pp - ppCost);
+    addMessage(user.name + " 使用了 " + skill.name + "（PP " + ppBeforeUse + "→" + skill.pp + (ppCost > 1 ? " ×" + ppCost : "") + "）！");
+  }
   // 对方连续技能计数（极影光幕）
   if (user.oppConsecutive) {
     if (user.lastUsedSkillId === skill.id) { user.oppConsecutive[skill.id] = (user.oppConsecutive[skill.id] || 0) + 1; }
@@ -2459,6 +2764,11 @@ function executeSkillTurn(user, target, skill, who) {
     user.lastOutputDmg = result.damage;
     target.takeDamage(result.damage);
     addMessage("造成 " + result.damage + " 点伤害！" + getEffLabel(result.effectiveness) + (result.isCrit ? " 命中要害！" : ""));
+    if (skill.__struggle) {
+      var recoil = Math.max(1, Math.floor(result.damage * 0.25));
+      user.takeDamage(recoil);
+      addMessage(user.name + " 因挣扎受到 " + recoil + " 点反伤！");
+    }
     if (skill.effect && skill.effectChance > 0 && Math.random() * 100 < skill.effectChance) {
       var eff = getEffectiveness(skill.element, target.element);
       if (eff > 0) applyEffect(target, skill.effect);
@@ -2535,7 +2845,7 @@ function playerSwitch(petIdx) {
   if (gameState.playerActive.switchLocked) { addMessage(gameState.playerActive.name + " 无法换宠！"); return; }
   addMessage("回来吧，" + gameState.playerActive.name + "！"); addMessage("上吧，" + newPet.name + "！");
   if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
-  gameState.playerActive = newPet; gameState.waitingForSwitch = false;
+  gameState.playerActive = newPet; gameState.waitingForSwitch = false; gameState.skipPlayerAction = true;
   var sp = document.querySelector("#switch-panel"); if (sp) sp.classList.remove("show");
   renderBattle(document.querySelector("#app")); gameState.isPlayerTurn = false;
   setTimeout(function() { aiDecideAndResolve(); }, 800);
@@ -2561,13 +2871,13 @@ function updateBattleUI() {
   var msgs = document.querySelector("#battle-messages");
   if (p && pHpBar) { var pct = Math.max(0, (p.hp / p.maxHp) * 100); if (!pHpBar.parentNode.querySelector('.hp-bar-ghost')) { var gh = document.createElement('div'); gh.className = 'hp-bar-ghost'; gh.style.width = pct + '%'; pHpBar.parentNode.insertBefore(gh, pHpBar); } else { pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width = Math.max(pct, (pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width||'100%').replace('%','')) + '%'; } pHpBar.style.width = pct + "%"; pHpBar.className = "hp-bar-inner" + (pct < 25 ? " critical" : pct < 50 ? " low" : ""); pHpText.textContent = p.hp + "/" + p.maxHp; if (pShield) pShield.innerHTML = p.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (p.shield / p.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + p.shield + "</div>" : ""; if (pMarks) pMarks.textContent = Object.keys(p.marks).length > 0 ? Object.entries(p.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; pStatus.innerHTML = renderStatusBadges(p); }
   if (a && aHpBar) { var pct2 = Math.max(0, (a.hp / a.maxHp) * 100); aHpBar.style.width = pct2 + "%"; aHpBar.className = "hp-bar-inner" + (pct2 < 25 ? " critical" : pct2 < 50 ? " low" : ""); aHpText.textContent = a.hp + "/" + a.maxHp; if (aShield) aShield.innerHTML = a.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (a.shield / a.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + a.shield + "</div>" : ""; if (aMarks) aMarks.textContent = Object.keys(a.marks).length > 0 ? Object.entries(a.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; aStatus.innerHTML = renderStatusBadges(a); }
-  if (msgs) { var msgArr = gameState.messages.slice(-50); msgs.innerHTML = msgArr.map(function(m) { return "<div class=msg>" + m + "</div>"; }).join(""); msgs.scrollTop = msgs.scrollHeight; }
+  if (msgs) { var msgArr = gameState.messages.slice(-50); msgs.innerHTML = msgArr.map(function(m) { var cls = /^━/.test(m) ? "msg msg-turn" : "msg"; return "<div class=\"" + cls + "\">" + m + "</div>"; }).join(""); msgs.scrollTop = msgs.scrollHeight; }
   // 天气/环境显示
   var wEl = document.querySelector("#battle-weather");
   if (wEl) {
     var wParts = [];
     if (gameState.weather) {
-      var wInfo = {"sunny":["\u2600","\u66b4\u6652"],"rainy":["\u{1F327}","\u66b4\u96e8"],"sandstorm":["\u{1F32A}","\u6c99\u66b4"],"hailstorm":["\u2744","\u51b0\u96f9"]}[gameState.weather];
+      var wInfo = {"sunny":["\u2600","\u66b4\u6652"],"rainy":["\u{1F327}","\u66b4\u96e8"],"sandstorm":["\u{1F32A}","\u6c99\u66b4"],"hailstorm":["\u2744","\u51b0\u96f9"],"mist":["\u2248","\u8ff7\u96fe"]}[gameState.weather];
       if (wInfo) wParts.push('<span class="w-item has-weather"><span class="w-icon">' + wInfo[0] + '</span><span>' + wInfo[1] + '</span><span class="w-turns">' + (gameState.weatherTurns || 0) + '\u56de\u5408</span></span>');
     }
     if (gameState.field) {
@@ -2736,7 +3046,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
     setTimeout(function(){ gameState.pendingPlayerSkill = null; aiDecideAndResolve(); }, 800);
     return;
   }
-  startTurnTimer(); player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "先手+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "后手-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 替换宠物"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var tip = document.createElement("div"); tip.style.cssText = "grid-column:1/-1;text-align:center;padding:8px;color:var(--hp-red);font-size:12px;font-weight:600;"; tip.textContent = "所有技能PP耗尽！可替换宠物，或等待读秒后空过回合"; container.appendChild(tip); } }
+  startTurnTimer(); player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "先手+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "后手-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 替换宠物"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
 
 function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
