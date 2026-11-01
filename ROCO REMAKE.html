@@ -3057,72 +3057,68 @@ function renderSkillSwap(app) {
   });
 }
 
-function openSkillSwap(pet) {
+// 宠物自有技能：优先 ownedSkillIds，其次内置定义，最后当前技能表
+function getOwnedSkillIds(pet) {
+  if (typeof pet === "string") pet = getAllPets().find(function(p) { return p.id === pet; }) || {};
+  if (Array.isArray(pet.ownedSkillIds) && pet.ownedSkillIds.length) return pet.ownedSkillIds.slice();
+  var def = DEFAULT_PETS.find(function(p) { return p.id === pet.id; });
+  if (def) return def.skillIds.slice();
+  return (pet.skillIds || []).slice();
+}
+
+function openSkillSwap(pet, keepDraft) {
   swapTargetPetId = pet.id;
   var detail = document.querySelector("#swap-detail");
-  var allSkills = getAllSkills();
+  var ownedIds = getOwnedSkillIds(pet);
+  if (!keepDraft || !swapDraft || swapDraft.petId !== pet.id) {
+    // 旧配置若含非本宠技能，打开时直接剔除
+    var sanitized = (pet.skillIds || []).filter(function(id) { return ownedIds.indexOf(id) >= 0; });
+    swapDraft = { petId: pet.id, ids: sanitized };
+  }
+  var equippedIds = swapDraft.ids;
+  var allSkills = ownedIds.map(function(id) { return findSkill(id); }).filter(Boolean);
   detail.style.display = "block";
   var html = '<div class="pet-detail-card"><h3>' + pet.emoji + ' ' + pet.name + ' 技能配置</h3><div class="skill-swap-list">';
-  var equippedIds = [...pet.skillIds];
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
     var eqIdx = isEq ? equippedIds.indexOf(skill.id) : -1;
     html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="up" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25B2</button><button class="swap-move" data-move="down" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + skill.name + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span></div>';
   });
-  html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备: ' + equippedIds.length + ' 个技能 | 点击技能切换装备/卸下</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
+  html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备 ' + equippedIds.length + ' / ' + allSkills.length + ' 个（仅限本宠技能）| 点击切换装备/卸下</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
   detail.innerHTML = html;
   // Toggle skill equip
   allSkills.forEach(function(skill) {
-    var item = document.querySelector('[data-skill-id="' + skill.id + '"]');
+    var item = detail.querySelector('[data-skill-id="' + skill.id + '"]');
     if (item) item.addEventListener("click", function() {
-      var idx = equippedIds.indexOf(skill.id);
-      if (!skill || !skill.id) return;
-      if (idx >= 0) equippedIds.splice(idx, 1);
-      else equippedIds.push(skill.id);
-      openSkillSwap(pet); // refresh
+      var idx = swapDraft.ids.indexOf(skill.id);
+      if (idx >= 0) swapDraft.ids.splice(idx, 1);
+      else swapDraft.ids.push(skill.id);
+      openSkillSwap(pet, true); // 保留草稿并刷新
     });
   });
-  document.querySelectorAll('.swap-move').forEach(function(btn) {
+  detail.querySelectorAll('.swap-move').forEach(function(btn) {
     btn.addEventListener('click', function(ev) {
       ev.stopPropagation();
       var sid = btn.getAttribute('data-skill'), dir = btn.getAttribute('data-move') === 'up' ? -1 : 1;
-      var i = equippedIds.indexOf(sid), j = i + dir;
-      if (i < 0 || j < 0 || j >= equippedIds.length) return;
-      equippedIds.splice(i, 1); equippedIds.splice(j, 0, sid);
-      openSkillSwap(pet); // refresh
+      var i = swapDraft.ids.indexOf(sid), j = i + dir;
+      if (i < 0 || j < 0 || j >= swapDraft.ids.length) return;
+      swapDraft.ids.splice(i, 1); swapDraft.ids.splice(j, 0, sid);
+      openSkillSwap(pet, true);
     });
   });
-  document.querySelectorAll('.swap-move').forEach(function(btn) {
-    btn.addEventListener('click', function(ev) {
-      ev.stopPropagation();
-      var sid = btn.getAttribute('data-skill'), dir = btn.getAttribute('data-move') === 'up' ? -1 : 1;
-      var i = equippedIds.indexOf(sid), j = i + dir;
-      if (i < 0 || j < 0 || j >= equippedIds.length) return;
-      equippedIds.splice(i, 1); equippedIds.splice(j, 0, sid);
-      openSkillSwap(pet); // refresh
-    });
-  });
-  document.querySelector("#swap-save").addEventListener("click", function() {
-    // Save to the pet's skillIds
-    var allPets = getAllPets();
-    var targetPet = allPets.find(function(p) { return p.id === swapTargetPetId; });
-    if (targetPet) {
-      targetPet.skillIds = equippedIds.slice(0, 5); // max 5 skills
-      // If it's a custom pet, save to localStorage
-      if (!targetPet.id&&targetPet.id&&targetPet.id.indexOf("pet_")===0) {
-        var customPets = loadCustomPets();
-        var ci = customPets.findIndex(function(p) { return p.id === swapTargetPetId; });
-        if (ci >= 0) { customPets[ci] = targetPet; saveCustomPets(customPets); }
-      }
-      // If default pet, save as custom override
-      if (targetPet.id.indexOf("pet_")===0) {
-        var customPets = loadCustomPets();
-        var ci2 = customPets.findIndex(function(p) { return p.id === swapTargetPetId; });
-        if (ci2 >= 0) { customPets[ci2].skillIds = equippedIds.slice(0, 5); } else { var cp = JSON.parse(JSON.stringify(targetPet)); cp.skillIds = equippedIds.slice(0, 5); customPets.push(cp); }
-        saveCustomPets(customPets);
-      }
-      addMessage(targetPet.name + " 的技能配置已保存！(" + equippedIds.length + "个技能)");
-    }
+  detail.querySelector("#swap-save").addEventListener("click", function() {
+    var ids = swapDraft.ids.slice(0, 5);
+    if (!ids.length) { alert("至少保留 1 个技能！"); return; }
+    var base = getAllPets().find(function(p) { return p.id === pet.id; }) || pet;
+    var customPets = loadCustomPets();
+    var ci = customPets.findIndex(function(p) { return p.id === pet.id; });
+    var record = ci >= 0 ? customPets[ci] : JSON.parse(JSON.stringify(base));
+    record.skillIds = ids;
+    record.ownedSkillIds = ownedIds.slice();  // 锁定本宠技能池，后续只能在这批里换
+    if (ci >= 0) customPets[ci] = record; else customPets.push(record);
+    saveCustomPets(customPets);
+    swapDraft = null;
+    addMessage(pet.name + " 的技能配置已保存！（" + ids.length + " 个技能）");
     showScreen("skillswap");
   });
 }
@@ -3134,7 +3130,8 @@ function renderPetManagement(app) { app.innerHTML = '<div class="screen active">
 function renderMgmtList() { try { var list = document.querySelector("#mgmt-list"); if (!list) return; list.innerHTML = ""; if (mgmtTab === "pets") { getAllPets().forEach(function(pet) { var isCustom = pet.id ? pet.id.indexOf("pet_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji">' + pet.emoji + '</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + pet.name + (isCustom ? " \u2728" : "") + (pet.bloodline ? ' <span style="color:var(--gold);font-size: 12px">血脉:' + pet.bloodline.name + '</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:'?'}).name + '系 · Lv.' + (pet.level||'?') + ' · HP:' + (pet.baseStats||pet.stats||{hp:100}).hp + '</div></div><div class="mgmt-item-actions"><button class="edit-pet-btn">编辑</button>' + (isCustom ? '<button class="del-pet-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-pet-btn").addEventListener("click", function() { showPetForm(pet); }); var db = div.querySelector(".del-pet-btn"); if (db) db.addEventListener("click", function() { deletePet(pet.id); }); list.appendChild(div); }); } else { getAllSkills().forEach(function(skill) { var isCustom = skill.id ? skill.id.indexOf("sk_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">\u2726</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + skill.name + (isCustom ? " \u2728" : "") + (skill.onUse ? ' <span style="color:var(--accent);font-size: 12px">扩展</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(skill.element) + (ELEMENTS[skill.element]||{name:"?"}).name + '系 · 威力:' + (skill.power || "-") + ' · PP:' + skill.maxPp + '</div></div><div class="mgmt-item-actions"><button class="edit-sk-btn">编辑</button>' + (isCustom ? '<button class="del-sk-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-sk-btn").addEventListener("click", function() { showSkillForm(skill); }); var db2 = div.querySelector(".del-sk-btn"); if (db2) db2.addEventListener("click", function() { deleteSkill(skill.id); }); list.appendChild(div); }); } } catch(e) { console.error("renderMgmtList error:", e); list.innerHTML = "<div style=color:red>加载失败: " + e.message + "</div>"; } }function showPetForm(pet) { var isEdit = !!pet; var skills = getAllSkills(); if (pet && pet.stats && !pet.baseStats) pet.baseStats = pet.stats;
   var selSkills = pet ? [...pet.skillIds] : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + s.name + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk","攻击"],["def","防御"],["spatk","特攻"],["spdef","特防"],["spd","速度"]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { savePetForm(isEdit, pet); }); }
 
-function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name").value.trim(); if (!name) { alert("请输入名称！"); return; } var np = { id: isEdit ? orig.id : ("custom_pet_" + Date.now()), name: name, emoji: document.querySelector("#fp-emoji").value || "\u{1F43E}", element: document.querySelector("#fp-element").value, level: parseInt(document.querySelector("#fp-level").value) || 100, baseStats: { hp: abilityToBase(parseInt(document.querySelector("#fp-hp").value) || calcHpAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, true), atk: abilityToBase(parseInt(document.querySelector("#fp-atk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), def: abilityToBase(parseInt(document.querySelector("#fp-def").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spatk: abilityToBase(parseInt(document.querySelector("#fp-spatk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spdef: abilityToBase(parseInt(document.querySelector("#fp-spdef").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spd: abilityToBase(parseInt(document.querySelector("#fp-spd").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false) }, skillIds: [0,1,2,3].map(function(i) { return document.querySelector("#fp-skill-" + i).value; }).filter(Boolean) }; var cp = loadCustomPets(); if (isEdit) { var idx = cp.findIndex(function(p) { return p.id === orig.id; }); if (idx >= 0) cp[idx] = np; } else cp.push(np); saveCustomPets(cp); closeModal(); showScreen("pets"); }
+function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name").value.trim(); if (!name) { alert("请输入名称！"); return; } var np = { id: isEdit ? orig.id : ("custom_pet_" + Date.now()), name: name, emoji: document.querySelector("#fp-emoji").value || "\u{1F43E}", element: document.querySelector("#fp-element").value, level: parseInt(document.querySelector("#fp-level").value) || 100, baseStats: { hp: abilityToBase(parseInt(document.querySelector("#fp-hp").value) || calcHpAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, true), atk: abilityToBase(parseInt(document.querySelector("#fp-atk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), def: abilityToBase(parseInt(document.querySelector("#fp-def").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spatk: abilityToBase(parseInt(document.querySelector("#fp-spatk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spdef: abilityToBase(parseInt(document.querySelector("#fp-spdef").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spd: abilityToBase(parseInt(document.querySelector("#fp-spd").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false) }, skillIds: [0,1,2,3].map(function(i) { return document.querySelector("#fp-skill-" + i).value; }).filter(Boolean) }; np.ownedSkillIds = Array.from(new Set([].concat(isEdit && orig.ownedSkillIds ? orig.ownedSkillIds : [], np.skillIds)));
+var cp = loadCustomPets(); if (isEdit) { var idx = cp.findIndex(function(p) { return p.id === orig.id; }); if (idx >= 0) cp[idx] = np; } else cp.push(np); saveCustomPets(cp); closeModal(); showScreen("pets"); }
 
 function deletePet(petId) { if (!confirm("确定删除？")) return; saveCustomPets(loadCustomPets().filter(function(p) { return p.id !== petId; })); showScreen("pets"); }
 
@@ -3196,7 +3193,9 @@ function loadFont(lang, fontId) {
   }
   document.documentElement.style.setProperty(varName, "'" + opt.fam + "', " + (lang==='cn'?"'Microsoft YaHei', serif":"sans-serif"));
   var globalVar = lang === 'cn' ? '--font-game-cn' : '--font-game-en';
-  document.documentElement.style.setProperty(globalVar, "'" + opt.fam + "', " + (lang==='cn'?"'Microsoft YaHei', serif":"sans-serif"));
+  // 英文字体串里不能带 generic 家族：generic 会截断回退链，导致中文字体永远轮不到
+  var chain = lang === 'cn' ? ("'" + opt.fam + "', 'Microsoft YaHei', serif") : ("'" + opt.fam + "'");
+  document.documentElement.style.setProperty(globalVar, chain);
   if (lang === 'cn') { currentFontCN = fontId; localStorage.setItem('roco_font_cn', fontId); }
   else { currentFontEN = fontId; localStorage.setItem('roco_font_en', fontId); }
   var t = document.querySelector(titleSel);

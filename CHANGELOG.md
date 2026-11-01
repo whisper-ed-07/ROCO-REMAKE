@@ -2,6 +2,14 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-01 — 技能更换限定本宠 + 字体回退修正
+
+- **局外技能更换只列本宠技能**:新增 `getOwnedSkillIds(pet)`(优先 `ownedSkillIds` → 内置 `DEFAULT_PETS.skillIds` → 当前 `skillIds`),技能池不再取 `getAllSkills()`;旧配置里混入的他人技能在打开时剔除。
+- **顺带修掉两个既有缺陷**:点击装备/卸下无效(每次重渲染都从 `pet.skillIds` 重建,草稿丢失) → 引入 `swapDraft`;上下移按钮被重复绑定两次 → 合并为一处。
+- **保存**:写入 `skillIds` 与 `ownedSkillIds`(锁定技能池),禁止保存 0 技能;新建/编辑自定义宠物时同样记录技能池。
+- **字体未同步**:`--font-game-en` 末尾带有 generic `sans-serif`,generic 会截断回退链,导致继承 body 的元素(主菜单按钮等)永远轮不到 `--font-game-cn`;改为只写字体名。
+- **验证**:`node test/static-checks.js` 0 错 0 警;语法检查通过;headless 复核按钮 `font-family` 已含所选中文体;技能列表 Q=5(仅 `sk_ql_*`)/ J=5(仅 `sk_jydm_*`),点击后"已装备 5→4→5→4"。
+
 ## 2026-10-26 — 引擎缺陷修复 + 前端视觉升级
 
 **背景**:三份副本均无 `.git`,且 2026-10-22 由 Reasonix 复制入库;本会话在工作区副本 `C:\dsh work space\rocoremake` 重建 git 基线(`3c84b49`)。
