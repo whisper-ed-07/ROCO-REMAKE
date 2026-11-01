@@ -957,18 +957,8 @@ setEff("dark", "light", 0.5); setEff("bug", "light", 0.5); setEff("fighting", "l
 function elemIcon(el, cls) { var src = ELEMENTS._icon && ELEMENTS._icon[el]; return src ? '<img class="' + (cls || 'elem-ico-sm') + '" src="' + src + '" alt="">' : ''; }
 function getElementEmoji(el) { var src = ELEMENTS._icon && ELEMENTS._icon[el]; return src ? '<img class="elem-ico" src="' + src + '" alt="' + el + '">' : (ELEMENTS._emoji[el] || '❓'); }
 
-// ===== 技能专属图标（同系技能可区分） =====
-var SKILL_ICONS = {
-  sk_ql_1: "\u{1F56F}\uFE0F", sk_ql_2: "\u{1F480}", sk_ql_3: "\u{1F441}\uFE0F", sk_ql_4: "\u{1F30C}", sk_ql_5: "\u26B0\uFE0F",
-  sk_qy_1: "\u{1FAB6}", sk_qy_2: "\u{1F32A}\uFE0F", sk_qy_3: "\u{1F319}", sk_qy_4: "\u{1F9CA}", sk_qy_5: "\u{1F4A0}",
-  sk_jydm_1: "\u{1F506}", sk_jydm_2: "\u2694\uFE0F", sk_jydm_3: "\u2728", sk_jydm_4: "\u2744\uFE0F", sk_jydm_5: "\u{1F525}",
-  sk_cszn: "\u{1F514}", sk_nlex: "\u{1F6E1}\uFE0F", sk_mszw: "\u{1F451}", sk_fthy: "\u{1F9E5}", sk_cyjy: "\u{1F31F}"
-};
-function getSkillIcon(skill) {
-  if (!skill) return getElementEmoji('');
-  // 专用图标优先；未登记的技能回退到系别图标
-  return SKILL_ICONS[skill.id] || getElementEmoji(skill.element);
-}
+// 技能图标统一使用所属系别图标（不按技能单独区分）
+function getSkillIcon(skill) { return getElementEmoji(skill ? skill.element : ''); }
 
 function getEffectiveness(atkEl, defEl) { return TYPE_CHART[atkEl]?.[defEl] ?? 1; }
 function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0.5 && val > 0) return "效果不佳..."; if (val === 0) return "没有效果！"; return ""; }
