@@ -825,6 +825,36 @@ body:has(.battle-bg) .settings-btn:hover { opacity: 1; transform: scale(1); }
   .pet-info-top { gap: 3px; }
   .status-badge, .bloodline-tag { font-size: 10px; }
 }
+
+/* ---------- 启动页：logo 居中，点击进入主菜单 ---------- */
+.intro-screen {
+  position: fixed; inset: 0; z-index: 50; outline: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  background:
+    radial-gradient(58% 46% at 50% 40%, rgba(232,195,122,0.10), transparent 70%),
+    radial-gradient(72% 56% at 50% 108%, rgba(108,182,255,0.06), transparent 72%),
+    #070910;
+  animation: introIn 0.5s ease;
+  transition: opacity 0.62s cubic-bezier(0.4,0,0.2,1), transform 0.62s cubic-bezier(0.4,0,0.2,1), filter 0.62s ease;
+}
+@keyframes introIn { from { opacity: 0; } to { opacity: 1; } }
+.intro-screen.leaving { opacity: 0; transform: scale(1.05); filter: blur(5px); pointer-events: none; }
+.intro-screen .intro-logo.menu-logo { margin: 0; }
+.intro-screen .intro-logo .roco-mark { width: clamp(184px, 48vw, 248px); height: auto; }
+.intro-rule { width: 96px; height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+.intro-hint {
+  font-size: 11px; letter-spacing: 0.44em; color: var(--text2); text-transform: uppercase;
+  animation: introHint 2.8s ease-in-out infinite;
+}
+@keyframes introHint { 0%,100% { opacity: 0.32; transform: translateY(0); } 50% { opacity: 0.85; transform: translateY(-2px); } }
+body:has(#intro-screen) .settings-btn { opacity: 0; pointer-events: none; transform: scale(0.85); }
+
+/* 菜单按钮入场：交叉淡入的后半段 */
+@keyframes menuBtnIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.menu-buttons .btn { animation: menuBtnIn 0.52s cubic-bezier(0.22,0.9,0.24,1) backwards; }
+.menu-buttons .btn:nth-child(1) { animation-delay: 0.10s; }
+.menu-buttons .btn:nth-child(2) { animation-delay: 0.18s; }
+.menu-buttons .btn:nth-child(3) { animation-delay: 0.26s; }
 </style>
 </head>
 <body>
@@ -2923,7 +2953,44 @@ function renderStatusBadges(pet) {
 }
 
 // ---------- SCREENS ----------
-function showScreen(id) { gameState.screen = id; var app = document.querySelector("#app"); app.innerHTML = ""; switch(id) { case "menu": renderMenu(app); break; case "team": renderTeamSelect(app); break; case "battle": renderBattle(app); break; case "pets": renderPetManagement(app); break; case "opponent": renderOpponentSelect(app); break; case "skillswap": renderSkillSwap(app); break; case "settings": renderSettings(app); break; } }
+function showScreen(id) { gameState.screen = id; var app = document.querySelector("#app"); app.innerHTML = ""; switch(id) { case "intro": renderIntro(app); break; case "menu": renderMenu(app); break; case "team": renderTeamSelect(app); break; case "battle": renderBattle(app); break; case "pets": renderPetManagement(app); break; case "opponent": renderOpponentSelect(app); break; case "skillswap": renderSkillSwap(app); break; case "settings": renderSettings(app); break; } }
+
+// 主菜单与启动页共用同一枚标志，suffix 用于避免 SVG 渐变 id 冲突
+function logoMarkSvg(suffix) {
+  suffix = suffix || "";
+  var A = "rocoGoldA" + suffix, B = "rocoGoldB" + suffix;
+  return '<svg class="roco-mark" viewBox="0 0 170 110" aria-label="ROCO REMAKE"><defs>' +
+    '<linearGradient id="' + A + '" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#ffe9a8"/><stop offset="50%" stop-color="#e2b04a"/><stop offset="100%" stop-color="#b8841a"/></linearGradient>' +
+    '<linearGradient id="' + B + '" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#d9b45c"/><stop offset="50%" stop-color="#a8801f"/><stop offset="100%" stop-color="#6d5210"/></linearGradient>' +
+    '</defs><g class="r-back" transform="translate(52,20) rotate(-13 38 42)"><path d="M22,14 V86 M22,14 H54 A20,20 0 0 1 54,54 H22 M48,54 L76,86" stroke="url(#' + B + ')" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>' +
+    '<g class="r-front" transform="translate(24,0) rotate(11 38 42)"><path d="M22,14 V86 M22,14 H54 A20,20 0 0 1 54,54 H22 M48,54 L76,86" stroke="url(#' + A + ')" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></svg>';
+}
+
+// 启动页：logo 居中，点击后交叉淡出进入主菜单
+function renderIntro(app) {
+  var old = document.getElementById("intro-screen");
+  if (old) old.remove();
+  var el = document.createElement("div");
+  el.id = "intro-screen";
+  el.className = "intro-screen";
+  el.setAttribute("tabindex", "0");
+  el.setAttribute("role", "button");
+  el.setAttribute("aria-label", "点击进入 ROCO REMAKE");
+  el.innerHTML = '<div class="intro-logo menu-logo">' + logoMarkSvg("Intro") + '</div><div class="intro-rule"></div><div class="intro-hint">点击进入</div>';
+  document.body.appendChild(el);
+  var go = function() {
+    if (el.dataset.leaving) return;
+    el.dataset.leaving = "1";
+    el.classList.add("leaving");
+    showScreen("menu");
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 760);
+  };
+  el.addEventListener("click", go);
+  el.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+  });
+  setTimeout(function() { try { el.focus({ preventScroll: true }); } catch (err) {} }, 30);
+}
 
 function renderMenu(app) {
   var np = getAllPets().length, ns = getAllSkills().length;
@@ -2937,7 +3004,7 @@ function renderMenu(app) {
     bg += '<div class="particle" style="width:' + size + 'px;height:' + size + 'px;left:' + left + '%;animation-duration:' + dur + 's;animation-delay:' + delay + 's"></div>';
   }
   bg += '</div>';
-  app.innerHTML = bg + '<div class="screen active" style="position:relative;z-index:1;"><div class="menu-header"><div class="menu-logo"><svg class="roco-mark" viewBox="0 0 170 110" aria-label="ROCO REMAKE"><defs><linearGradient id="rocoGoldA" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#ffe9a8"/><stop offset="50%" stop-color="#e2b04a"/><stop offset="100%" stop-color="#b8841a"/></linearGradient><linearGradient id="rocoGoldB" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#d9b45c"/><stop offset="50%" stop-color="#a8801f"/><stop offset="100%" stop-color="#6d5210"/></linearGradient></defs><g class="r-back" transform="translate(52,20) rotate(-13 38 42)"><path d="M22,14 V86 M22,14 H54 A20,20 0 0 1 54,54 H22 M48,54 L76,86" stroke="url(#rocoGoldB)" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g><g class="r-front" transform="translate(24,0) rotate(11 38 42)"><path d="M22,14 V86 M22,14 H54 A20,20 0 0 1 54,54 H22 M48,54 L76,86" stroke="url(#rocoGoldA)" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></svg></div><div class="menu-title-cn">洛克王国：对战重置版</div><div class="menu-title-en">ROCO REMAKE</div></div><div class="menu-buttons"><button class="btn btn-primary" id="btn-battle">\u{1F525} 开始对战</button><button class="btn btn-secondary" id="btn-swap">\u{1F4CC} 局外技能更换</button><button class="btn btn-secondary" id="btn-pets">\u{1F4CB} 宠物管理</button></div></div>';
+  app.innerHTML = bg + '<div class="screen active" style="position:relative;z-index:1;"><div class="menu-header"><div class="menu-logo">' + logoMarkSvg("") + '</div><div class="menu-title-cn">洛克王国：对战重置版</div><div class="menu-title-en">ROCO REMAKE</div></div><div class="menu-buttons"><button class="btn btn-primary" id="btn-battle">\u{1F525} 开始对战</button><button class="btn btn-secondary" id="btn-swap">\u{1F4CC} 局外技能更换</button><button class="btn btn-secondary" id="btn-pets">\u{1F4CB} 宠物管理</button></div></div>';
   document.querySelector("#btn-battle").addEventListener("click", function() { gameState.selectedTeamIds = []; showScreen("team"); });
   document.querySelector("#btn-swap").addEventListener("click", function() { showScreen("skillswap"); });
   document.querySelector("#btn-pets").addEventListener("click", function() { showScreen("pets"); });
@@ -3274,7 +3341,7 @@ function initFontSwitcher() {
   });
 }
 
-function init() { try { applyTheme(); initFontSwitcher(); showScreen("menu"); } catch(e) { document.body.innerHTML = "<div style='color:lime;background:#111;padding:20px;font-family:monospace;font-size:14px'><h2 style='color:red'>INIT ERROR</h2><pre>"+e.stack+"</pre></div>"; } }
+function init() { try { applyTheme(); initFontSwitcher(); showScreen("intro"); } catch(e) { document.body.innerHTML = "<div style='color:lime;background:#111;padding:20px;font-family:monospace;font-size:14px'><h2 style='color:red'>INIT ERROR</h2><pre>"+e.stack+"</pre></div>"; } }
 init();
 
 
