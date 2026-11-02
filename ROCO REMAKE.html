@@ -855,6 +855,31 @@ body:has(#intro-screen) .settings-btn { opacity: 0; pointer-events: none; transf
 .menu-buttons .btn:nth-child(1) { animation-delay: 0.10s; }
 .menu-buttons .btn:nth-child(2) { animation-delay: 0.18s; }
 .menu-buttons .btn:nth-child(3) { animation-delay: 0.26s; }
+
+/* ---------- 技能详情 ---------- */
+.skill-info {
+  position: absolute; right: 6px; bottom: 6px; width: 17px; height: 17px; z-index: 3;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,0.22);
+  color: var(--text2); font-size: 10px; line-height: 15px; text-align: center;
+  font-family: Georgia, 'Times New Roman', serif; font-style: italic;
+  opacity: 0.55; transition: all 0.15s ease;
+}
+.skill-info:hover { opacity: 1; color: var(--gold); border-color: var(--gold); transform: scale(1.1); }
+.swap-info-btn {
+  width: 17px; height: 17px; flex: 0 0 17px; margin-left: 6px;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,0.22);
+  color: var(--text2); font-size: 10px; line-height: 15px; text-align: center;
+  font-family: Georgia, 'Times New Roman', serif; font-style: italic;
+  opacity: 0.6; cursor: pointer;
+}
+.swap-info-btn:hover { opacity: 1; color: var(--gold); border-color: var(--gold); }
+.skill-detail { max-width: 460px; }
+.skill-detail h3 { margin-bottom: 6px; }
+.skill-detail-meta { text-align: center; font-size: 12px; color: var(--text2); letter-spacing: 0.03em; margin-bottom: 14px; }
+.skill-detail-body {
+  font-size: 13px; line-height: 1.9; color: var(--text); white-space: pre-wrap;
+  max-height: 54vh; overflow-y: auto; padding-right: 6px;
+}
 </style>
 </head>
 <body>
@@ -3104,9 +3129,35 @@ function renderBattleActions() { var container = document.querySelector("#battle
     setTimeout(function(){ gameState.pendingPlayerSkill = null; aiDecideAndResolve(); }, 800);
     return;
   }
-  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "先手+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "后手-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 替换宠物"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
+  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "先手+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "后手-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
+    var infoBtn = btn.querySelector(".skill-info");
+    if (infoBtn) infoBtn.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 替换宠物"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
 
 function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
+
+// ---------- SKILL DETAIL (完整机制展示) ----------
+var CATEGORY_NAMES = { physical: "物理", special: "特殊", status: "变化" };
+function skillMetaText(skill) {
+  var el = ELEMENTS[skill.element] || { name: "?" };
+  var acc = skill.semiSure ? "半必中" : (skill.accuracy >= 100 ? "必中" : (skill.accuracy || 100) + "%");
+  var parts = [el.name + "系", CATEGORY_NAMES[skill.category] || skill.category, skill.maxPp + "PP", "先手" + fmtPriority(skill.priority || 8), acc];
+  if (skill.power) parts.push("威力 " + skill.power);
+  return parts.join(" · ");
+}
+function showSkillDetail(skill) {
+  if (!skill) return;
+  var old = document.getElementById("skill-detail-overlay");
+  if (old) old.remove();
+  var ov = document.createElement("div");
+  ov.className = "modal-overlay show";
+  ov.id = "skill-detail-overlay";
+  var body = String(skill.detail || skill.desc || "暂无说明").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  ov.innerHTML = '<div class="modal skill-detail"><h3>' + skill.name + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body">' + body + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
+  document.body.appendChild(ov);
+  var close = function() { ov.remove(); };
+  ov.querySelector("#skill-detail-close").addEventListener("click", close);
+  ov.addEventListener("click", function(e) { if (e.target === ov) close(); });
+}
 
 // ---------- SKILL SWAP (局外更换技能) ----------
 var swapTargetPetId = null;
@@ -3149,13 +3200,15 @@ function openSkillSwap(pet, keepDraft) {
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
     var eqIdx = isEq ? equippedIds.indexOf(skill.id) : -1;
-    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="up" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25B2</button><button class="swap-move" data-move="down" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + skill.name + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span></div>';
+    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="up" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25B2</button><button class="swap-move" data-move="down" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + skill.name + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><span class="swap-info-btn" role="button" aria-label="查看技能详情">i</span></div>';
   });
   html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备 ' + equippedIds.length + ' / ' + allSkills.length + ' 个（仅限本宠技能）| 点击切换装备/卸下</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
   detail.innerHTML = html;
   // Toggle skill equip
   allSkills.forEach(function(skill) {
     var item = detail.querySelector('[data-skill-id="' + skill.id + '"]');
+    var info = item && item.querySelector(".swap-info-btn");
+    if (info) info.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); });
     if (item) item.addEventListener("click", function() {
       var idx = swapDraft.ids.indexOf(skill.id);
       if (idx >= 0) swapDraft.ids.splice(idx, 1);
