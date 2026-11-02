@@ -16,7 +16,7 @@
 - 主文件 `ROCO REMAKE.html` 单文件约 2900 行,含战斗引擎、UI、游戏内自建宠物/技能编辑器、localStorage 持久化。
 - 已实现:`resolveTurn` 回合结算、天气框架 `processWeather`、血脉 `processBloodlines`、能力等级 stages、换宠/逃跑、简单 AI、战斗 UI。
 - 数据表:`ELEMENTS`、`TYPE_CHART`、`DEFAULT_SKILLS`、`DEFAULT_PETS`。
-- 规格体系:`specs/PET_TEMPLATE.md`、`specs/pet_qingling.md`、`specs/PET-CREATION-FLOW.md`。
+- 规格体系:`specs/PET_TEMPLATE.md`、`specs/清灵.md`、`specs/PET-CREATION-FLOW.md`。
 - 版本管理:19 个 commit,main 分支,约定本地提交不推送。
 - 已知缺口:特性、背包/道具、技能石、装备、培育(等级/努力值/性格/天赋)、PvE 关卡、完整存档;克制表规模尚小。
 
@@ -161,7 +161,7 @@ test/
 
 ### 11.2 方案(分层,按优先级)
 
-1. **原文档入库**:`specs/raw/pet_xxx.md`,玩家原文**一字不改**存档(现有规格只有碎片引用,无法回溯)。三方对照的前提。
+1. **原文档入库**:`specs/raw/<宠物名>.txt`,玩家原文**一字不改**存档(现有规格只有碎片引用,无法回溯)。三方对照的前提。
 2. **规格新增「实现追踪表」**:每条机制 → 代码位置 → 状态 `✅忠实` / `⚠️简化(说明)` / `❌未实现` / `➕超出原文`。**`➕超出原文` 最关键**:agent 自作主张添加的机制是最隐蔽的失真来源。
 3. **三方差异报告(硬规则)**:每次实现/微调后必须输出「原文 ↔ 规格 ↔ 实现」差异报告;**无报告 = 不予验收**。玩家只看报告,不读代码。
 4. **行为测试**:每条机制一个用例(场景 → 期望值),**期望值须玩家确认**(自然语言即可),并入 `test/run-tests.js`;把"实现是否正确"从主观判断变为可重复执行。

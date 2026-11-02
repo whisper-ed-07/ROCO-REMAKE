@@ -6,19 +6,19 @@
 
 | 路径 | 作用 | 修改规则 |
 |---|---|---|
-| `raw/pet_<id>.txt` | 玩家原始文本（逐字） | 只由玩家提供/替换；不要改写措辞 |
-| `pet_<id>.md` | 机制文档：设计 + 当前实现 + 已知偏差 | 每次机制改动后同步更新，并在文末「修订记录」留一行 |
+| `raw/<宠物名>.txt` | 玩家原始文本（逐字） | 只由玩家提供/替换；不要改写措辞 |
+| `<宠物名>.md` | 机制文档：设计 + 当前实现 + 已知偏差 | 每次机制改动后同步更新，并在文末「修订记录」留一行 |
 | `PET_TEMPLATE.md` / `PET-CREATION-FLOW.md` | 新宠物流程与模板 | 流程变更需玩家确认 |
-| `pet_qingling.md` 附录 A | 旧规格与 A1-A11 裁定片段 | 只增不改；完整裁定应迁入 `DECISIONS.md` |
+| `清灵.md` 附录 A | 旧规格与 A1-A11 裁定片段 | 只增不改；完整裁定应迁入 `DECISIONS.md` |
 
 ## 当前覆盖
 
 | 宠物 | 原文 | 机制文档 | 已知偏差 | 原文状态 |
 |---|---|---|---|---|
-| 清灵 pet_qingling | `raw/pet_qingling.txt` | `pet_qingling.md` | 6 | 部分（旧规格摘录） |
-| 极影迪莫 pet_jydm | `raw/pet_jydm.txt` | `pet_jydm.md` | 11 | 待补 |
-| 清羽 pet_qy | `raw/pet_qy.txt` | `pet_qy.md` | 10 | 待补 |
-| 创世神钟 pet_bmhs | `raw/pet_bmhs.txt` | `pet_bmhs.md` | 7 | 待补 |
+| 清灵 pet_qingling | `raw/清灵.txt` | `清灵.md` | 6 | 部分（旧规格摘录） |
+| 极影迪莫 pet_jydm | `raw/极影迪莫.txt` | `极影迪莫.md` | 11 | 待补 |
+| 清羽 pet_qy | `raw/清羽.txt` | `清羽.md` | 10 | 待补 |
+| 创世神钟 pet_bmhs | `raw/创世神钟.txt` | `创世神钟.md` | 7 | 待补 |
 
 ## 修复机制时的操作顺序
 

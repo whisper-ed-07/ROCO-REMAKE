@@ -2,6 +2,12 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-02 — 规格文件改用中文名
+
+- `specs/pet_*.md` → `specs/<宠物名>.md`；`specs/raw/pet_*.txt` → `specs/raw/<宠物名>.txt`。
+- 同步更新 `specs/README.md`、`specs/PET-CREATION-FLOW.md`、`PLANNING.md` 的路径与命名约定；本文件旧条目保留原名（历史事实）。
+- 文件名用中文，正文首行仍写 `id`（如 `pet_qingling`），检索与追溯不受影响。
+
 ## 2026-11-02 — 宠物文档体系（4 份原文 txt + 4 份机制 md）
 
 - 新建 `specs/raw/pet_{qingling,jydm,qy,bmhs}.txt`：玩家原文占位骨架，含基础信息、血脉/技能文案、待补清单；明确标注「当前内容为代码 desc，不是原文」。
