@@ -886,7 +886,7 @@ function calcAllStats(baseStats, level) { return { hp: calcHpAbility(baseStats.h
 function abilityToBase(ability, level, isHp) {
   var hpBonus = isHp ? 100 : 0;
   var base = ((ability - hpBonus - level - 10) * 100 / level - 50) / 2;
-  return Math.max(1, Math.round(base));
+  return Math.max(0, Math.round(base));
 }
 
 const ELEMENTS = {
@@ -1766,7 +1766,7 @@ const DEFAULT_PETS = [
     }
   },
   { id: "pet_qy", name: "清羽", element: "flying", emoji: "🕊️", level: 100,
-    baseStats: { hp: 172, atk: 60, def: 162, spatk: 60, spdef: 159, spd: 77 },
+    baseStats: { hp: 172, atk: 0, def: 162, spatk: 0, spdef: 159, spd: 77 },
     skillIds: ["sk_qy_1", "sk_qy_2", "sk_qy_3", "sk_qy_4", "sk_qy_5"],
     bloodline: {
       name: "清念/残脉",
@@ -1910,7 +1910,7 @@ const DEFAULT_PETS = [
     }
   },
   { id: "pet_bmhs", name: "创世神钟", element: "normal", emoji: "🔔", level: 100,
-    baseStats: { hp: 175, atk: 150, def: 140, spatk: 150, spdef: 140, spd: 135 },
+    baseStats: { hp: 132, atk: 164, def: 172, spatk: 109, spdef: 168, spd: 139 },
     skillIds: ["sk_cszn", "sk_nlex", "sk_mszw", "sk_fthy", "sk_cyjy"],
     bloodline: {
       name: "不灭魂体",
