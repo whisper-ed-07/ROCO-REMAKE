@@ -6,7 +6,7 @@
 
 ## 0. 开工协议(每个新窗口第一步)
 
-1. 读本文件 + `PLANNING.md`(规划与裁定)+ 本次任务相关 `specs/*.md`。
+1. 读本文件 + `PLANNING.md`(规划与裁定)+ 本次任务相关 `pets/<宠物名>.md`。
 2. 确认工作目录 `~/Documents/ROCO-REMAKE`(旧 Codex 会话路径 `Codex/2026-07-23/111` 已废弃)。
 3. 确认基线:`git log --oneline -1` 与 `git status`(应干净);不一致先查明再动手。
 4. 范围外的东西不要动;设计决策 ask 玩家,实现细节自决并标注;低风险项可"默认值 + 标注"。
@@ -20,7 +20,8 @@
 - 文件布局:
   - `ROCO REMAKE.html` — 唯一运行文件(直接编辑这里)
   - `AGENTS.md` — 本手册;`PLANNING.md` — 全局规划(变更须玩家确认)
-  - `specs/` — `PET_TEMPLATE.md` 规格模板、`PET-CREATION-FLOW.md` 添加流程、`pet_*.md` 宠物规格
+  - `pets/` — 每宠一份 `<宠物名>.md`(机制文档)与 `<宠物名>.txt`(原文);`_source/` 存原文 HTML
+  - `specs/` — `PET_TEMPLATE.md` 模板、`PET-CREATION-FLOW.md` 流程、`README.md` 说明
   - `work/` — 历史草稿,**不维护,不要编辑**
   - `deploy.bat` — 部署脚本
 - 版本控制:git,main 分支;**本地提交不推送**;一个 bug/主题一个 commit;specs 变更单独 commit;提交信息中文、动词开头(修复/实现/新增/PLANNING:)。
@@ -130,12 +131,12 @@
 | `pet_qy` | 清羽 | flying | 见代码 bloodline.name |
 | `pet_bmhs` | 见代码 name | 见代码 | 见代码 bloodline.name |
 
-技能 id 前缀:`sk_ql_*`(清灵)、`sk_jydm_*`(极影迪莫)、`sk_qy_*`(清羽)、`sk_cszn / sk_cyjy / sk_fthy / sk_mszw / sk_nlex`(其余)。新增宠物以 `specs/pet_*.md` 规格为准。
+技能 id 前缀:`sk_ql_*`(清灵)、`sk_jydm_*`(极影迪莫)、`sk_qy_*`(清羽)、`sk_cszn / sk_cyjy / sk_fthy / sk_mszw / sk_nlex`(其余)。新增宠物以 `pets/<宠物名>.md` 为准。
 
 ## 10. 验证清单(DoD,全过才算完成)
 
 1. **语法检查**(只读管线):`sed -n '/^<script>$/,/^<\/script>$/p' "ROCO REMAKE.html" | sed '1d;$d' | node --check -`
-2. **规格核对**:与 `specs/pet_*.md` 逐条一致(id、数值、效果)。
+2. **规格核对**:与 `pets/<宠物名>.md` 逐条一致(id、数值、效果)。
 3. **冒烟测试**:node + vm + DOM stub 加载引擎,确认可脱离浏览器执行、无运行时错。
 4. **矩阵回归**:4 只内置宠物两两对战 16 场,无崩溃、无 NaN、无死循环。
 5. **git 提交**:本地提交,不推送;报告要点 + 遗留问题。

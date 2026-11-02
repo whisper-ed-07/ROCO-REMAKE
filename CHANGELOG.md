@@ -2,6 +2,13 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-02 — 宠物文档集中到 pets/
+
+- 新建 `pets/`：每宠一份 `<宠物名>.md`（机制文档）与 `<宠物名>.txt`（原文），同级放置；原文 HTML 存档移到 `pets/_source/`。
+- `specs/` 只保留 `PET_TEMPLATE.md`、`PET-CREATION-FLOW.md`、`README.md`。
+- 同步更新 `specs/README.md`、`PET-CREATION-FLOW.md`、`PLANNING.md`、`AGENTS.md` 的路径引用；四份 md/txt 的互相引用已校验存在。
+- 历史 CHANGELOG 条目保留旧路径，不追溯修改。
+
 ## 2026-11-02 — 游戏内技能详情
 
 - 战斗技能按钮右下角新增「i」：点击弹出完整技能机制（系别/分类/PP/先手/命中/威力 + 正文）。
