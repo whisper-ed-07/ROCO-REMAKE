@@ -1,0 +1,112 @@
+# 宠物机制文档：极影迪莫（pet_jydm）
+
+> 生成：2026-11-02 ｜ 数据源：`ROCO REMAKE.html`（当前工作区版本）
+> 原始文本：`specs/raw/pet_jydm.txt`（待补；血脉「明念」无原文，§2 全部为代码反推）
+> ⚠️ 本文档记录的是**当前实现**，实现本身存在已知错误；修复后同步更新本文与 §5。
+> 实现侧：11 处已知偏差，见 §5
+
+## 1. 基础信息
+
+| 字段 | 值 |
+|---|---|
+| id | pet_jydm |
+| 名称 | 极影迪莫 |
+| 系别 | light（光） |
+| 等级 | 100 |
+| 种族值 | hp 144 / atk 151 / def 130 / spatk 145 / spdef 131 / spd 137 |
+| 血脉 | 明念（标记名：光明之印） |
+| 技能 | sk_jydm_1 ~ sk_jydm_5 |
+
+## 2. 血脉：明念
+
+### 2.1 设计
+
+原文缺失。从代码与 desc 可还原的设计意图：四个技能各用 1 次（极尽降华 PP 归零后为其余 3 个）→ 触发「光明之印」，持续 4 回合；印记期间提升精力上限、回复上次威力技能 PP、每次伤害追加固伤、获得异常与负面强化免疫；重复触发叠层并刷新。
+
+### 2.2 实现（代码级）
+
+- 初始化：`bloodlineData = {marks:0, marked:false, markTurns:0, used:{}, jianghuaTurns:0, jianghuaFirst:false}`。
+- 「用过」判定：`s.pp < s.maxPp` 即记入 `bd.used`（**不是**使用事件）。
+- 标记期间（`bd.marked`）：`markTurns−−`；`maxHpBonus = 15×marks + 50`；免疫 sleep/freeze/paralyze/fear/bind；`statImmunity = true`；回复 `lastPowerSkillId` 1PP（`blockPPRecovery` 时不回）；`mingNianDmg = 40 + 15×双方强化数`（在 `doDamage` 里作为追加固伤结算）。
+- 触发：`required` 全用过 **或** 降华回合内用过任意技能 → `marked = true; markTurns = 4; marks = 1`，`healMod/dmgMod +0.15`、`spdMod ×1.05`；已标记时再次触发则 `marks++`、`markTurns += 1`、增益再叠一层。
+- 标记结束：`markTurns ≤ 0` → 清 `maxHpBonus/mingNianDmg`，按 `markAdds` 回退 heal/dmg（加法）与 spd（除法）。
+- 降华期间（`jianghuaTurns > 0`）：每回合 `maxHpBonus += 100`；首回合 `invincible = true`；清除天气与环境。
+
+### 2.3 偏差
+
+- **M1**：用 PP 是否缺失推断「用过」；PP 被回复后会重复计数，且无法区分「本场」与「本回合」。
+- **M2**：`maxHpBonus += 100` 每回合叠加且无回收；标记结束时只 `= 0` 一次，可能抹掉其他来源的加成。
+- **M3**：增益回退混用加法与除法，多次叠层后可能漂移。
+- **M4**：`statImmunity` 注释为「简化：全强化」，实际连正向强化也免疫削弱？——当前引擎只在 `stages < 0` 时检查，行为等价于「免疫负面」，但字段命名易误用。
+
+## 3. 技能总表
+
+| # | id | 名称 | 系别 | 威力 | PP | 先手 | 命中 | 分类 | 标记 |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | sk_jydm_1 | 极尽降华 | light | 0 | 1 | +7 | 100 | status | — |
+| 2 | sk_jydm_2 | 化念作刃 | fighting | 90 | 9 | +3 | 100 | physical | — |
+| 3 | sk_jydm_3 | 极影光幕 | light | 0 | 6 | +5 | 90 | status | semiSure |
+| 4 | sk_jydm_4 | 瞬华若霜 | ice | 100 | 8 | −1 | 100 | physical | — |
+| 5 | sk_jydm_5 | 炽光若焰 | fire | 120 | 8 | +1 | 90 | special | semiSure |
+
+## 4. 逐技能
+
+### 4.1 极尽降华（sk_jydm_1）
+
+- **设计**：6 回合全场技能视为光系（标记目标翻倍）、全场 +100% 回复与输出、自身免疫异常与负面强化；觉醒首用回满 + 限伤 300；PP 被删自动触发；仅特殊效果回 PP。
+- **实现**：写 `gameState.teamSkillElement = 'light'`（6 回合）；自身 `healMod/dmgMod += 1.0`（6 回合后回退）；8 种异常免疫 + `statImmunity`；`bd.marked && !bd.jianghuaUsed` 时回满 HP、全体 PP 回满、`damageCap = 300`（99 回合 tick 持续重置）；结束时把本技能 PP 置 0。
+- **偏差**：**M5** `teamSkillElement` 只写不读，全文件无消费点 →「全场技能视为光系」实际未生效；**M6**「PP 被删自动触发」未实现。
+
+### 4.2 化念作刃（sk_jydm_2）
+
+- **设计**：90 武系物理；4 回合：回被删 PP 技能 1PP + 30% 最大精力 + 免疫异常/驱逐；首回合先手闪避后手非必中（失败倒置强化 + 删 2PP）／后手删对方先手技 3PP + PP 消耗加速；印记分支：追加固伤 / 删 PP / 999 斩杀。
+- **实现**：`pendingFirstMove` 判先后；先手 `dodgeNextNonSure = true`（1 回合）；后手 `deletePP(t, -1, 3)` + `t.skillPPCostMult = 2`（4 回合后置 1）；`bd.marked` 时追加 `0.4×lastDealtDamage×强化数和` 固伤、`immuneEject`、`marks < 4` 删 1PP（暴击再 1），`marks ≥ 4` 追加 999 并清标记。
+- **偏差**：**M7** 持续效果闭包绑定施放时的 `t`，对方换宠后仍打后台宠物；**M8** `skillPPCostMult = 2` 为覆盖式赋值，与「+1」类效果互相覆盖。
+
+### 4.3 极影光幕（sk_jydm_3）
+
+- **设计**：回 60%（印记 ≥2 时 +50%）；10 回合闪避一次致命伤害；净化 + 5 回合免疫 + 速度 +5~10%；4 回合叠盾（上限 100% 精力）；对方连续同技能 ≥3 回合则 PP 消耗 +2。
+- **实现**：`doHeal(0.6×maxHp×healMult)`；`dodgeLethalLeft = 1`；净化 + 8 种免疫 + `statImmunity`；`spdMod ×(1+boost/100)`；4 回合护盾 `70 + 0.2×对方上回合输出 + 0.1×速度`，封顶 `maxHp`；每回合扫描 `t.oppConsecutive`，≥3 的技能 `extraPPCost = 2`。
+- **偏差**：**M9** `extraPPCost` 写入后无到期，永久生效。
+
+### 4.4 瞬华若霜（sk_jydm_4）
+
+- **设计**：威力 = 100 + 20m + 0.05×速度；冰冻成功删 1PP + 2 回合治疗 −50%，m>3 追加 9999 并回 2PP；失败回 1PP + 倒置对方正面强化；先手非梦境 → 2 回合先手 +4 与 2 段固伤；后手 → 梦境 3 回合。
+- **实现**：`ctx.doDamage(power)` → `applyStatus(t,'freeze')`；成功分支与失败分支按 `t.status === 'freeze'` 判定；先手 `priorityOverride = 12`；后手 `setField('dream', 3)` + `priorityOverride = 8 + |7−8| = 9`；m≥4 且冰冻成功时全体 +4PP。
+- **备注**：`priorityOverride` 由 `resolveTurn` 读取，属于正确用法。
+
+### 4.5 炽光若焰（sk_jydm_5）
+
+- **设计**：威力 = 120 + 0.1×魔攻；烧伤成功追加 2~4 段 70~100 固伤；失败清空双方该技能 PP（12 回合免疫回复）；4 回合锁定瞬华环境。
+- **实现**：`doDamage` → `applyStatus(t,'burn')`；成功 `2 + rand(0..2)` 段、每段 `70 + rand(0..30)`；失败把自身与对方同 id 技能 PP 置 0；`gameState.field = 'shunhua'; fieldTurns = 4`（直接赋值）。
+- **偏差**：**M10** 直接改 `gameState.field` 绕过 `setField` 的环境互斥；**M11**「12 回合免疫回复」未实现。
+
+## 5. 已知偏差汇总
+
+| 编号 | 位置 | 现象 | 状态 |
+|---|---|---|---|
+| M1 | 明念 onTurnStart | 用 PP 缺失推断技能使用 | 待修 |
+| M2 | 明念 / 降华 | maxHpBonus 叠加无回收 | 待裁定 |
+| M3 | 明念结束 | 增益回退加/乘混用 | 低危 |
+| M4 | statImmunity | 字段语义易误用 | 待整理 |
+| M5 | 极尽降华 | 「全场视为光系」未生效 | **高优先级** |
+| M6 | 极尽降华 | 「PP 被删自动触发」未实现 | 待裁定 |
+| M7 | 化念作刃 / 光幕 | 闭包绑定旧 target | 系统性问题 |
+| M8 | 化念作刃 | PP 消耗倍率覆盖式赋值 | 待修 |
+| M9 | 极影光幕 | extraPPCost 永久残留 | 待修 |
+| M10 | 炽光若焰 | 绕过环境互斥直接写 field | 待修 |
+| M11 | 炽光若焰 | 12 回合免疫回复未实现 | 待裁定 |
+
+## 6. 验证清单（建议断言）
+
+- [ ] 四技能各用一次 → 触发标记，`marks = 1`、`markTurns = 4`。
+- [ ] 标记期间每次受到/造成伤害都追加 `40 + 15×强化数` 固伤（当前只在攻击方结算）。
+- [ ] 极尽降华后，光系外技能的实际克制关系是否变化（当前不变 = M5）。
+- [ ] 化念作刃先手：对方后手非必中技能被闪避，且目标物攻 +2。
+- [ ] 极影光幕：连续 3 回合同技能后，该技能 PP 消耗是否永久 +2（当前是）。
+
+## 修订记录
+
+| 日期 | 变更 | 说明 |
+|---|---|---|
+| 2026-11-02 | 建立文档 | 依据当前实现反推；偏差见 §5 |
