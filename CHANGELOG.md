@@ -4,10 +4,6 @@
 
 ## 2026-11-08 — 战斗日志独立滚动条
 
-> 修正：桌面端日志此前没有高度约束（`flex:1` + `max-height:none`），内容把容器撑到 1238px，导致"滚不动"。现给 `.battle-bottom` 固定高度 `clamp(240px,34vh,360px)`，`.battle-log` 设 `min-height:0; overflow:hidden`，日志真正独立滚动。实测桌面 scrollHeight 3238 / clientHeight 306，可滚。
-
-## 2026-11-08 — 战斗日志独立滚动条
-
 - 日志面板固定高度（移动端 20vh、桌面跟随左栏），`overflow-y: scroll` 常驻滚动条，`overscroll-behavior: contain` 防止滚动带动整页。
 - 滚动条独立样式：9px 宽、金色滑块、深色轨道，与全局 4px 细滚动条区分。
 - `scrollbar-gutter: stable` 避免滚动条出现时文字跳动。
