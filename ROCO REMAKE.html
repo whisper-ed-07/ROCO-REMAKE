@@ -914,6 +914,40 @@ body:has(#intro-screen) .settings-btn { opacity: 0; pointer-events: none; transf
   font-size: 13px; line-height: 1.9; color: var(--text); white-space: pre-wrap;
   max-height: 54vh; overflow-y: auto; padding-right: 6px;
 }
+
+/* ---------- 战斗日志：类型 + 敌我 ---------- */
+.battle-log { position: relative; }
+.battle-messages .msg {
+  display: flex; gap: 6px; align-items: flex-start;
+  padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.msg-side {
+  flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px;
+  border-radius: 5px; font-size: 10px; font-weight: 800; line-height: 18px; text-align: center;
+}
+.msg-side.player { background: rgba(232,195,122,0.92); color: #241a07; }
+.msg-side.ai { background: rgba(255,122,102,0.92); color: #2b0d08; }
+.msg-side:empty { background: transparent; }
+.msg-text { flex: 1; min-width: 0; word-break: break-word; }
+.msg.side-player .msg-text { border-left: 2px solid rgba(232,195,122,0.34); padding-left: 6px; }
+.msg.side-ai .msg-text { border-left: 2px solid rgba(255,122,102,0.34); padding-left: 6px; }
+.msg.action .msg-text { color: var(--text); }
+.msg.damage .msg-text { color: #ff9d8a; }
+.msg.heal .msg-text { color: #7fe0b0; }
+.msg.status .msg-text { color: #d9b8ff; }
+.msg.system .msg-text { color: var(--text2); }
+.msg.turn { justify-content: center; margin: 8px 0 5px; border-bottom: none; }
+.msg.turn .msg-side { display: none; }
+.msg.turn .msg-text { width: 100%; text-align: center; color: #d9bf8c; font-size: 11px; letter-spacing: 0.18em; }
+.battle-messages .msg:last-child { background: rgba(232,195,122,0.06); border-radius: 6px; padding: 3px 4px; }
+.log-jump {
+  position: absolute; right: 16px; bottom: 12px; z-index: 4;
+  padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(12,15,23,0.92);
+  color: var(--gold); font-size: 11px; letter-spacing: 0.04em;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+}
+.log-jump:hover { background: rgba(232,195,122,0.15); }
 </style>
 </head>
 <body>
@@ -2375,7 +2409,7 @@ function createBattleContext() {
     setField: function(type, turns) { gameState.field = type; gameState.fieldTurns = turns; addMessage("环境变更为" + ({"dream":"梦境","shunhua":"瞬华"}[type]||type) + "！持续"+turns+"回合"); },
     addCritBonus: function(target, amount, turns) { target.critRateBonus = (target.critRateBonus || 0) + amount; var self = this; setTimeout(function() { target.critRateBonus = Math.max(0, (target.critRateBonus || 0) - amount); }, turns * 1000 || 2000); },
     invertHealing: function(target, pct, turns) { target.healInvertPct = pct; target.healInvertTurns = turns; addMessage(target.name + "的治疗被倒置"+Math.round(pct*100)+"%持续"+turns+"回合！"); },
-    msg: function(text) { gameState.messages.push(text); },
+    msg: function(text) { addMessage(text); },
     get playerActive() { return gameState.playerActive; },
     get aiActive() { return gameState.aiActive; },
     get playerParty() { return gameState.playerParty; },
@@ -2587,7 +2621,29 @@ function applyEffect(pet, effect) {
 
 // ---------- HELPERS ----------
 function $(sel) { return document.querySelector(sel); }
-function addMessage(msg) { gameState.messages.push(msg); }
+// ---------- 战斗日志消息 ----------
+// 统一消息模型：{ text, type: action|damage|heal|status|system|turn, side: player|ai|system, turn }
+function classifyMessage(text) {
+  var s = String(text);
+  if (/^━+/.test(s)) return "turn";
+  if (/造成|伤害|固伤|反伤|攻击了自己/.test(s)) return "damage";
+  if (/回复|治疗|护盾|吸收了/.test(s)) return "heal";
+  if (/免疫|陷入|混乱|烧伤|冰冻|麻痹|中毒|睡眠|恐惧|束缚|寄生|强化|提升|降低|级/.test(s)) return "status";
+  if (/天气|环境|回合|换宠|换上|先手|后手|倒下了|战斗开始|逃跑|解除/.test(s)) return "system";
+  return "action";
+}
+function addMessage(msg, type, side) {
+  var text = String(msg);
+  gameState.messages.push({
+    text: text,
+    type: type || classifyMessage(text),
+    side: side || gameState.currentActingSide || "system",
+    turn: gameState.turnCount || 0
+  });
+}
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 function spawnFloatText(pet, text, type) {
   var spriteId = (gameState.playerActive === pet) ? "#player-sprite" : "#ai-sprite";
   var sprite = document.querySelector(spriteId);
@@ -2742,7 +2798,7 @@ function resolveTurn() {
   
   gameState.turnCount++;processWeather();processField();
   [player, ai].forEach(function(pet){ if (pet) { pet.lastDealtDamage = pet.currentDealt || 0; pet.currentDealt = 0; pet.invincible = false; } });
-  var ti=document.querySelector("#turn-indicator");if(ti){ti.style.display="block";ti.textContent="╔══ 第 "+gameState.turnCount+" 回合 ══╗";}
+  var ti=document.querySelector("#turn-indicator"); if (ti) ti.style.display = "none";
   createBattleContext().savePPState();
   processBloodlines();
   applyEndOfTurnEffects(player); applyEndOfTurnEffects(ai);
@@ -2769,12 +2825,12 @@ function resolveTurn() {
   
   if (playerFirst) {
     addMessage(player.name + " 先手！（先手" + fmtPriority(pPrio) + " vs " + fmtPriority(aPrio) + (dreamActive?"，梦境反转！":"") + "）");
-    if (pSkill) executeSkillTurn(player, ai, pSkill, "player");
-    if (!ai.isFainted() && !player.isFainted() && aSkill) executeSkillTurn(ai, player, aSkill, "ai");
+    if (pSkill) runSkillTurn(player, ai, pSkill, "player");
+    if (!ai.isFainted() && !player.isFainted() && aSkill) runSkillTurn(ai, player, aSkill, "ai");
   } else {
     addMessage(ai.name + " 先手！（先手" + fmtPriority(aPrio) + " vs " + fmtPriority(pPrio) + (dreamActive?"，梦境反转！":"") + "）");
-    if (aSkill) executeSkillTurn(ai, player, aSkill, "ai");
-    if (!player.isFainted() && !ai.isFainted() && pSkill) executeSkillTurn(player, ai, pSkill, "player");
+    if (aSkill) runSkillTurn(ai, player, aSkill, "ai");
+    if (!player.isFainted() && !ai.isFainted() && pSkill) runSkillTurn(player, ai, pSkill, "player");
   }
   
   // 后处理
@@ -2794,6 +2850,13 @@ function fmtPriority(p) {
   if (p > 8) return "+" + (p - 8);
   if (p < 8) return "-" + (8 - p);
   return "±0";
+}
+
+// 包一层：确保技能内产生的日志带上“我方/敌方”，异常路径也会复位
+function runSkillTurn(user, target, skill, who) {
+  gameState.currentActingSide = who;
+  try { executeSkillTurn(user, target, skill, who); }
+  finally { gameState.currentActingSide = null; }
 }
 
 function executeSkillTurn(user, target, skill, who) {
@@ -3004,7 +3067,23 @@ function updateBattleUI() {
   var msgs = document.querySelector("#battle-messages");
   if (p && pHpBar) { var pct = Math.max(0, (p.hp / p.maxHp) * 100); if (!pHpBar.parentNode.querySelector('.hp-bar-ghost')) { var gh = document.createElement('div'); gh.className = 'hp-bar-ghost'; gh.style.width = pct + '%'; pHpBar.parentNode.insertBefore(gh, pHpBar); } else { pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width = Math.max(pct, (pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width||'100%').replace('%','')) + '%'; } pHpBar.style.width = pct + "%"; pHpBar.className = "hp-bar-inner" + (pct < 25 ? " critical" : pct < 50 ? " low" : ""); pHpText.textContent = p.hp + "/" + p.maxHp; if (pShield) pShield.innerHTML = p.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (p.shield / p.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + p.shield + "</div>" : ""; if (pMarks) pMarks.textContent = Object.keys(p.marks).length > 0 ? Object.entries(p.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; pStatus.innerHTML = renderStatusBadges(p); }
   if (a && aHpBar) { var pct2 = Math.max(0, (a.hp / a.maxHp) * 100); aHpBar.style.width = pct2 + "%"; aHpBar.className = "hp-bar-inner" + (pct2 < 25 ? " critical" : pct2 < 50 ? " low" : ""); aHpText.textContent = a.hp + "/" + a.maxHp; if (aShield) aShield.innerHTML = a.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (a.shield / a.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + a.shield + "</div>" : ""; if (aMarks) aMarks.textContent = Object.keys(a.marks).length > 0 ? Object.entries(a.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; aStatus.innerHTML = renderStatusBadges(a); }
-  if (msgs) { var msgArr = gameState.messages.slice(-50); msgs.innerHTML = msgArr.map(function(m) { var cls = /^━/.test(m) ? "msg msg-turn" : "msg"; return "<div class=\"" + cls + "\">" + m + "</div>"; }).join(""); msgs.scrollTop = msgs.scrollHeight; }
+  if (msgs) {
+    var jump = document.querySelector("#log-jump");
+    var atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
+    var prevTop = msgs.scrollTop;
+    var arr = gameState.messages.slice(-200);
+    var out = "";
+    arr.forEach(function(m) {
+      if (typeof m === "string") m = { text: m, type: classifyMessage(m), side: "system" };
+      var type = m.type || "system", side = m.side || "system";
+      var badge = side === "player" ? '<span class="msg-side player">我</span>' : side === "ai" ? '<span class="msg-side ai">敌</span>' : '<span class="msg-side"></span>';
+      out += '<div class="msg ' + type + ' side-' + side + '">' + badge + '<span class="msg-text">' + escapeHtml(m.text) + '</span></div>';
+    });
+    if (!out) out = '<div class="msg system"><span class="msg-side"></span><span class="msg-text">等待战斗开始…</span></div>';
+    msgs.innerHTML = out;
+    if (atBottom) msgs.scrollTop = msgs.scrollHeight; else msgs.scrollTop = prevTop;
+    if (jump) jump.hidden = atBottom;
+  }
   // 天气/环境显示
   var wEl = document.querySelector("#battle-weather");
   if (wEl) {
@@ -3140,6 +3219,7 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; gameState.pendingFirstMove = null;
   gameState.skipPlayerAction = false; gameState.isPlayerTurn = true;
   stopTurnTimer();
+  addMessage("━━━ 战斗开始 ━━━", "turn");
   showScreen("battle"); }
 
 function renderBattle(app) {
@@ -3184,7 +3264,7 @@ function renderBattle(app) {
     '</div>' +
     // 底部战斗台：日志左 / 技能面板右
     '<div class="battle-bottom">' +
-      '<div class="battle-log"><div class="battle-messages" id="battle-messages"><div class="msg">对战开始！' + a.name + ' 出现了！</div><div class="msg">上吧，' + p.name + '！</div></div></div>' +
+      '<div class="battle-log"><div class="battle-messages" id="battle-messages"></div><button class="log-jump" id="log-jump" hidden>回到最新</button></div>' +
       '<div class="battle-panel"><div class="battle-actions" id="battle-actions"></div></div>' +
     '</div>' +
     // 替换面板
@@ -3192,6 +3272,8 @@ function renderBattle(app) {
     '</div>' +
     '<div class="result-overlay" id="result-overlay"><div class="result-emoji" id="result-emoji"></div><div class="result-text" id="result-text"></div><div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;"><button class="btn btn-secondary" id="result-close">\u{1F4CB} 继续查看</button><button class="btn btn-primary" id="result-back">\u{1F519} 返回主菜单</button></div></div>';
   app.innerHTML = html;
+  var jumpBtn = document.querySelector("#log-jump");
+  if (jumpBtn) jumpBtn.addEventListener("click", function() { var mm = document.querySelector("#battle-messages"); if (mm) mm.scrollTop = mm.scrollHeight; jumpBtn.hidden = true; });
   renderBattleActions();
   updateBattleUI();
   document.querySelector("#result-back").addEventListener("click", function() { showScreen("menu"); });
