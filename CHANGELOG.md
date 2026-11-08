@@ -2,6 +2,15 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-08 — 战斗日志 UI（阶段 2/3：标签、过滤、折叠、复制）
+
+- 文本装饰：`命中要害` → 暴击标签、`效果拔群` → 克制、`效果不佳` → 抵抗、`没有效果` → 免疫；伤害/治疗数字加粗并用等宽数字。
+- 工具条：全部 / 行动 / 系统 三种过滤 + 复制日志（优先 Clipboard API，失败回退 execCommand）。
+- 回合折叠：点击回合分隔条折叠该回合消息，caret 切换 ▾/▸；回合条自身始终可见。
+- 过滤与折叠状态存于 `gameState.logFilter / logCollapsed`，重绘后保持。
+- 修复：折叠时回合条被误加 `.collapsed` 导致整条消失，改为 `.turn-collapsed`。
+- 验证：截图确认标签渲染、过滤（visibleAfterFilter=15）、折叠（collapsed=13 且回合条可见）；静态检查 0/0，矩阵 0 卡死 0 异常。
+
 ## 2026-11-08 — 战斗日志 UI（阶段 1：结构 + 敌我区分）
 
 - 消息从字符串升级为对象 `{ text, type, side, turn }`；`addMessage` 保留旧调用方式，自动分类为 action / damage / heal / status / system / turn。

@@ -948,6 +948,27 @@ body:has(#intro-screen) .settings-btn { opacity: 0; pointer-events: none; transf
   box-shadow: 0 6px 18px rgba(0,0,0,0.4);
 }
 .log-jump:hover { background: rgba(232,195,122,0.15); }
+
+/* ---------- 日志工具条 / 标签 / 折叠 ---------- */
+.log-tools { display: flex; gap: 4px; justify-content: flex-end; padding: 0 2px 6px; }
+.log-tab, .log-copy {
+  font-size: 10px; padding: 2px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(8,10,16,0.55); color: var(--text2);
+}
+.log-tab.active { color: #241a07; background: rgba(232,195,122,0.9); border-color: transparent; font-weight: 700; }
+.log-tab:hover, .log-copy:hover { border-color: var(--line); color: var(--gold); }
+.msg.turn { cursor: pointer; }
+.msg.turn .turn-caret { color: var(--text2); font-size: 10px; margin-left: 6px; }
+.msg.collapsed { display: none; }
+.msg-text b.n { color: #fff; font-weight: 800; }
+.tag {
+  font-style: normal; font-size: 9.5px; line-height: 1.5; padding: 0 5px; margin-left: 4px;
+  border-radius: 999px; border: 1px solid; white-space: nowrap;
+}
+.tag.crit { color: #ffd479; border-color: rgba(255,212,121,0.55); background: rgba(255,212,121,0.12); }
+.tag.super { color: #ff9d8a; border-color: rgba(255,157,138,0.55); background: rgba(255,157,138,0.12); }
+.tag.weak { color: #9fb4d0; border-color: rgba(159,180,208,0.45); background: rgba(159,180,208,0.10); }
+.tag.immune { color: #9aa3b8; border-color: rgba(154,163,184,0.45); background: rgba(154,163,184,0.10); }
 </style>
 </head>
 <body>
@@ -2257,7 +2278,7 @@ var gameState = {
   messages: [], isPlayerTurn: true,
   battleOver: false, waitingForSwitch: false, pendingPlayerSkill: null, pendingAISkill: null, turnTimer: null, turnTimeLeft: 0,
   selectedTeamIds: [], opponentTeamIds: [],
-  turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null, skipPlayerAction: false,
+  turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null, skipPlayerAction: false, logFilter: "all", logCollapsed: {},
   snapshots: [],       // 状态快照历史
   ppHistory: []        // 全局PP历史 [{turn, pets: [{id,pp}]}]
 };
@@ -2621,6 +2642,63 @@ function applyEffect(pet, effect) {
 
 // ---------- HELPERS ----------
 function $(sel) { return document.querySelector(sel); }
+// 文本高亮：把关键词变成标签，数字加粗
+function decorateMessage(text) {
+  return escapeHtml(text)
+    .replace(/命中要害/g, '<i class="tag crit">暴击</i>')
+    .replace(/效果拔群/g, '<i class="tag super">克制</i>')
+    .replace(/效果不佳/g, '<i class="tag weak">抵抗</i>')
+    .replace(/没有效果/g, '<i class="tag immune">免疫</i>')
+    .replace(/(\d+)\s*点伤害/g, '<b class="n">$1</b> 点伤害');
+}
+
+function renderBattleLog() {
+  var msgs = document.querySelector("#battle-messages");
+  if (!msgs) return;
+  var jump = document.querySelector("#log-jump");
+  var atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
+  var prevTop = msgs.scrollTop;
+  var arr = gameState.messages.slice(-200);
+  var filter = gameState.logFilter || "all";
+  var collapsed = null;
+  var out = "";
+  arr.forEach(function(raw) {
+    var m = typeof raw === "string" ? { text: raw, type: classifyMessage(raw), side: "system", turn: 0 } : raw;
+    var type = m.type || "system", side = m.side || "system";
+    if (filter === "action" && type === "system") return;
+    if (filter === "system" && type !== "system" && type !== "turn") return;
+    if (type === "turn") {
+      collapsed = (gameState.logCollapsed && gameState.logCollapsed[m.turn]) ? m.turn : null;
+      out += '<div class="msg turn' + (collapsed !== null ? " turn-collapsed" : "") + '" data-turn="' + m.turn + '"><span class="msg-text">' + escapeHtml(m.text) + '</span><span class="turn-caret">' + (collapsed !== null ? "▸" : "▾") + '</span></div>';
+      return;
+    }
+    var hidden = collapsed !== null && m.turn === collapsed;
+    var badge = side === "player" ? '<span class="msg-side player">我</span>' : side === "ai" ? '<span class="msg-side ai">敌</span>' : '<span class="msg-side"></span>';
+    out += '<div class="msg ' + type + ' side-' + side + (hidden ? " collapsed" : "") + '">' + badge + '<span class="msg-text">' + decorateMessage(m.text) + '</span></div>';
+  });
+  if (!out) out = '<div class="msg system"><span class="msg-side"></span><span class="msg-text">暂无记录</span></div>';
+  msgs.innerHTML = out;
+  if (atBottom) msgs.scrollTop = msgs.scrollHeight; else msgs.scrollTop = prevTop;
+  if (jump) jump.hidden = atBottom;
+  Array.prototype.forEach.call(document.querySelectorAll(".log-tab"), function(b) {
+    b.classList.toggle("active", b.getAttribute("data-filter") === filter);
+  });
+}
+
+function copyBattleLog() {
+  var text = gameState.messages.map(function(m) { return typeof m === "string" ? m : m.text; }).join("\n");
+  var btn = document.querySelector("#log-copy");
+  var done = function() { if (!btn) return; var old = btn.textContent; btn.textContent = "已复制"; setTimeout(function() { btn.textContent = old; }, 1200); };
+  var fallback = function() {
+    var ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch (e) {}
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(fallback);
+  else fallback();
+}
+
 // ---------- 战斗日志消息 ----------
 // 统一消息模型：{ text, type: action|damage|heal|status|system|turn, side: player|ai|system, turn }
 function classifyMessage(text) {
@@ -3067,23 +3145,7 @@ function updateBattleUI() {
   var msgs = document.querySelector("#battle-messages");
   if (p && pHpBar) { var pct = Math.max(0, (p.hp / p.maxHp) * 100); if (!pHpBar.parentNode.querySelector('.hp-bar-ghost')) { var gh = document.createElement('div'); gh.className = 'hp-bar-ghost'; gh.style.width = pct + '%'; pHpBar.parentNode.insertBefore(gh, pHpBar); } else { pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width = Math.max(pct, (pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width||'100%').replace('%','')) + '%'; } pHpBar.style.width = pct + "%"; pHpBar.className = "hp-bar-inner" + (pct < 25 ? " critical" : pct < 50 ? " low" : ""); pHpText.textContent = p.hp + "/" + p.maxHp; if (pShield) pShield.innerHTML = p.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (p.shield / p.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + p.shield + "</div>" : ""; if (pMarks) pMarks.textContent = Object.keys(p.marks).length > 0 ? Object.entries(p.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; pStatus.innerHTML = renderStatusBadges(p); }
   if (a && aHpBar) { var pct2 = Math.max(0, (a.hp / a.maxHp) * 100); aHpBar.style.width = pct2 + "%"; aHpBar.className = "hp-bar-inner" + (pct2 < 25 ? " critical" : pct2 < 50 ? " low" : ""); aHpText.textContent = a.hp + "/" + a.maxHp; if (aShield) aShield.innerHTML = a.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (a.shield / a.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + a.shield + "</div>" : ""; if (aMarks) aMarks.textContent = Object.keys(a.marks).length > 0 ? Object.entries(a.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; aStatus.innerHTML = renderStatusBadges(a); }
-  if (msgs) {
-    var jump = document.querySelector("#log-jump");
-    var atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
-    var prevTop = msgs.scrollTop;
-    var arr = gameState.messages.slice(-200);
-    var out = "";
-    arr.forEach(function(m) {
-      if (typeof m === "string") m = { text: m, type: classifyMessage(m), side: "system" };
-      var type = m.type || "system", side = m.side || "system";
-      var badge = side === "player" ? '<span class="msg-side player">我</span>' : side === "ai" ? '<span class="msg-side ai">敌</span>' : '<span class="msg-side"></span>';
-      out += '<div class="msg ' + type + ' side-' + side + '">' + badge + '<span class="msg-text">' + escapeHtml(m.text) + '</span></div>';
-    });
-    if (!out) out = '<div class="msg system"><span class="msg-side"></span><span class="msg-text">等待战斗开始…</span></div>';
-    msgs.innerHTML = out;
-    if (atBottom) msgs.scrollTop = msgs.scrollHeight; else msgs.scrollTop = prevTop;
-    if (jump) jump.hidden = atBottom;
-  }
+  if (msgs) renderBattleLog();
   // 天气/环境显示
   var wEl = document.querySelector("#battle-weather");
   if (wEl) {
@@ -3264,7 +3326,7 @@ function renderBattle(app) {
     '</div>' +
     // 底部战斗台：日志左 / 技能面板右
     '<div class="battle-bottom">' +
-      '<div class="battle-log"><div class="battle-messages" id="battle-messages"></div><button class="log-jump" id="log-jump" hidden>回到最新</button></div>' +
+      '<div class="battle-log"><div class="log-tools"><button class="log-tab active" data-filter="all">全部</button><button class="log-tab" data-filter="action">行动</button><button class="log-tab" data-filter="system">系统</button><button class="log-copy" id="log-copy">复制</button></div><div class="battle-messages" id="battle-messages"></div><button class="log-jump" id="log-jump" hidden>回到最新</button></div>' +
       '<div class="battle-panel"><div class="battle-actions" id="battle-actions"></div></div>' +
     '</div>' +
     // 替换面板
@@ -3274,6 +3336,20 @@ function renderBattle(app) {
   app.innerHTML = html;
   var jumpBtn = document.querySelector("#log-jump");
   if (jumpBtn) jumpBtn.addEventListener("click", function() { var mm = document.querySelector("#battle-messages"); if (mm) mm.scrollTop = mm.scrollHeight; jumpBtn.hidden = true; });
+  Array.prototype.forEach.call(document.querySelectorAll(".log-tab"), function(b) {
+    b.addEventListener("click", function() { gameState.logFilter = b.getAttribute("data-filter"); updateBattleUI(); });
+  });
+  var copyBtn = document.querySelector("#log-copy");
+  if (copyBtn) copyBtn.addEventListener("click", copyBattleLog);
+  var msgsEl = document.querySelector("#battle-messages");
+  if (msgsEl) msgsEl.addEventListener("click", function(e) {
+    var t = e.target && e.target.closest ? e.target.closest(".msg.turn") : null;
+    if (!t) return;
+    var tn = t.getAttribute("data-turn");
+    gameState.logCollapsed = gameState.logCollapsed || {};
+    gameState.logCollapsed[tn] = !gameState.logCollapsed[tn];
+    updateBattleUI();
+  });
   renderBattleActions();
   updateBattleUI();
   document.querySelector("#result-back").addEventListener("click", function() { showScreen("menu"); });
