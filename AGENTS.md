@@ -21,6 +21,7 @@
   - `ROCO REMAKE.html` — 唯一运行文件
   - `pets/<宠物名>.md` / `.txt` — 机制文档 / 原文；`pets/_source/` 原文 HTML 存档
   - `CHANGELOG.md` — 每次会话的记录
+  - `specs/PET-CREATION-FLOW.md` / `specs/PET_TEMPLATE.md` — 新宠物流程与规格模板（保留）
   - `test/static-checks.js` + `test/lib/harness.js` — 静态检查与 Node 引擎加载
   - `deploy.bat` — 旧部署脚本（当前无 git remote，仅留档）
   - `work/` — 历史草稿，不维护
@@ -108,9 +109,9 @@
 - `pets/<宠物名>.md`：结构固定为「基础信息 → 血脉（设计/实现/偏差）→ 技能总表 → 逐技能（设计/实现）→ 待确认 → 验证清单 → 修订记录」。
 - `CHANGELOG.md`：每次会话追加「做了什么 / 验证了什么 / 遗留」。
 - `PLANNING.md`：玩家战略与历史规划，agent 不改；需要变更先问玩家。
-- 已删除 `specs/` 下的模板/流程/说明，内容并入本文件。
+- `specs/PET-CREATION-FLOW.md` / `specs/PET_TEMPLATE.md`：新宠物流程与规格模板，保留并随流程变化更新。
 
-## 8. 新增宠物流程（四步）
+## 8. 新增宠物流程（四步，详见 `specs/PET-CREATION-FLOW.md`，模板见 `specs/PET_TEMPLATE.md`）
 
 1. **收原文**：玩家给的文本原样存 `pets/<宠物名>.txt`，不改措辞。
 2. **写机制文档**：`pets/<宠物名>.md`，至少包含：id/名称/系别/等级/种族值、血脉（触发点/公式/上限）、技能表（id/系别/威力/PP/先手/命中/分类/标记）、逐技能机制、待确认问题。

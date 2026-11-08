@@ -2,6 +2,12 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-08 — 恢复新宠物流程与规格模板
+
+- 从删除前的提交恢复 `specs/PET-CREATION-FLOW.md` 与 `specs/PET_TEMPLATE.md`（玩家要求保留）。
+- 两份文件顶部补充落地路径与当前文档结构的说明（指向 `AGENTS.md` §7/§9）。
+- `AGENTS.md` 的文件布局、§7 文档约定、§8 流程小节恢复对这两份文件的引用。
+
 ## 2026-11-08 — 精简文档体系，重写 AGENTS
 
 - `AGENTS.md` 按当前实现重写：真实路径 `C:\dsh work space\rocoremake`、3492 行、代码地图行号、引擎约定（gainPP / ppLocked / 回合管线）、机制修复进度、UI 约定、DoD、已知坑。
