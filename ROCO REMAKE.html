@@ -1107,19 +1107,25 @@ function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0
 
 // ---------- DEFAULT SKILLS ----------
 const DEFAULT_SKILLS = [
-  { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；PP被删自动触发；仅特殊效果回复PP。",
+  { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；PP被删自动触发；仅特殊效果回复PP。", detail: "① 6回合内全场及场下所有技能视为光系，双方全部宠物回复与输出+100%；对方被明念标记时持续12回合。\n② 自身免疫异常与负面强化，持续6回合。\n③ 血脉觉醒后首次使用：回复全部精力与全体PP，并在之后每回合限伤300。\n④ 本技能PP被删空时，本回合结算末自动被动发动一次。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       bd.jianghuaTurns = 6; bd.jianghuaFirst = true;
       ctx.msg(u.name + " 释放了极尽降华！光衍至极点！");
-      // (1) 6回合改变全场技能为光系 + 100%回复与输出
-      gameState.teamSkillElement = "light";
-      gameState.teamSkillElementTurns = 6;
-      ctx.addTurnEffect(u, "极尽降华光系", 6, null, function(){ gameState.teamSkillElement = null; gameState.teamSkillElementTurns = 0; });
-      u.healMod = (u.healMod || 1) + 1.0;
-      u.dmgMod = (u.dmgMod || 1) + 1.0;
-      ctx.addTurnEffect(u, "极尽降华增", 6, null, function(p){ p.healMod = (p.healMod || 1) - 1.0; p.dmgMod = (p.dmgMod || 1) - 1.0; });
-      ctx.msg("全场技能视为光系，回复与输出+100%！");
+      // (1) 全场及场下所有技能视为光系：6回合；对方被明念标记时12回合
+      var dur = (t.bloodlineData && t.bloodlineData.marked) ? 12 : 6;
+      gameState.forceSkillElement = "light";
+      gameState.forceSkillElementTurns = dur;
+      if (!gameState.jianghuaBuff || !gameState.jianghuaBuff.active) {
+        gameState.jianghuaBuff = { active: true };
+        [gameState.playerParty, gameState.aiParty].forEach(function(party) {
+          (party || []).forEach(function(pet) {
+            pet.healMod = (pet.healMod || 1) + 1.0;
+            pet.dmgMod = (pet.dmgMod || 1) + 1.0;
+          });
+        });
+      }
+      ctx.msg("全场及场下技能视为光系（" + dur + "回合），回复与输出+100%！");
       // 免疫异常与负面强化
       u.statusImmunities = u.statusImmunities || [];
       var jdhImms = ["sleep","freeze","paralyze","fear","burn","poison","confuse","bind"];
@@ -1137,14 +1143,17 @@ const DEFAULT_SKILLS = [
       }
       // (3) 仅能特殊效果回复PP（immuneToPP 已排除普通回复，标记）
       u.skills.forEach(function(s){ if (s.id === "sk_jydm_1") s.pp = 0; }); // 使用后PP=0，仅特殊效果回复
-    } },{ id: "sk_jydm_2", name: "化念作刃", element: "fighting", power: 90, pp: 9, maxPp: 9, accuracy: 100, category: "physical", priority: 11, desc: "以意念为引，作不朽之刃。90威力武系物理。4回合持续：回被删PP技能1PP+30%最大精力+免疫异常驱逐。首回合先手闪避后手非必中（失败倒置强化+删2PP）/后手删先手技3PP+对方PP消耗加速。印记分支：追加固伤/删PP/999斩杀。",
+    } },{ id: "sk_jydm_2", name: "化念作刃", element: "fighting", power: 90, pp: 9, maxPp: 9, accuracy: 100, category: "physical", priority: 11, desc: "以意念为引，作不朽之刃。90威力武系物理。4回合持续：回被删PP技能1PP+30%最大精力+免疫异常驱逐。首回合先手闪避后手非必中（失败倒置强化+删2PP）/后手删先手技3PP+对方PP消耗加速。印记分支：追加固伤/删PP/999斩杀。", detail: "先手：本次伤害按自身物攻+2结算，并尝试闪避对方后手非必中技能；闪避失败则倒置双方强化并删除对方全体2PP。\n后手：删除对方本回合先手使用技能3PP，4回合内对方PP消耗翻倍。\n对方被明念标记时：追加（0.4×对方上回合输出×对方强化数）固伤，并永久免疫驱逐；m<4额外删对方全体1PP（暴击再+1）；m≥4追加999固伤、清除印记并回满第一格PP。\n4回合内每回合回复被删技能1PP与30%精力、免疫异常。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var m = bd.marks || 0;
       ctx.msg(u.name + " 使用了化念作刃！");
       // 首回合判定（先手/后手）
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
-      var r = ctx.doDamage(u, t, 90, "physical", "fighting");
+      // 先手：视自身物攻 +2 结算本次伤害；后手按正常物攻
+      var r = isFirst
+        ? ctx.doDamage(u, t, 90, "physical", "fighting", { atkStageOverride: 2 })
+        : ctx.doDamage(u, t, 90, "physical", "fighting");
       ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness) + (r.isCrit ? " 命中要害！" : ""));
       if (isFirst) {
         // 先手：闪避对方后手非必中（闪避成功才视物攻+2，由 executeSkillTurn 判定）
@@ -1152,11 +1161,13 @@ const DEFAULT_SKILLS = [
         ctx.addTurnEffect(u, "化念闪避", 1, null, function(p){ p.dodgeNextNonSure = false; });
         ctx.msg("先手：尝试闪避对方后手不必中技能！");
       } else {
-        // 后手：删对方先手技能3PP + 4回合PP消耗加速
-        ctx.deletePP(t, -1, 3);
+        // 后手：删除对方本回合先手使用技能 3PP + 4回合PP消耗加速
+        var firstSk = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; });
+        if (firstSk) firstSk.pp = Math.max(0, firstSk.pp - 3);
+        else ctx.deletePP(t, -1, 1);
         t.skillPPCostMult = 2;
         ctx.addTurnEffect(t, "PP加速", 4, null, function(p){ p.skillPPCostMult = 1; });
-        ctx.msg("后手：删除对方全体3PP，4回合内对方PP消耗加速！");
+        ctx.msg("后手：删除对方先手技能3PP，4回合内对方PP消耗加速！");
       }
       // 印记分支（规格：仅"对方被明念标记时"生效；未标记时 marks 也为 0，不能恒真判断）
       if (bd.marked) {
@@ -1195,7 +1206,7 @@ const DEFAULT_SKILLS = [
         t.skillPPCostMult = 2;
         ctx.msg("【化念作刃】削对方强化、回第2格1PP、60固伤、对方PP消耗加倍！");
       }, null);
-    } },{ id: "sk_jydm_3", name: "极影光幕", element: "light", power: 0, pp: 6, maxPp: 6, accuracy: 90, category: "status", priority: 13, semiSure: true, desc: "速变如极影，处处现光幕。回60%精力+10回合闪避一次致命伤害（成功回全体1PP）；净化+5回合免疫+速度提升（上限10%）；4回合叠加护盾（上限100%精力）；对方连续使用同一技能3回合+则PP消耗+2；印记≥2回复+50%。",
+    } },{ id: "sk_jydm_3", name: "极影光幕", element: "light", power: 0, pp: 6, maxPp: 6, accuracy: 90, category: "status", priority: 13, semiSure: true, desc: "速变如极影，处处现光幕。回60%精力+10回合闪避一次致命伤害（成功回全体1PP）；净化+5回合免疫+速度提升（上限10%）；4回合叠加护盾（上限100%精力）；对方连续使用同一技能3回合+则PP消耗+2；印记≥2回复+50%。", detail: "① 回复60%最大精力（印记≥2时+50%），10回合内闪避一次致命伤害。\n② 净化自身，5回合免疫异常与负面强化，速度提升（5+上回合伤害/220）%，上限10%。\n③ 4回合内每回合获得（70+0.2×对方上回合输出+0.1×速度）护盾，可叠加，上限100%最大精力。\n④ 6回合内对方连续3回合使用同一技能时，该技能PP消耗+2。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var m = bd.marks || 0;
@@ -1225,16 +1236,19 @@ const DEFAULT_SKILLS = [
         ctx.addShield(p, sh);
         ctx.msg("【极影光幕】护盾+" + sh + "！");
       }, null);
-      // (4) 对方连续n≥3回合用同一技能→该技能主动使用PP+2
+      // (4) 对方连续n≥3回合用同一技能→该技能主动使用PP+2（6回合窗口，到期清除）
+      var penalized = [];
       ctx.addTurnEffect(u, "光幕PP罚", 6, function(p) {
         Object.keys(t.oppConsecutive || {}).forEach(function(sid) {
           if (t.oppConsecutive[sid] >= 3) {
             var sk = t.skills.find(function(s){ return s.id === sid; });
-            if (sk) sk.extraPPCost = 2;
+            if (sk && penalized.indexOf(sk) < 0) { sk.extraPPCost = 2; penalized.push(sk); }
           }
         });
-      }, null);
-    } },{ id: "sk_jydm_4", name: "瞬华若霜", element: "ice", power: 100, pp: 8, maxPp: 8, accuracy: 100, category: "physical", priority: 7, desc: "瞬影现光华，似若降华霜。威力=100+20m+0.05×速度。冰冻：成功删对方全体1PP+2回合对方治疗-50%；失败回全体1PP+倒置对方正面强化。m>3冰冻成功追加9999固伤+回全体2PP。先手非梦境：2回合先手+4+2段固伤。后手：召唤梦境3回合+梦境下先手值=8+|先手值-8|。m≥4回全体4PP。",
+      }, function() {
+        penalized.forEach(function(sk) { sk.extraPPCost = 0; });
+      });
+    } },{ id: "sk_jydm_4", name: "瞬华若霜", element: "ice", power: 100, pp: 8, maxPp: 8, accuracy: 100, category: "physical", priority: 7, desc: "瞬影现光华，似若降华霜。威力=100+20m+0.05×速度。冰冻：成功删对方全体1PP+2回合对方治疗-50%；失败回全体1PP+倒置对方正面强化。m>3冰冻成功追加9999固伤+回全体2PP。先手非梦境：2回合先手+4+2段固伤。后手：召唤梦境3回合+梦境下先手值=8+|先手值-8|。m≥4回全体4PP。", detail: "冰冻对方：成功删对方全体1PP、2回合治疗-50%；失败回复全体1PP并倒置对方正面强化。\nm>3冰冻成功：追加9999固伤、回复全体2PP，自身前两格技能永久免疫删除。\n先手且非梦境：2回合先手+4，追加2段等威力固伤。\n后手：召唤梦境3回合，自身先手值=8+|先手值-8|。\nm≥4且冰冻成功：回复全体4PP。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var m = bd.marks || 0;
@@ -1255,7 +1269,8 @@ const DEFAULT_SKILLS = [
           ctx.doFixedDamage(t, 9999);
           u.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 2); });
           if (u.skills[0] && u.skills[0].id === "sk_jydm_1") u.skills[0].pp = Math.min(u.skills[0].maxPp, u.skills[0].pp + 1);
-          ctx.msg("印记>3：追加9999固伤！回全体2PP！");
+          u.skills.forEach(function(s, i){ if (i < 2) s.immuneToPP = true; });
+          ctx.msg("印记>3：追加9999固伤！回全体2PP！前两格技能永久免疫删除！");
         }
       } else {
         u.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 1); });
@@ -1282,7 +1297,7 @@ const DEFAULT_SKILLS = [
         u.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 4); });
         ctx.msg("印记≥4：冰冻后回全体4PP！");
       }
-    } },  { id: "sk_jydm_5", name: "炽光若焰", element: "fire", power: 120, pp: 8, maxPp: 8, accuracy: 90, category: "special", priority: 9, semiSure: true, desc: "炽热似神光，宛如焚天焰。威力=120+0.1×魔攻。烧伤成功追加2~4段70~100固伤；失败清空自身PP与对方同格技能PP（12回合免疫回复）。4回合召唤锁定瞬华环境：光系+15%速度、先手出招回100精力、被抵抗追加30%固伤。",
+    } },  { id: "sk_jydm_5", name: "炽光若焰", element: "fire", power: 120, pp: 8, maxPp: 8, accuracy: 90, category: "special", priority: 9, semiSure: true, desc: "炽热似神光，宛如焚天焰。威力=120+0.1×魔攻。烧伤成功追加2~4段70~100固伤；失败清空自身PP与对方同格技能PP（12回合免疫回复）。4回合召唤锁定瞬华环境：光系+15%速度、先手出招回100精力、被抵抗追加30%固伤。", detail: "烧伤对方：成功追加2~4段70~100固伤。\n失败：清空双方该技能PP，且本技能12回合内无法被回复。\n使用后4回合锁定瞬华环境（光系+15%速度、先手出招回100精力、被抵抗追加30%固伤）。",
     onUse: function(u, t, ctx) {
       var power = Math.floor(120 + 0.1 * u.getStat("spatk"));
       ctx.msg(u.name + " 使用了炽光若焰！实际威力" + power + "！");
@@ -1298,10 +1313,14 @@ const DEFAULT_SKILLS = [
         ctx.msg("烧伤成功！追加" + segs + "段浮动固伤！");
       } else {
         var self = u.skills.find(function(s){ return s.id === "sk_jydm_5"; });
-        if (self) self.pp = 0;
+        if (self) {
+          self.pp = 0;
+          self.noPPRecover = true;
+          ctx.addTurnEffect(u, "炽光禁回", 12, null, function(){ self.noPPRecover = false; });
+        }
         var oppIdx = t.skills.findIndex(function(s){ return s.id === "sk_jydm_5"; });
         if (oppIdx >= 0) t.skills[oppIdx].pp = 0;
-        ctx.msg("烧伤失败：清空双方炽光若焰PP（12回合免疫回复）！");
+        ctx.msg("烧伤失败：清空双方炽光若焰PP，本技能12回合内无法回复！");
       }
       // 4回合召唤锁定瞬华环境
       gameState.field = "shunhua";
@@ -1874,10 +1893,11 @@ const DEFAULT_PETS = [
           pet.maxHpBonus = 15 * m + 50;                 // (15m+50)精力上限增幅
           pet.statusImmunities = pet.statusImmunities || [];
           if (!pet.mingNianImmune) {
-            pet.mingNianImmune = ["sleep","freeze","paralyze","fear","bind"];
+            // 免疫控制：睡眠/冰冻/恐惧/麻痹/混乱/束缚
+            pet.mingNianImmune = ["sleep","freeze","paralyze","fear","confuse","bind"];
             pet.mingNianImmune.forEach(function(s){ if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); });
           }
-          pet.statImmunity = true;                       // 免疫负面强化（简化：全强化）
+          pet.statImmunityKeys = ["spatk","spd"];        // 只免疫魔攻/速度类负面强化
           // 明念标记增益：每回合恢复全体技能1PP
           pet.skills.forEach(function(s){ gainPP(pet, s, 1); });
           var stages = 0;
@@ -1888,7 +1908,7 @@ const DEFAULT_PETS = [
             bd.marked = false; pet.maxHpBonus = 0; pet.mingNianDmg = 0;
             var adds = bd.markAdds || 0;
             pet.healMod = Math.max(0, (pet.healMod || 1) - 0.15 * adds); pet.dmgMod = Math.max(0, (pet.dmgMod || 1) - 0.15 * adds);
-            pet.spdMod = (pet.spdMod || 1) / Math.pow(1.05, adds); pet.statImmunity = false; bd.markAdds = 0;
+            pet.spdMod = (pet.spdMod || 1) / Math.pow(1.05, adds); pet.statImmunity = false; pet.statImmunityKeys = null; bd.markAdds = 0;
             if (pet.mingNianImmune) { pet.statusImmunities = pet.statusImmunities.filter(function(s){ return pet.mingNianImmune.indexOf(s) < 0; }); pet.mingNianImmune = null; }
             ctx.msg("【明念】标记结束，增益消失！");
           }
@@ -2288,6 +2308,8 @@ function createBattleContext() {
   return {
     doDamage: function(att, def, power, cat, el, opts) {
       opts = opts || {};
+      // 极尽降华：全场技能视为光系（覆盖技能自身系别）
+      if (gameState.forceSkillElement) el = gameState.forceSkillElement;
       if (def.immunePowerDamage && power > 0) { this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0; return { damage: 0, effectiveness: 1, isCrit: false }; }
       var isPhysical = cat === "physical";
       var atkStat = isPhysical ? (opts.atkStageOverride ? att.atk * ((2+opts.atkStageOverride)/2) : att.getStat("atk")) : att.getStat("spatk");
@@ -2354,6 +2376,8 @@ function createBattleContext() {
     modifyStat: function(target, stat, stages) {
       if (target.statLocked) return;
       if (target.statImmunity && stages < 0) return;
+      // 明念：只免疫魔攻/速度两类负面强化
+      if (stages < 0 && target.statImmunityKeys && target.statImmunityKeys.indexOf(stat) >= 0) return;
       var key = stat + "Stage";
       if (target[key] !== undefined) {
         var before = target[key];
@@ -2364,12 +2388,18 @@ function createBattleContext() {
     },
     deletePP: function(target, slot, amount) {
       var amt = Math.floor(amount);
+      var jhSkill = target.skills.find(function(s){ return s.id === "sk_jydm_1"; });
+      var jhBefore = jhSkill ? jhSkill.pp : 0;
       if (amt > 0 && target.skills.length > 0) {
         var victim = slot < 0 ? target.skills.find(function(s){ return !s.immuneToPP && !s.ppLocked && s.pp > 0; }) : target.skills[slot];
         if (victim) target.lastPPDeletedSkill = victim;
       }
       if (slot < 0) target.skills.forEach(function(s) { if (!s.immuneToPP && !s.ppLocked) s.pp = Math.max(0, s.pp - amt); });
       else if (target.skills[slot] && !target.skills[slot].immuneToPP && !target.skills[slot].ppLocked) target.skills[slot].pp = Math.max(0, target.skills[slot].pp - amt);
+      // 极尽降华：PP 被删至 0 → 被动使用（延后到本回合结算末执行，避免重入）
+      if (jhSkill && jhBefore > 0 && jhSkill.pp === 0 && target.bloodline && target.bloodline.name === "明念" && !gameState.pendingJianghua) {
+        gameState.pendingJianghua = target;
+      }
     },
     restorePP: function(target, slot, amount) {
       if (target.blockPPRecovery) return;
@@ -2565,6 +2595,22 @@ function tickEnvironments() {
   if (gameState.field) {
     gameState.fieldTurns--;
     if (gameState.fieldTurns <= 0) { gameState.field = null; gameState.fieldTurns = 0; addMessage("环境消散了..."); }
+  }
+  if (gameState.forceSkillElement) {
+    gameState.forceSkillElementTurns--;
+    if (gameState.forceSkillElementTurns <= 0) {
+      gameState.forceSkillElement = null; gameState.forceSkillElementTurns = 0;
+      if (gameState.jianghuaBuff && gameState.jianghuaBuff.active) {
+        gameState.jianghuaBuff.active = false;
+        [gameState.playerParty, gameState.aiParty].forEach(function(party) {
+          (party || []).forEach(function(pet) {
+            pet.healMod = Math.max(0, (pet.healMod || 1) - 1.0);
+            pet.dmgMod = Math.max(0, (pet.dmgMod || 1) - 1.0);
+          });
+        });
+      }
+      addMessage("降华的光系同调消散了...");
+    }
   }
 }
 
@@ -2916,6 +2962,13 @@ function resolveTurn() {
   updateBattleUI();
   checkFaints();
   if (!gameState.battleOver) tickEnvironments();
+  // 极尽降华被动触发（本回合内 PP 被删空）
+  if (gameState.pendingJianghua) {
+    var pj = gameState.pendingJianghua; gameState.pendingJianghua = null;
+    var pjOpp = gameState.playerActive === pj ? gameState.aiActive : gameState.playerActive;
+    var pjSk = pj.skills.find(function(s){ return s.id === "sk_jydm_1"; });
+    if (pjSk && pjOpp) { pjSk.onUse(pj, pjOpp, createBattleContext()); addMessage("【极尽降华】PP 被删除，被动发动！"); }
+  }
   [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; } });
   
   gameState.pendingPlayerSkill = null;
