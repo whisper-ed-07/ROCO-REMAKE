@@ -519,10 +519,10 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   .enemy-side { order:3; }
   .battle-side .pet-sprite { width:160px; height:160px; font-size:78px; }
   .pet-info-card { min-width:280px; width:85%; }
-  .battle-bottom { flex-direction:row; padding:0 24px 16px; gap:16px; align-items:stretch; }
-  .battle-log { flex:0 0 30%; display:flex; flex-direction:column; }
+  .battle-bottom { flex-direction:row; padding:0 24px 16px; gap:16px; align-items:stretch; height: clamp(240px, 34vh, 360px); }
+  .battle-log { flex:0 0 30%; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
   .battle-panel { flex:1; }
-  .battle-log .battle-messages { margin:0; flex:1; min-height:180px; max-height:none; }
+  .battle-log .battle-messages { margin:0; flex:1 1 auto; min-height:0; max-height:none; }
   .battle-panel .battle-actions { padding:0; }
   .turn-indicator, .turn-timer { margin:0; }
   .battle-messages { margin:0; }
