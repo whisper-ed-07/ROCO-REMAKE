@@ -1107,7 +1107,7 @@ function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0
 
 // ---------- DEFAULT SKILLS ----------
 const DEFAULT_SKILLS = [
-  { id: "sk_jydm_1", name: "极尽降华", element: "light", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；PP被删自动触发；仅特殊效果回复PP。",
+  { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；PP被删自动触发；仅特殊效果回复PP。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       bd.jianghuaTurns = 6; bd.jianghuaFirst = true;
@@ -1878,12 +1878,12 @@ const DEFAULT_PETS = [
             pet.mingNianImmune.forEach(function(s){ if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); });
           }
           pet.statImmunity = true;                       // 免疫负面强化（简化：全强化）
-          // 回复上次使用的威力技能1PP（明念标记增益）
-          if (pet.lastPowerSkillId && !pet.blockPPRecovery) { var lp = pet.skills.find(function(s){ return s.id === pet.lastPowerSkillId; }); if (lp && lp.pp < lp.maxPp && !lp.immuneToPP) { lp.pp++; } }
+          // 明念标记增益：每回合恢复全体技能1PP
+          pet.skills.forEach(function(s){ gainPP(pet, s, 1); });
           var stages = 0;
           [pet, opp].forEach(function(p){ if (!p) return; ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ stages += Math.abs(p[k]||0); }); });
           pet.mingNianDmg = 40 + 15 * stages;            // 每次伤害追加(40+15×双方强化数)固伤
-          ctx.msg("【明念】精力上限+" + pet.maxHpBonus + " 上次威力技能+1PP 追加固伤" + pet.mingNianDmg + "（标记剩余" + bd.markTurns + "回合）");
+          ctx.msg("【明念】精力上限+" + pet.maxHpBonus + " 全体技能+1PP 追加固伤" + pet.mingNianDmg + "（标记剩余" + bd.markTurns + "回合）");
           if (bd.markTurns <= 0) {
             bd.marked = false; pet.maxHpBonus = 0; pet.mingNianDmg = 0;
             var adds = bd.markAdds || 0;
