@@ -2,6 +2,14 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-08 — 精简文档体系，重写 AGENTS
+
+- `AGENTS.md` 按当前实现重写：真实路径 `C:\dsh work space\rocoremake`、3492 行、代码地图行号、引擎约定（gainPP / ppLocked / 回合管线）、机制修复进度、UI 约定、DoD、已知坑。
+- 删除 `specs/`：`PET-CREATION-FLOW.md`、`PET_TEMPLATE.md`、`README.md` 的内容并入 AGENTS §7-§8，不再单独维护。
+- `handoff/` 归档到 `work/handoff-archive/`（旧双窗交接机制已不使用）。
+- 保留 `PLANNING.md`（玩家战略，agent 不改）与 `OPEN-QUESTIONS.md`（跨宠物待裁定），同步修正 PLANNING 中指向已删除文件的引用。
+- 最终文档结构：AGENTS（唯一规范）+ PLANNING（战略）+ OPEN-QUESTIONS（待裁定）+ CHANGELOG（记录）+ `pets/`（每宠 md+txt）。
+
 ## 2026-11-08 — 战斗日志独立滚动条
 
 - 日志面板固定高度（移动端 20vh、桌面跟随左栏），`overflow-y: scroll` 常驻滚动条，`overscroll-behavior: contain` 防止滚动带动整页。

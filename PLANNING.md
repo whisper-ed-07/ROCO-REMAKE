@@ -16,7 +16,7 @@
 - 主文件 `ROCO REMAKE.html` 单文件约 2900 行,含战斗引擎、UI、游戏内自建宠物/技能编辑器、localStorage 持久化。
 - 已实现:`resolveTurn` 回合结算、天气框架 `processWeather`、血脉 `processBloodlines`、能力等级 stages、换宠/逃跑、简单 AI、战斗 UI。
 - 数据表:`ELEMENTS`、`TYPE_CHART`、`DEFAULT_SKILLS`、`DEFAULT_PETS`。
-- 规格体系:`specs/PET_TEMPLATE.md`、`pets/清灵.md`、`specs/PET-CREATION-FLOW.md`。
+- 规格体系:`pets/清灵.md`(机制文档);新增宠物流程与模板已并入 `AGENTS.md` §7-§8。
 - 版本管理:19 个 commit,main 分支,约定本地提交不推送。
 - 已知缺口:特性、背包/道具、技能石、装备、培育(等级/努力值/性格/天赋)、PvE 关卡、完整存档;克制表规模尚小。
 
@@ -185,4 +185,4 @@ test/
 | 中期 | 代码区块隔离标记、**游戏内测试区** | 中 |
 | 长期 | 数据与逻辑分离(简单技能 JSON 化) | 大 |
 
-> 落地前提:模板与流程文档的改动(PET_TEMPLATE.md / PET-CREATION-FLOW.md)属执行层,须玩家确认后再改。
+> 落地前提:模板与流程的改动(现并入 AGENTS.md)属执行层,须玩家确认后再改。
