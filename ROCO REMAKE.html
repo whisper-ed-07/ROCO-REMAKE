@@ -3132,7 +3132,15 @@ function renderOpponentSelect(app) { var allPets = getAllPets(); var html = '<di
 
 function toggleOpponentSelection(petId) { var idx = gameState.opponentTeamIds.indexOf(petId); if (idx >= 0) gameState.opponentTeamIds.splice(idx, 1); else if (gameState.opponentTeamIds.length < 6) gameState.opponentTeamIds.push(petId); renderOpponentSelect(document.querySelector("#app")); }
 
-function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false; showScreen("battle"); }
+function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false;
+  // 新战斗必须清空上一局残留的天气/环境/全局封锁与待结算指令
+  gameState.weather = null; gameState.weatherTurns = 0;
+  gameState.field = null; gameState.fieldTurns = 0;
+  gameState.banEffects = null;
+  gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; gameState.pendingFirstMove = null;
+  gameState.skipPlayerAction = false; gameState.isPlayerTurn = true;
+  stopTurnTimer();
+  showScreen("battle"); }
 
 function renderBattle(app) {
   var p = gameState.playerActive, a = gameState.aiActive;

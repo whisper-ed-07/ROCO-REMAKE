@@ -2,6 +2,13 @@
 
 > 每个会话结束追加:做了什么 / 验证了什么 / 留了什么坑。按 commit 对应。
 
+## 2026-11-08 — 修复新战斗残留上一局天气
+
+- 症状：打开游戏直接进清灵内战，未出招就显示"迷雾天气"。
+- 根因：`confirmOpponentAndBattle` 只重置了队伍与消息，没有清空 `gameState.weather / weatherTurns / field / fieldTurns / banEffects / pending*`；上一局的天气与环境被带进新局。
+- 修复：新战斗开始时统一重置天气、环境、全局封锁、待结算指令与回合计时；`skipPlayerAction` / `isPlayerTurn` 复位。
+- 验证：模拟残留 `mist+dream` 后开新局，读回 `weather=null field=null turns=0`，顶部不再显示天气。
+
 ## 2026-11-08 — 恢复新宠物流程与规格模板
 
 - 从删除前的提交恢复 `specs/PET-CREATION-FLOW.md` 与 `specs/PET_TEMPLATE.md`（玩家要求保留）。
