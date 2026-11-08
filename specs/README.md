@@ -16,7 +16,7 @@
 
 | 宠物 | 原文 | 机制文档 | 已知偏差 | 原文状态 |
 |---|---|---|---|---|
-| 清灵 pet_qingling | `pets/清灵.txt` | `pets/清灵.md` | 6 | 已入库（cv15766200） |
+| 清灵 pet_qingling | `pets/清灵.txt` | `pets/清灵.md` | 1（待确认） | 已入库（cv15766200） |
 | 极影迪莫 pet_jydm | `pets/极影迪莫.txt` | `pets/极影迪莫.md` | 11 | 已入库（cv15127825） |
 | 清羽 pet_qy | `pets/清羽.txt` | `pets/清羽.md` | 10 | 已入库（cv15901261） |
 | 创世神钟 pet_bmhs | `pets/创世神钟.txt` | `pets/创世神钟.md` | 7 | 已入库（cv15270027） |

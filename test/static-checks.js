@@ -71,7 +71,8 @@ pets.forEach(p => {
   if (p.element !== undefined && elemKeys.indexOf(p.element) < 0) bad(id + ' 系别不在 ELEMENTS 中: ' + p.element);
   const bs = p.baseStats || {};
   ['hp', 'atk', 'def', 'spatk', 'spdef', 'spd'].forEach(k => {
-    if (typeof bs[k] !== 'number' || bs[k] <= 0) bad(id + ' 种族值 ' + k + ' 非法: ' + bs[k]);
+    // 0 是合法种族值（部分宠物的物攻/魔攻为 0），只拒绝负数与非数字
+    if (typeof bs[k] !== 'number' || bs[k] < 0 || Number.isNaN(bs[k])) bad(id + ' 种族值 ' + k + ' 非法: ' + bs[k]);
   });
   const sids = p.skillIds || [];
   if (sids.length === 0) bad(id + ' 没有任何技能');

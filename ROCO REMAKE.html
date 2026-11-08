@@ -331,7 +331,10 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .battle-messages .msg { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
 .battle-messages .msg:last-child { border-bottom: none; }
 
-.battle-actions { padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.battle-actions { padding: 10px 12px; display: flex; gap: 8px; align-items: stretch; overflow-x: auto; overflow-y: hidden; }
+.battle-actions .skill-btn { flex: 1 1 0; min-width: 70px; }
+.battle-actions .action-btn { flex: 0 0 84px; white-space: nowrap; }
+.battle-actions .skill-btn-name { font-size: 12px; }
 .skill-btn {
   padding: 0; border-radius: 12px; cursor: pointer;
   font-size: 12px; font-weight: 600; transition: all 0.2s ease;
@@ -798,8 +801,19 @@ body {
   .stage-grid { gap: 3px; }
   .stage-pill { font-size: 10px; padding: 1px 5px; }
   .battle-messages { min-height: 0; max-height: 21vh; font-size: 11.5px; padding: 10px 12px; margin: 4px 10px; }
-  .battle-actions { padding: 8px 10px 10px; gap: 8px; }
+  .battle-actions { padding: 8px 8px 10px; gap: 6px; }
+  .battle-actions .skill-btn { min-width: 72px; }
+  .battle-actions .action-btn { flex: 0 0 66px; font-size: 11px; padding: 8px 4px; white-space: normal; }
   .skill-btn { min-height: 48px; }
+  /* 横排后按钮变窄：内部改纵向堆叠 */
+  .battle-actions .skill-btn-header { flex-direction: column; align-items: center; gap: 2px; padding: 7px 4px 0; }
+  .battle-actions .skill-btn-icon { width: 26px; height: 26px; font-size: 14px; }
+  .battle-actions .skill-btn-name { font-size: 11px; width: 100%; text-align: center; }
+  .battle-actions .skill-btn-prio { position: absolute; top: 4px; right: 3px; font-size: 9px; padding: 0 3px; }
+  .battle-actions .skill-btn-body { flex-direction: column; gap: 1px; padding: 2px 2px 6px; font-size: 10px; align-items: center; }
+  .battle-actions .skill-btn-body .skill-pp-info { margin-left: 0; }
+  .battle-actions .skill-btn-body .skill-ext { display: none; }
+  .battle-actions .skill-info { right: 3px; bottom: 3px; width: 14px; height: 14px; line-height: 12px; font-size: 9px; }
   .skill-btn-header { padding: 6px 8px 2px; gap: 6px; }
   .skill-btn-icon { width: 32px; height: 32px; font-size: 17px; }
   .skill-btn-name { font-size: 12px; }
@@ -811,7 +825,7 @@ body {
 }
 
 /* ---------- 窄屏兜底：网格子项允许收缩，避免横向溢出 ---------- */
-.battle-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.battle-actions { display: flex; }
 .skill-btn, .skill-btn-name, .pet-info-card, .stage-grid { min-width: 0; }
 /* 战斗中弱化右下角设置按钮，避免遮挡技能区 */
 body:has(.battle-bg) .settings-btn { opacity: 0.32; transform: scale(0.86); }
@@ -1512,14 +1526,18 @@ const DEFAULT_SKILLS = [
   },
 
   // ============ 清灵（清念灵体） ============
-  { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, desc: "净化回复全部精力与全体技能(3+使用前精力比例)PP，本局全局屏蔽限伤/减伤/护盾/反弹；永久免疫异常与负面强化，1回合免疫威力伤害；6回合每回合赋予双方(5+已损精力/50)点微灵印记(max15)。", immuneToPP: true,
+  { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
+    desc: "净化并回满精力，回复全体技能(3+使用前精力比例)PP；本局永久屏蔽双方限伤/减伤/护盾/反弹；永久免疫异常与负面强化，1回合免疫威力伤害；6回合每回合给双方(5+施放者已损/50)点微灵印记(max15)。",
+    detail: "幽灵系变化 · 1PP · 先手+7 · 必中\n① 净化自身（异常、混乱、束缚、寄生种子、负面强化），回复全部精力值，全体技能回复（3 + 使用前精力/最大精力）点PP，向上取整。\n② 破除并永久限制场上双方获得：限伤、减伤、护盾、反弹效果——本局剩余时间内双方所有宠物均无法再获得这些效果。\n③ 永久免疫异常状态与负面强化；使用后1回合内免疫威力伤害。\n④ 后续6回合，每回合赋予双方（5 + 施放者已损精力/50）点微灵印记，单次上限15；每回合独立判定、向上取整。",
     onUse: function(u, t, ctx) {
       ctx.msg(u.name + " 释放了微灵封体！");
-      var ratio = u.hp / u.maxHp;
-      u.status = null; u.confuseTurns = 0; u.bindTurns = 0;
-      ctx.doHeal(u, u.maxHp - u.hp);
+      var cap = u.maxHp + (u.maxHpBonus || 0);
+      var ratio = u.hp / cap;
+      u.status = null; u.statusTurns = 0; u.confuseTurns = 0; u.bindTurns = 0; u.leechSeed = false;
+      ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
+      ctx.doHeal(u, cap - u.hp);
       var ppHeal = Math.ceil(3 + ratio);
-      u.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + ppHeal); });
+      u.skills.forEach(function(s){ gainPP(u, s, ppHeal); });
       ctx.msg("净化并回复全部精力，全体技能+" + ppHeal + "PP！");
       gameState.banEffects = { shield: true, dmgReduction: true, damageCap: true, reflect: true };
       [u, t].forEach(function(p){ p.shield = 0; p.damageReduction = 0; p.damageReductionTurns = 0; p.damageCap = Infinity; p.damageCapTurns = 0; p.damageCapThreshold = 0; p.immuneBackhand = false; p.reflectBackhand = false; });
@@ -1533,19 +1551,23 @@ const DEFAULT_SKILLS = [
       ctx.msg("永久免疫异常与负面强化，1回合免疫威力伤害！");
       [u, t].forEach(function(p){
         ctx.addTurnEffect(p, "微灵封体印", 6, function(pp){
-          var add = Math.min(15, Math.ceil(5 + (pp.maxHp - pp.hp) / 50));
-          pp.bloodlineData = pp.bloodlineData || {}; pp.bloodlineData.microLing = (pp.bloodlineData.microLing || 0) + add;
+          var lost = (u.maxHp + (u.maxHpBonus || 0)) - u.hp;
+          var add = Math.min(15, Math.ceil(5 + lost / 50));
+          pp.bloodlineData = pp.bloodlineData || {};
+          pp.bloodlineData.microLing = (pp.bloodlineData.microLing || 0) + add;
           ctx.msg("微灵封体：" + pp.name + " 获得" + add + "点微灵印记！");
         }, null);
       });
     }
   },
-  { id: "sk_ql_2", name: "万念俱灰", element: "ghost", power: 150, pp: 6, maxPp: 6, accuracy: 100, category: "physical", priority: 11, desc: "免疫删除与除微灵封体外所有回复PP。实际威力=损失PP数×(150+微灵印记)，max500(首格PP=0时max1000)；输出首格PP>0时≤0.9×对方最大精力、PP=0后≥0.3×自身最大精力；回150精力+6回合免疫异常；先手追加强化数固伤+重置双方强化(首格PP=0必暴击)，后手双方回复(威力×1.1 max400)(首格PP=0清空对方先手技能PP)。", immuneToPP: true, noPPRecover: true,
+  { id: "sk_ql_2", name: "万念俱灰", element: "ghost", power: 150, pp: 6, maxPp: 6, accuracy: 100, category: "physical", priority: 11, immuneToPP: true, noPPRecover: true,
+    desc: "免疫删除与除微灵封体外所有回复PP。威力=损失PP×(150+微灵)，max500(首格PP=0时1000)；首格PP>0时伤害≤0.9×对方最大精力，PP=0后≥0.3×自身最大精力；回150+6回合免疫；先手追加固伤并重置强化(首格PP=0必暴击)；后手双方回威力×1.1(无上限)。",
+    detail: "幽灵系物理 · 6PP · 先手+3 · 必中 · 威力150\n本技能免疫PP删除；除「微灵封体」外，任何效果都无法回复本技能PP。\n① 实际威力 = 本技能已损失PP数 ×（150 + 微灵印记数），向上取整；上限500；首格技能PP=0时上限1000。\n② 输出伤害：首格PP>0时不超过对方最大精力的90%；首格PP=0后不低于自身最大精力的30%。\n③ 回复150精力，之后6回合免疫异常状态。\n④ 先手：追加（实际伤害×0.3）点固伤，并强制重置双方强化；首格PP=0时必定暴击。\n⑤ 后手：双方各回复（本技能威力×1.1）点精力，不设上限；首格PP=0时清空对方本回合先手使用技能的PP。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var firstZero = u.skills[0] && u.skills[0].pp <= 0;
       var selfSk = u.skills.find(function(s){ return s.id === "sk_ql_2"; });
-      var lost = Math.max(1, 6 - (selfSk ? selfSk.pp : 6));
+      var lost = Math.max(1, selfSk ? (selfSk.maxPp - selfSk.pp) : 1);
       var ml = bd.microLing || 0;
       var power = Math.ceil(lost * (150 + ml));
       var cap = firstZero ? 1000 : 500;
@@ -1568,11 +1590,11 @@ const DEFAULT_SKILLS = [
       ctx.msg("回复150精力，6回合内免疫异常状态！");
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
       if (isFirst) {
-        ctx.doFixedDamage(t, Math.floor(dealt * 0.3));
+        ctx.doFixedDamage(t, Math.floor(dealt * 0.3), u);
         [u, t].forEach(function(p){ ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ p[k] = 0; }); });
         ctx.msg("先手：追加" + Math.floor(dealt * 0.3) + "固伤并强制重置双方强化！");
       } else {
-        var healAmt = Math.min(400, Math.floor(power * 1.1));
+        var healAmt = Math.floor(power * 1.1);
         ctx.doHeal(u, healAmt); ctx.doHeal(t, healAmt);
         ctx.msg("后手：双方回复" + healAmt + "精力！");
         if (firstZero) {
@@ -1582,58 +1604,86 @@ const DEFAULT_SKILLS = [
       }
     }
   },
-  { id: "sk_ql_3", name: "封灵千噬", element: "ghost", power: 70, pp: 8, maxPp: 8, accuracy: 100, category: "special", priority: 12, desc: "半必中。实际威力=70+万念俱灰威力×0.2(max150)。连续3回合：每回合免疫异常+10微灵+100护盾(首格PP=0回100精力)+对方使用技能额外损失1PP；首回合免疫对方后手效果+删对方使用技能1PP+给予封灵印记(换下失效)(先手必暴击必中)；次回合追加对方上回合输出×0.6物理伤害；末回合回30%精力+全体1PP，消耗太虚灵威所有PP尝试清除对方全体PP(仅太虚灵威PP=8可触发，概率=5%+已损PP占比%)。", semiSure: true,
+  { id: "sk_ql_3", name: "封灵千噬", element: "ghost", power: 70, pp: 8, maxPp: 8, accuracy: 100, category: "special", priority: 12, semiSure: true,
+    desc: "半必中。威力=70+万念俱灰威力×0.2(max150)。连续3回合：每回合造成伤害并触发每回合效果（免疫异常、+10微灵、100护盾、首格PP=0回100）；首回合删1PP+封灵印记+先手必暴；次回合追加对方上回合输出×0.6；末回合回30%+全体1PP，太虚灵威满PP时清空对方随机技能PP。",
+    detail: "幽灵系魔法 · 8PP · 先手+4 · 半必中 · 威力70\n实际威力 = 70 + 万念俱灰威力×0.2，上限150。连续3回合发动。\n【每回合】造成一次威力伤害，并触发：免疫异常状态、获得10点微灵印记、获得100点护盾；若首格技能PP=0，回复100精力；对方使用技能时额外损失1PP。\n【首回合】免疫对方后手造成的全部效果（含伤害）；删除对方全体技能1PP；给予对方「封灵」印记（换下失效）；若本回合先手，必定暴击且必定命中。\n【次回合】追加（对方上回合输出×0.6）点物理伤害。\n【末回合】回复30%精力与全体技能1PP；若太虚灵威PP=8，清空对方随机一个技能的PP，随后清空太虚灵威剩余全部PP。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
-      ctx.msg(u.name + " 释放了封灵千噬！");
       var ql2 = u.skills.find(function(s){ return s.id === "sk_ql_2"; });
       var wjPower = bd.lastWjPower || (ql2 ? ql2.power : 150);
       var power = Math.min(150, Math.floor(70 + wjPower * 0.2));
-      ctx.msg("实际威力" + power + "（连续3回合发动）！");
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
+      var currentOpp = function(p){ return gameState.playerActive === p ? gameState.aiActive : gameState.playerActive; };
       var flImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear"];
+      var perTurn = function(owner) {
+        owner.bloodlineData = owner.bloodlineData || {};
+        owner.bloodlineData.microLing = (owner.bloodlineData.microLing || 0) + 10;
+        ctx.addShield(owner, 100);
+        var firstZero = owner.skills[0] && owner.skills[0].pp <= 0;
+        if (firstZero) ctx.doHeal(owner, 100);
+        var opp = currentOpp(owner);
+        if (opp) opp.skillPPCostMult = (opp.skillPPCostMult || 1) + 1;
+        ctx.msg("封灵千噬每回合：+10微灵、100护盾" + (firstZero ? "、首格PP=0回100" : "") + "！");
+      };
+      var strike = function(owner) {
+        var opp = currentOpp(owner);
+        if (!opp || opp.isFainted()) return;
+        var r = ctx.doDamage(owner, opp, power, "special", "ghost");
+        ctx.msg("封灵千噬发动！造成 " + r.damage + " 点伤害。");
+        perTurn(owner);
+      };
       u.statusImmunities = u.statusImmunities || [];
       flImms.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
       ctx.addTurnEffect(u, "封灵噬免疫", 3, null, function(p){ p.statusImmunities = p.statusImmunities.filter(function(x){ return flImms.indexOf(x) < 0; }); });
-      bd.microLing = (bd.microLing || 0) + 10;
-      ctx.addShield(u, 100);
-      ctx.msg("每回合：免疫异常、+10微灵印记、100护盾！");
-      if (u.skills[0] && u.skills[0].pp <= 0) { ctx.doHeal(u, 100); ctx.msg("首格PP=0：回复100精力！"); }
       t.skillPPCostMult = (t.skillPPCostMult || 1) + 1;
       ctx.addTurnEffect(t, "封灵噬PP", 3, null, function(p){ p.skillPPCostMult = Math.max(1, (p.skillPPCostMult || 1) - 1); });
-      ctx.msg("3回合内对方使用技能额外损失1PP！");
+      strike(u);
+      if (isFirst) {
+        u.critRateBonus = (u.critRateBonus || 0) + 1.0;
+        ctx.addTurnEffect(u, "封灵必暴", 1, null, function(p){ p.critRateBonus = Math.max(0, (p.critRateBonus || 0) - 1.0); });
+        ctx.msg("先手：本回合必定暴击！");
+      }
       u.immuneBackhand = true;
       ctx.deletePP(t, -1, 1);
       t.qlSealMark = true;
-      ctx.msg("首回合：免疫对方后手效果，删除对方使用技能1PP，给予封灵印记（换下失效）！");
-      if (isFirst) { u.critRateBonus = (u.critRateBonus || 0) + 1.0; ctx.addTurnEffect(u, "封灵必暴", 1, null, function(p){ p.critRateBonus = Math.max(0, (p.critRateBonus || 0) - 1.0); }); ctx.msg("先手：必定暴击！"); }
-      var r = ctx.doDamage(u, t, power, "special", "ghost");
-      ctx.msg("造成 " + r.damage + " 点伤害！");
-      ctx.addTurnEffect(u, "封灵噬次", 1, function(p){
-        var oppPrev = t.lastOutputDmg || 0;
-        var extra = Math.floor(oppPrev * 0.6);
-        if (extra > 0) { ctx.doFixedDamage(t, extra); ctx.msg("封灵千噬次回合：追加" + extra + "点物理伤害（对方上回合输出×0.6）！"); }
-        else ctx.msg("封灵千噬次回合：对方上回合无输出！");
-        if (p.skills[0] && p.skills[0].pp <= 0) { ctx.doHeal(p, 100); ctx.msg("首格PP=0：回复100精力！"); }
-      }, null);
-      ctx.addTurnEffect(u, "封灵噬末", 2, function(p){
-        ctx.doHeal(p, Math.floor(p.maxHp * 0.3));
-        p.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 1); });
-        ctx.msg("封灵千噬末回合：回复30%精力与全体技能1PP！");
-        var txw = p.skills.find(function(s){ return s.id === "sk_ql_4"; });
-        if (txw && txw.pp === txw.maxPp) {
-          var lostPP = 0, totalPP = 0;
-          [p, t].forEach(function(pt){ pt.skills.forEach(function(s){ totalPP += s.maxPp; lostPP += s.maxPp - s.pp; }); });
-          var prob = 5 + (totalPP > 0 ? Math.floor(lostPP / totalPP * 100) : 0);
-          txw.pp = 0;
-          if (Math.random() * 100 < prob) { ctx.deletePP(t, -1, 999); ctx.msg("太虚灵威爆发：清除对方全体技能全部PP！（概率" + prob + "%）"); }
-          else ctx.msg("太虚灵威爆发失败（概率" + prob + "%）！");
-        } else { ctx.msg("太虚灵威PP未满，无法触发爆发！"); }
+      ctx.msg("首回合：免疫对方后手，删除对方全体1PP，给予封灵印记（换下失效）！");
+      var stage = 0;
+      ctx.addTurnEffect(u, "封灵千噬连击", 2, function(p) {
+        stage++;
+        if (stage === 1) {
+          strike(p);
+          var opp = currentOpp(p);
+          if (opp) {
+            var extra = Math.floor((opp.lastTurnOutput || 0) * 0.6);
+            if (extra > 0) { ctx.doFixedDamage(opp, extra, p); ctx.msg("封灵千噬次回合：追加" + extra + "点物理伤害。"); }
+          }
+        } else {
+          strike(p);
+          ctx.doHeal(p, Math.floor((p.maxHp + (p.maxHpBonus || 0)) * 0.3));
+          p.skills.forEach(function(s){ gainPP(p, s, 1); });
+          ctx.msg("封灵千噬末回合：回复30%精力与全体技能1PP！");
+          var txw = p.skills.find(function(s){ return s.id === "sk_ql_4"; });
+          if (txw && txw.pp === txw.maxPp) {
+            var opp2 = currentOpp(p);
+            var pool = opp2 ? opp2.skills.filter(function(s){ return s.pp > 0; }) : [];
+            if (pool.length) {
+              var victim = pool[Math.floor(Math.random() * pool.length)];
+              victim.pp = 0;
+              ctx.msg("太虚灵威联动：清空对方「" + victim.name + "」的PP！");
+            }
+            txw.pp = 0;
+            ctx.msg("太虚灵威剩余PP已清空。");
+          } else { ctx.msg("太虚灵威PP未满，联动未触发。"); }
+        }
       }, null);
     }
   },
-  { id: "sk_ql_4", name: "太虚灵威", element: "ghost", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 9, desc: "半必中。未命中时仅删除对方全体技能2PP。恐惧对方：失败则删对方全体2PP，令对方3回合内使用额外消耗1PP且无法换宠；微灵印记≥200：额外删除对方上次使用技能6PP，此后若双方PP空技能数≥4则追加9999点固定伤害。", semiSure: true, immuneToPP: true,
+  { id: "sk_ql_4", name: "太虚灵威", element: "ghost", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 9, semiSure: true, ppLocked: true,
+    desc: "半必中。首次使用前PP锁定；未命中仅删对方全体2PP。恐惧失败则删2PP+3回合额外消耗1PP且禁换宠；微灵≥200删对方上次技能6PP，双方空PP≥4追加9999。",
+    detail: "幽灵系变化 · 8PP · 先手+1 · 半必中\n本技能在首次主动使用前处于PP锁定状态：无法被任何效果删除PP；首次主动使用后解除锁定。\n① 未命中：仅删除对方全体技能2PP。\n② 恐惧对方；若恐惧失败：删除对方全体技能2PP，并在3回合内令对方使用技能额外消耗1PP、无法换宠。\n③ 当微灵印记≥200：额外删除对方上次使用技能6PP；此后若双方PP为空的技能数≥4，追加9999点固定伤害。",
     onUse: function(u, t, ctx) {
+      var selfSk = u.skills.find(function(s){ return s.id === "sk_ql_4"; });
+      if (selfSk && selfSk.ppLocked) { selfSk.ppLocked = false; ctx.msg("太虚灵威解除PP锁定。"); }
       ctx.msg(u.name + " 释放了太虚灵威！");
       ctx.applyStatus(t, "fear");
       if (t.status !== "fear") {
@@ -1649,12 +1699,14 @@ const DEFAULT_SKILLS = [
         var oppLast = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; });
         if (oppLast) { oppLast.pp = Math.max(0, oppLast.pp - 6); ctx.msg("微灵≥200：删除对方上次使用技能6PP！"); }
         var emptyCount = [u, t].reduce(function(s, pt){ return s + pt.skills.filter(function(sk){ return sk.pp === 0; }).length; }, 0);
-        if (emptyCount >= 4) { ctx.doFixedDamage(t, 9999); ctx.msg("双方PP空技能数≥4：追加9999点固定伤害！"); }
+        if (emptyCount >= 4) { ctx.doFixedDamage(t, 9999, u); ctx.msg("双方PP空技能数≥4：追加9999点固定伤害！"); }
       }
     },
     onMiss: function(u, t, ctx) { ctx.deletePP(t, -1, 2); ctx.msg("太虚灵威未命中：仅删除对方全体技能2PP！"); }
   },
-  { id: "sk_ql_5", name: "万古遗恨", element: "ghost", power: 20, pp: 20, maxPp: 20, accuracy: 100, category: "physical", priority: 3, desc: "召唤迷雾天气12回合（失败则强制重置双方强化；成功则追加万念俱灰威力-本威力固伤max349）；微灵印记>300时下回合给予对方本回合双方输出伤害差治疗。", immuneToPP: true,
+  { id: "sk_ql_5", name: "万古遗恨", element: "ghost", power: 20, pp: 20, maxPp: 20, accuracy: 100, category: "physical", priority: 3, immuneToPP: true,
+    desc: "召唤迷雾天气12回合（失败则强制重置双方强化；成功则追加万念俱灰威力-本威力固伤max349）；微灵>300时，下回合按上回合双方输出差的绝对值治疗对方。",
+    detail: "幽灵系物理 · 20PP · 先手-5 · 必中 · 威力20\n① 召唤迷雾天气，持续12回合；若场上已有环境导致召唤失败，则强制重置双方强化。\n② 召唤成功时，追加（万念俱灰威力 - 20）点固定伤害，上限349。\n③ 随后造成20点威力的本系伤害。\n④ 微灵印记>300时，下回合按「上回合双方总输出差值的绝对值」治疗对方（不论伤害类型）。",
     onUse: function(u, t, ctx) {
       ctx.msg(u.name + " 释放了万古遗恨！");
       var bd = u.bloodlineData || {};
@@ -1666,18 +1718,18 @@ const DEFAULT_SKILLS = [
         ctx.msg("环境在场，迷雾无法降临！强制重置双方强化！");
       } else {
         var fd = Math.min(349, Math.floor(wjPower - 20));
-        ctx.doFixedDamage(t, fd);
+        ctx.doFixedDamage(t, fd, u);
         ctx.msg("迷雾天气降临12回合！追加" + fd + "点固伤！");
       }
       var r = ctx.doDamage(u, t, 20, "physical", "ghost");
       ctx.msg("造成 " + r.damage + " 点伤害！");
       var ml = bd.microLing || 0;
       if (ml > 300) {
-        var myOut = u.lastOutputDmg || 0, oppOut = t.lastOutputDmg || 0;
-        var diff = Math.max(0, myOut - oppOut);
-        ctx.addTurnEffect(u, "遗恨治疗", 1, null, function(p){
-          ctx.doHeal(t, diff);
-          ctx.msg("万古遗恨：下回合给予对方" + diff + "点治疗！");
+        ctx.addTurnEffect(u, "遗恨治疗", 1, null, function(p) {
+          var opp = gameState.playerActive === p ? gameState.aiActive : gameState.playerActive;
+          var diff = Math.abs((p.lastTurnOutput || 0) - (opp.lastTurnOutput || 0));
+          if (diff > 0) { ctx.doHeal(opp, diff); ctx.msg("万古遗恨：给予对方" + diff + "点治疗（上回合双方输出差）。"); }
+          else ctx.msg("万古遗恨：上回合双方输出相同，无治疗。");
         });
       }
     }
@@ -1705,7 +1757,7 @@ const DEFAULT_PETS = [
           ctx.doHeal(pet, 200);
           ctx.msg("【清念灵体】使用变化技：回复200精力！");
           if (skill.pp <= 4) {
-            pet.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 2); });
+            pet.skills.forEach(function(s){ gainPP(pet, s, 2); });
             ctx.invertHealing(target, 1.0, 2);
             ctx.msg("【清念灵体】技能PP≤4：全体+2PP，倒置对方治疗2回合！");
           }
@@ -2059,6 +2111,8 @@ class BattlePet {
     this.critRateBonus = 0;            // 暴击率加成（0-1）
     // === 极影迪莫明念引擎字段 ===
     this.lastDealtDamage = 0;         // 上回合造成伤害总值
+    this.outputThisTurn = 0;          // 本回合累计对敌输出（含固伤）
+    this.lastTurnOutput = 0;          // 上回合的总输出（回合末结算）
     this.currentDealt = 0;            // 本回合累计造成伤害
     this.lastPPDeletedSkill = null;   // 上次被删除PP的技能
     this.skillPPCostMult = 1;         // PP消耗倍率
@@ -2189,6 +2243,7 @@ function createBattleContext() {
       // 明念：每次造成伤害追加（40+15×双方强化数）固伤
       if (att.mingNianDmg > 0) { def.takeDamage(att.mingNianDmg); addMessage(att.name + " 明念追加" + att.mingNianDmg + "点固伤！"); }
       att.currentDealt += dmg;
+      att.outputThisTurn = (att.outputThisTurn || 0) + dmg;
       att.lastOutputDmg = dmg;
       def.takeDamage(dmg);
       // Bloodline: onAfterDamageSegment
@@ -2197,8 +2252,9 @@ function createBattleContext() {
       }
       return { damage: dmg, effectiveness: eff, isCrit: isCrit };
     },
-    doFixedDamage: function(target, amount) {
+    doFixedDamage: function(target, amount, source) {
       amount = Math.max(1, Math.floor(amount));
+      if (source) source.outputThisTurn = (source.outputThisTurn || 0) + amount;
       // Bloodline: onBeforeDamage for fixed
       if (target.bloodline && target.bloodline.onBeforeDamage) {
         amount = target.bloodline.onBeforeDamage(target, amount, "fixed", null, this);
@@ -2234,11 +2290,11 @@ function createBattleContext() {
     deletePP: function(target, slot, amount) {
       var amt = Math.floor(amount);
       if (amt > 0 && target.skills.length > 0) {
-        var victim = slot < 0 ? target.skills.find(function(s){ return !s.immuneToPP && s.pp > 0; }) : target.skills[slot];
+        var victim = slot < 0 ? target.skills.find(function(s){ return !s.immuneToPP && !s.ppLocked && s.pp > 0; }) : target.skills[slot];
         if (victim) target.lastPPDeletedSkill = victim;
       }
-      if (slot < 0) target.skills.forEach(function(s) { if (!s.immuneToPP) s.pp = Math.max(0, s.pp - amt); });
-      else if (target.skills[slot] && !target.skills[slot].immuneToPP) target.skills[slot].pp = Math.max(0, target.skills[slot].pp - amt);
+      if (slot < 0) target.skills.forEach(function(s) { if (!s.immuneToPP && !s.ppLocked) s.pp = Math.max(0, s.pp - amt); });
+      else if (target.skills[slot] && !target.skills[slot].immuneToPP && !target.skills[slot].ppLocked) target.skills[slot].pp = Math.max(0, target.skills[slot].pp - amt);
     },
     restorePP: function(target, slot, amount) {
       if (target.blockPPRecovery) return;
@@ -2305,6 +2361,16 @@ function createBattleContext() {
     get playerParty() { return gameState.playerParty; },
     get aiParty() { return gameState.aiParty; }
   };
+}
+
+// PP 恢复统一入口：immuneToPP / noPPRecover / ppLocked / blockPPRecovery 均在此判定
+function gainPP(pet, skill, amount) {
+  if (!skill || amount <= 0) return 0;
+  if (pet && pet.blockPPRecovery) return 0;
+  if (skill.immuneToPP || skill.noPPRecover) return 0;
+  var before = skill.pp;
+  skill.pp = Math.min(skill.maxPp, skill.pp + amount);
+  return skill.pp - before;
 }
 
 // ---------- BLOODLINE & TURN EFFECT PROCESSING ----------
@@ -2696,6 +2762,7 @@ function resolveTurn() {
   updateBattleUI();
   checkFaints();
   if (!gameState.battleOver) tickEnvironments();
+  [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; } });
   
   gameState.pendingPlayerSkill = null;
   gameState.pendingAISkill = null;
@@ -3129,9 +3196,9 @@ function renderBattleActions() { var container = document.querySelector("#battle
     setTimeout(function(){ gameState.pendingPlayerSkill = null; aiDecideAndResolve(); }, 800);
     return;
   }
-  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "先手+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "后手-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
+  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
     var infoBtn = btn.querySelector(".skill-info");
-    if (infoBtn) infoBtn.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 替换宠物"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
+    if (infoBtn) infoBtn.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 换宠"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
 
 function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
@@ -3200,9 +3267,9 @@ function openSkillSwap(pet, keepDraft) {
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
     var eqIdx = isEq ? equippedIds.indexOf(skill.id) : -1;
-    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="up" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25B2</button><button class="swap-move" data-move="down" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + skill.name + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><span class="swap-info-btn" role="button" aria-label="查看技能详情">i</span></div>';
+    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + skill.name + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><span class="swap-info-btn" role="button" aria-label="查看技能详情">i</span></div>';
   });
-  html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备 ' + equippedIds.length + ' / ' + allSkills.length + ' 个（仅限本宠技能）| 点击切换装备/卸下</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
+  html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备 ' + equippedIds.length + ' / ' + allSkills.length + ' 个（仅限本宠技能）| 点击切换装备/卸下 · ◀▶ 调整顺序（1 号为最左格）</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
   detail.innerHTML = html;
   // Toggle skill equip
   allSkills.forEach(function(skill) {
@@ -3219,7 +3286,7 @@ function openSkillSwap(pet, keepDraft) {
   detail.querySelectorAll('.swap-move').forEach(function(btn) {
     btn.addEventListener('click', function(ev) {
       ev.stopPropagation();
-      var sid = btn.getAttribute('data-skill'), dir = btn.getAttribute('data-move') === 'up' ? -1 : 1;
+      var sid = btn.getAttribute('data-skill'), dir = btn.getAttribute('data-move') === 'left' ? -1 : 1;
       var i = swapDraft.ids.indexOf(sid), j = i + dir;
       if (i < 0 || j < 0 || j >= swapDraft.ids.length) return;
       swapDraft.ids.splice(i, 1); swapDraft.ids.splice(j, 0, sid);
