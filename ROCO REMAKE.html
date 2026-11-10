@@ -1598,26 +1598,190 @@ const DEFAULT_SKILLS = [
     }
   },
   // === 清羽新技能 ===
-  { id: "sk_qy_1", name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15,
-    desc: "清翎之翼，覆尘万物。本技能免疫PP删除和额外PP损失，仅能被轻风散魂回复。【清风之念<3或无清念】2回合内每回合获得护盾（200+40%已损HP），免疫后手伤害。【清风之念≥3且清念状态】净化自身，回复全部精力，其他技能回复30%PP，终止对方所有回合效果，12回合内免疫异常和负面强化。【首次使用】双方所有技能视为自身主属系，持续(2+技能数×2)回合。【梦境环境下】先手值反转为后手-7。", immuneToPP: true,
-    onUse: function(u, t, ctx) { var bd=u.bloodlineData||{}; var q=bd.qfzn||0; var inQ=bd.mode==="清念"; ctx.msg(u.name+" 释放了清翎覆尘！"); if(gameState.field==="dream")ctx.msg("梦境环境中，清翎覆尘出招速度反转为后手-7！"); if(q<3||!inQ){u.immuneBackhand=true;ctx.addTurnEffect(u,"清翎盾",2,function(p){var sh=200+Math.floor(0.4*(p.maxHp-p.hp));ctx.addShield(p,sh);ctx.msg("护盾+"+sh);},null);ctx.msg("免疫后手伤害！")}else{u.status=null;u.confuseTurns=0;ctx.doHeal(u,u.maxHp-u.hp);u.skills.forEach(function(s,i){if(s.id!=="sk_qy_1"&&s.pp<s.maxPp)s.pp=Math.min(s.maxPp,s.pp+Math.ceil(s.maxPp*0.3))});t.turnEffects=[];ctx.msg("终止了对方所有回合效果！");u.statusImmunities=u.statusImmunities||[];var qyImms=["freeze","sleep","paralyze","burn","poison","confuse","fear"];qyImms.forEach(function(x){if(u.statusImmunities.indexOf(x)<0)u.statusImmunities.push(x)});u.statImmunity=true;ctx.addTurnEffect(u,"清翎免疫",12,function(p){p.statImmunity=true;},function(p){p.statusImmunities=p.statusImmunities.filter(function(x){return qyImms.indexOf(x)<0});p.statImmunity=false;});ctx.msg("净化+满HP+其他回30%PP+12回免疫！")}if(!bd.qyFirstUse){bd.qyFirstUse=true;u.skillElementOverride=u.element;t.skillElementOverride=t.element;ctx.addTurnEffect(u,"主属系",2+u.skills.length*2,null,function(p){p.skillElementOverride=null;});ctx.addTurnEffect(t,"主属系",2+t.skills.length*2,null,function(p){p.skillElementOverride=null;});ctx.msg("双方技能被视为主属系！");if(inQ){ctx.invertHealing(t,1.0,2);ctx.msg("清念:倒置对方2回合治疗！")}if(bd.mode==="残脉"){bd.reflectBackhand=true;ctx.msg("残脉:反弹后手效果！")}}else{var r=(u.maxHp-u.hp)/u.maxHp;ctx.invertHealing(t,0.3+r,4+Math.round(2*r));ctx.msg("后续:倒置治疗"+(4+Math.round(2*r))+"回合，比例"+(0.3+r).toFixed(2)+"！")} }
-  },
-  { id: "sk_qy_2", name: "轻风散魂", element: "flying", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 11,
-    desc: "轻风拂面，魂散九天。闪避对方本回合后手技能和下回合非必中技能。删除对方全体(10+4×清风之念)%的PP，最高25%。【清念 1-2层】3回合内连动：对方非翼系技能额外损失2PP，翼系额外损失1PP；每回合吸取对方精力并限伤150。【清念 3-4层】所有效果必中，额外删除PP。【≥5层】清除所有清风之念，回复清翎覆尘2PP，切换到残脉状态。【残脉状态】清空本技能PP直到重新进入清念。", immuneToPP: true,
-    onUse: function(u, t, ctx) { var bd=u.bloodlineData||{}; var q=bd.qfzn||0; var inQ=bd.mode==="清念"; ctx.msg(u.name+" 释放了轻风散魂！"); var dp=Math.min(25,Math.floor(10+4*q)); t.skills.forEach(function(s){s.pp=Math.max(0,s.pp-Math.ceil(s.maxPp*dp/100))}); ctx.msg("删对方全体"+dp+"%PP！"); if(q>=1&&q<3&&inQ){ctx.addTurnEffect(u,"轻风连动",3,function(p){t.skills.forEach(function(s){if(s.element!=="flying")s.pp=Math.max(0,s.pp-2);else s.pp=Math.max(0,s.pp-1)});ctx.doFixedDamage(t,50+Math.floor(0.2*Math.abs(u.getStat("spd")-t.getStat("spd"))));if(p.hp<p.maxHp*0.6)ctx.setDamageCap(p,150,150,1);ctx.msg("轻风连动!")},null)}else if(q>=3&&q<5&&inQ){var ex=Math.min(7,(bd.qingLingLost||0)+u.skills.filter(function(s){return s.pp===0}).length);ctx.deletePP(t,-1,ex);ctx.msg("清念3-4层:额外删"+ex+"PP!")}else if(q>=5&&inQ){bd.qfzn=0;var ql=u.skills.find(function(s){return s.id==="sk_qy_1"});if(ql)ql.pp=Math.min(ql.maxPp,ql.pp+2);bd.mode="残脉";ctx.msg("清风之念清零!入残脉!")}if(bd.mode==="残脉"){var ts=u.skills.find(function(s){return s.id==="sk_qy_2"});if(ts)ts.pp=0;ctx.msg("残脉:清空本技能PP")} }
-  },
+  { id: "sk_qy_1", name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
+    desc: "免疫删PP；低层/无清念：护盾+免疫后手；高层清念：净化回满、清空对方回合效果、12回合免疫；首次令双方技能视为主属系；后续倒置对方治疗。",
+    detail: "① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果，12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：4+2×已损比例的回合内倒置对方治疗，初始比例0.3+已损比例。",
+    onUse: function(u, t, ctx) {
+      var bd = u.bloodlineData || {};
+      var q = bd.qfzn || 0, inQ = bd.mode === "清念";
+      ctx.msg(u.name + " 释放了清翎覆尘！");
+      if (q < 3 || !inQ) {
+        u.immuneBackhand = true;
+        ctx.addTurnEffect(u, "清翎护盾", 2, function(p) {
+          var cap = p.maxHp + (p.maxHpBonus || 0);
+          var sh = Math.floor(200 + 0.4 * (cap - p.hp));
+          ctx.addShield(p, sh);
+          ctx.msg("【清翎】护盾+" + sh);
+        }, null);
+        ctx.msg("清风之念不足：2回合护盾并免疫后手伤害！");
+      } else {
+        u.status = null; u.statusTurns = 0; u.confuseTurns = 0; u.bindTurns = 0; u.leechSeed = false;
+        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
+        ctx.doHeal(u, (u.maxHp + (u.maxHpBonus || 0)) - u.hp);
+        u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3)); });
+        t.turnEffects = [];
+        var imms0 = ["burn","freeze","paralyze","poison","sleep","confuse","fear","bind"];
+        u.statusImmunities = u.statusImmunities || [];
+        imms0.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
+        u.statImmunity = true;
+        ctx.addTurnEffect(u, "清翎免疫", 12, null, function(p) { p.statImmunity = false; p.statusImmunities = p.statusImmunities.filter(function(x){ return imms0.indexOf(x) < 0; }); });
+        ctx.msg("清念：净化回满，其他技能+30%PP，清除对方回合效果，12回合免疫！");
+      }
+      if (!bd.qyFirstUse) {
+        bd.qyFirstUse = true;
+        var dur = 2 + u.skills.length * 2;
+        [u, t].forEach(function(p){ p.skillElementOverride = u.element; });
+        ctx.addTurnEffect(u, "清翎同调", dur, null, function(){ [u, t].forEach(function(p){ p.skillElementOverride = null; }); });
+        ctx.msg("首次使用：双方技能视为" + (ELEMENTS[u.element] || { name: u.element }).name + "系，持续" + dur + "回合！");
+        if (inQ) ctx.invertHealing(t, 1.0, 2);
+        else if (bd.mode === "残脉") u.reflectBackhand = true;
+      } else {
+        var cap2 = u.maxHp + (u.maxHpBonus || 0);
+        var lostRatio = Math.min(1, 1 - u.hp / cap2);
+        var turns = Math.round(4 + 2 * lostRatio);
+        ctx.invertHealing(t, 0.3 + lostRatio, turns);
+        ctx.msg("后续使用：倒置对方治疗" + turns + "回合！");
+      }
+    } },
+  { id: "sk_qy_2", name: "轻风散魂", element: "flying", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 11, immuneToPP: true,
+    desc: "删除对方全体(10+4×层数)%PP（上限25），并闪避对方后手与下回合非必中技能；先手回本技能2PP，后手按清翎已损PP删PP；清念按层数触发连动/额外删除，≥5层转残脉。",
+    detail: "① 删除对方全体技能（10+4×清风之念）%PP，最高25%。\n② 使用后闪避对方本回合后手技能，以及下回合的非必中技能。\n③ 若本回合先手：对方后手结算后回复本技能2PP；若后手：删除对方全体（清翎覆尘已损PP）点PP，最少1点。\n④ 清念1-2层：3回合连动，对方非翼系技能额外-2PP、翼系-1PP，每回合吸取对方精力并限伤150。\n⑤ 清念3-4层：额外删除对方先手使用技能（清翎已损PP+自身空PP数+本技能已损PP）PP，最多7点。\n⑥ 层数≥5：清空清风之念，回复清翎覆尘2PP，转入残脉。\n⑦ 残脉状态下使用：清空本技能PP，直到重新进入清念。",
+    onUse: function(u, t, ctx) {
+      var bd = u.bloodlineData || {};
+      var q = bd.qfzn || 0;
+      var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
+      var self = u.skills.find(function(s){ return s.id === "sk_qy_2"; });
+      var ql = u.skills.find(function(s){ return s.id === "sk_qy_1"; });
+      var pct = Math.min(25, 10 + 4 * q);
+      t.skills.forEach(function(s){ if (!s.immuneToPP && !s.ppLocked) s.pp = Math.max(0, s.pp - Math.ceil(s.maxPp * pct / 100)); });
+      u.dodgeNextNonSure = true;
+      u.dodgeNextTurnNonSure = true;
+      ctx.msg("删除对方全体" + pct + "%PP，并闪避后手与下回合非必中技能！");
+      if (isFirst) { gainPP(u, self, 2); ctx.msg("先手：回复本技能2PP！"); }
+      else { var n = Math.max(1, ql ? ql.maxPp - ql.pp : 1); ctx.deletePP(t, -1, n); ctx.msg("后手：删除对方全体" + n + "PP！"); }
+      if (bd.mode === "残脉") { if (self) self.pp = 0; ctx.msg("残脉：本技能PP清空！"); return; }
+      if (q >= 5) {
+        bd.qfzn = 0; bd.mode = "残脉";
+        gainPP(u, ql, 2);
+        ctx.msg("层数≥5：清空清风之念，回复清翎覆尘2PP，转入残脉！");
+      } else if (q >= 3) {
+        var ex = Math.min(7, (ql ? ql.maxPp - ql.pp : 0) + u.skills.filter(function(s){ return s.pp === 0; }).length + (self ? self.maxPp - self.pp : 0));
+        ctx.deletePP(t, -1, ex);
+        ctx.msg("层数3-4：额外删除对方" + ex + "PP！");
+      } else if (q >= 1) {
+        ctx.addTurnEffect(u, "轻风连动", 3, function(p) {
+          var opp = gameState.playerActive === p ? gameState.aiActive : gameState.playerActive;
+          if (!opp) return;
+          ctx.deletePP(opp, -1, opp.element === "flying" ? 1 : 2);
+          var drain = 50 + Math.floor(0.2 * Math.abs(p.getStat("spd") - opp.getStat("spd")));
+          ctx.doFixedDamage(opp, drain, p);
+          ctx.doHeal(p, drain);
+        }, null);
+        ctx.msg("清念1-2层：3回合连动！");
+      }
+    } },
   { id: "sk_qy_3", name: "残念余梦", element: "ice", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 7,
-    desc: "残念化梦，余韵悠长。强制清除场上所有天气，召唤梦境1回合。返还上次受到的伤害，追加固定伤害（基于双方速度差×残风临霜已损PP×空PP技能数），上限600。后手时令对方沉睡（自身无法换宠直到对方解除）；沉睡失败则删除对方全体1PP。【残脉】固伤增幅至(1.8+当前HP比例)倍，上限1000，有抗性时分4段结算。【清念】使用后清空本技能PP直到重新进入清念。",
-    onUse: function(u, t, ctx) { var bd=u.bloodlineData||{}; ctx.msg(u.name+" 释放了残念余梦！"); gameState.weather=null;gameState.weatherTurns=0;gameState.field=null;gameState.fieldTurns=0;ctx.setField("dream",1);ctx.msg("梦境降临！"); var qe=u.skills.filter(function(s){return s.pp===0}).length; var cf=u.skills.find(function(s){return s.id==="sk_qy_4"})||{maxPp:4,pp:4}; var fd=Math.min(600,Math.floor(0.3*Math.abs(u.getStat("spd")-t.getStat("spd"))*(cf.maxPp-cf.pp)*qe)); if(fd>0){ctx.doFixedDamage(t,fd);ctx.msg("固伤"+fd)} if(bd.mode==="残脉"){fd=Math.min(1000,Math.floor(fd*(1.8+u.hp/u.maxHp))); var segs=t.damageCapTurns>0?4:1; for(var i=0;i<segs;i++){ctx.doFixedDamage(t,Math.floor(fd/segs))} ctx.msg("残脉增幅:"+fd)} ctx.applyStatus(t,"sleep"); if(t.status!=="sleep"){ctx.deletePP(t,-1,1);ctx.msg("沉睡失败!")}else{u.switchLocked=true;ctx.addTurnEffect(u,"残念锁足",99,function(p){if(!t||t.status!=="sleep")p.switchLocked=false;},function(p){p.switchLocked=false;});} if(bd.mode==="清念"){var ts=u.skills.find(function(s){return s.id==="sk_qy_3"});if(ts)ts.pp=0} }
-  },
-  { id: "sk_qy_4", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12,
-    desc: "残风凛冽，临霜万物。本技能免疫PP删除，仅能被清翎覆尘回复。冰冻对方：成功则驱逐对方，对下一个上场宠物施加睡眠（睡眠失败则造成999固伤分3段）。冰冻失败则删除对方使用次数>6的技能PP，若对方空PP技能≥2则驱逐。结算后自身速度降低30%，获得基于速度差和已损HP比例的护盾。若未携带清翎覆尘则进入残脉状态。", immuneToPP: true,
-    onUse: function(u, t, ctx) { var bd=u.bloodlineData||{}; ctx.msg(u.name+" 释放了残风临霜！"); ctx.applyStatus(t,"freeze"); if(t.status==="freeze"){ctx.msg("冰冻成功!驱逐!"); if(t.immuneEject){ctx.msg(t.name+" 免疫了驱逐效果！")}else{var party=gameState.playerActive===t?gameState.playerParty:gameState.aiParty; var next=party.find(function(p){return!p.isFainted()&&p!==t}); if(next){ctx.applyStatus(next,"sleep");if(next.status!=="sleep"){for(var i=0;i<3;i++)ctx.doFixedDamage(next,333);ctx.msg("睡眠失败!999×3!")}if(gameState.playerActive===t){gameState.playerActive=next;ctx.msg("换上"+next.name)}else{gameState.aiActive=next;ctx.msg("对手换上"+next.name)}}}}else{t.skills.forEach(function(s){if(s.maxPp>6&&s.pp>0)s.pp=Math.max(0,s.pp-1-Math.floor(0.25*Math.abs(u.getStat("spd")-t.getStat("spd"))))});if(t.skills.filter(function(s){return s.pp===0}).length>=2)ctx.msg("PP空≥2,驱逐!")}u.spdMod=(u.spdMod||1)*0.7;var hp=(u.maxHp-u.hp)/u.maxHp;var sh=20+Math.floor(0.8*Math.abs(u.getStat("spd")-t.getStat("spd"))*(1+hp*2.5));ctx.addShield(u,sh);ctx.msg("速度-30%,护盾+"+sh);if(!u.skills.some(function(s){return s.id==="sk_qy_1"})){bd.mode="残脉";ctx.msg("未带清翎覆尘,入残脉!")} }
-  },
+    desc: "清天气/环境并召唤梦境；返还上次所受伤害与负面状态；按速度差×残风已损PP×空PP数追加固伤（600/残脉1000）；先手删全体3PP，后手沉睡并锁换宠。",
+    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 返还上次所受伤害（等量固伤），并把自身当前的负面状态退回给对方。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡，自身换宠锁定直到对方苏醒；睡眠失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用后本技能PP清零。",
+    onUse: function(u, t, ctx) {
+      var bd = u.bloodlineData || {};
+      var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
+      gameState.weather = null; gameState.weatherTurns = 0;
+      gameState.field = null; gameState.fieldTurns = 0;
+      ctx.setField("dream", 1);
+      var returned = u.lastTakenTotal || 0;
+      if (returned > 0) { ctx.doFixedDamage(t, returned, u); ctx.msg("返还上次所受伤害" + returned + "点！"); }
+      if (u.status && ["burn","freeze","paralyze","poison","sleep","fear","bind","confuse"].indexOf(u.status) >= 0) {
+        var st = u.status, stTurns = u.statusTurns;
+        u.status = null; u.statusTurns = 0;
+        t.status = st; t.statusTurns = stTurns;
+        ctx.msg("将负面状态退回给对方！");
+      }
+      var cf = u.skills.find(function(s){ return s.id === "sk_qy_4"; });
+      var lostCf = cf ? cf.maxPp - cf.pp : 0;
+      var empty = u.skills.filter(function(s){ return s.pp === 0; }).length;
+      var spdDiff = Math.abs(u.getStat("spd") - t.getStat("spd"));
+      var extra = Math.floor(0.3 * spdDiff * lostCf * empty);
+      if (bd.mode === "残脉") extra = Math.floor(extra * (1.8 + u.hp / u.maxHp));
+      extra = Math.min(bd.mode === "残脉" ? 1000 : 600, extra);
+      if (extra > 0) { ctx.doFixedDamage(t, extra, u); ctx.msg("追加" + extra + "点固伤！"); }
+      if (isFirst) { ctx.deletePP(t, -1, 3); ctx.msg("先手：额外删除对方全体3PP！"); }
+      else {
+        ctx.applyStatus(t, "sleep");
+        if (t.status === "sleep") {
+          u.switchLocked = true;
+          ctx.addTurnEffect(u, "残念锁足", 99, function(p){ if (!t || t.status !== "sleep") p.switchLocked = false; }, function(p){ p.switchLocked = false; });
+          ctx.msg("后手：对方沉睡，自身换宠锁定！");
+        } else {
+          var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; });
+          if (last) last.pp = Math.max(0, last.pp - 3);
+          ctx.deletePP(t, -1, 1);
+          ctx.msg("睡眠失败：删除对方上次技能3PP与全体1PP！");
+        }
+      }
+      if (bd.mode === "清念") { var self = u.skills.find(function(s){ return s.id === "sk_qy_3"; }); if (self) self.pp = 0; }
+    } },
+  { id: "sk_qy_4", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12, immuneToPP: true,
+    desc: "冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按使用次数>6删PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
+    detail: "① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方，并对下一只上场宠物施加睡眠；睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差）PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
+    onUse: function(u, t, ctx) {
+      var bd = u.bloodlineData || {};
+      var spdDiff = Math.abs(u.getStat("spd") - t.getStat("spd"));
+      var side = gameState.playerActive === t ? "player" : "ai";
+      var party = side === "player" ? gameState.playerParty : gameState.aiParty;
+      var eject = function() {
+        var next = party.find(function(p){ return !p.isFainted() && p !== t; });
+        if (!next) return null;
+        if (side === "player") gameState.playerActive = next; else gameState.aiActive = next;
+        ctx.msg("驱逐对方，换上" + next.name + "！");
+        return next;
+      };
+      ctx.applyStatus(t, "freeze");
+      if (t.status === "freeze") {
+        var next = eject();
+        if (next) {
+          ctx.applyStatus(next, "sleep");
+          if (next.status !== "sleep") { for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333); ctx.msg("睡眠失败：999固伤分3段！"); }
+        }
+      } else {
+        t.skills.forEach(function(s) { if ((s.useCount || 0) > 6) { var cut = 1 + s.pp + Math.floor(0.25 * spdDiff); s.pp = Math.max(0, s.pp - cut); } });
+        if (t.skills.filter(function(s){ return s.pp === 0; }).length >= 2) eject();
+        ctx.msg("冰冻失败：按使用次数删除对方PP！");
+      }
+      u.spdMod = (u.spdMod || 1) * 0.7;
+      ctx.addTurnEffect(u, "残风减速", 99, null, function(p){ p.spdMod = (p.spdMod || 1) / 0.7; });
+      var cap = u.maxHp + (u.maxHpBonus || 0);
+      var sh = Math.floor((20 + 0.8 * spdDiff) * (1 + (1 - u.hp / cap) * 2.5));
+      ctx.addShield(u, sh);
+      if (!u.skills.some(function(s){ return s.id === "sk_qy_1"; })) { bd.mode = "残脉"; ctx.msg("未携带清翎覆尘：进入残脉！"); }
+    } },
   { id: "sk_qy_5", name: "清念沉脉", element: "flying", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 11,
-    desc: "清念沉心，脉动万物。强制清除双方所有强化等级，对敌方治疗（清除的强化总级数×60HP）。若治疗量低于240则额外删除对方上次使用技能5PP。回复自身全体技能3PP。消耗本技能全部PP，进入清念状态（持续1+消耗PP数回合）。状态结束后回复（双方损失PP总数×0.5）点PP，并令对方4回合内威力技能伤害降低30%（最大50%），变化技能先手值-1。",
-    onUse: function(u, t, ctx) { ctx.msg(u.name+" 释放了清念沉脉！"); var ts=0;[u,t].forEach(function(p){["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s){ts+=Math.abs(p[s]);p[s]=0})});ctx.msg("清双方强化("+ts+"级)!");var ha=ts*60;ctx.doHeal(t,ha);if(ha<240){ctx.deletePP(t,-1,5);ctx.msg("治疗<240,删5PP!")}u.skills.forEach(function(s){if(s.id!=="sk_qy_5")s.pp=Math.min(s.maxPp,s.pp+3)});var ss=u.skills.find(function(s){return s.id==="sk_qy_5"});var cp=ss?ss.pp:0;if(ss)ss.pp=0;var bd=u.bloodlineData||{};bd.mode="清念";ctx.msg("入清念"+(1+cp)+"回!");ctx.addTurnEffect(u,"清念沉脉终",1+cp,null,function(p){var lt=0;[u,t].forEach(function(pt){pt.skills.forEach(function(s){lt+=s.maxPp-s.pp})});var ts2=p.skills.find(function(s){return s.id==="sk_qy_5"});if(ts2)ts2.pp=Math.min(ts2.maxPp,ts2.pp+Math.ceil(lt*0.5));t.dmgMod=Math.max(0.5,(t.dmgMod||1)-0.3);ctx.msg("清念沉脉结束!回"+Math.ceil(lt*0.5)+"PP!对方威-30%!")}) }
-  },
+    desc: "清除双方强化并对敌治疗（总级数×60）；治疗<240额外删对方上次技能5PP；自身全体+3PP；消耗全部PP进入清念，结束时回PP并压制对方4回合。",
+    detail: "① 强制清除双方全部强化，对敌方治疗（清空总级数×60）。\n② 若治疗量<240，额外删除对方上次使用技能5PP。\n③ 回复自身全体技能3PP。\n④ 消耗本技能全部PP，进入清念状态（1+消耗PP数）回合。\n⑤ 状态结束：回复本技能（双方损失PP总数×0.5）PP；对方4回合内威力技能伤害-30%（上限50%）、变化技能先手值-1。",
+    onUse: function(u, t, ctx) {
+      var bd = u.bloodlineData || {};
+      var total = 0;
+      [u, t].forEach(function(p) { ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
+      var healAmt = total * 60;
+      ctx.doHeal(t, healAmt);
+      ctx.msg("清除双方强化，对敌方治疗" + healAmt + "！");
+      if (healAmt < 240) { var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; }); if (last) last.pp = Math.max(0, last.pp - 5); ctx.msg("治疗<240：额外删对方上次技能5PP！"); }
+      u.skills.forEach(function(s){ gainPP(u, s, 3); });
+      var self = u.skills.find(function(s){ return s.id === "sk_qy_5"; });
+      var cp = self ? self.pp : 0;
+      if (self) self.pp = 0;
+      bd.mode = "清念";
+      ctx.addTurnEffect(u, "清念沉脉", 1 + cp, null, function(p) {
+        var lost = 0;
+        [p, t].forEach(function(pt){ pt.skills.forEach(function(s){ lost += s.maxPp - s.pp; }); });
+        gainPP(p, p.skills.find(function(s){ return s.id === "sk_qy_5"; }), Math.ceil(lost * 0.5));
+        t.prioPenalty = 1;
+        t.dmgMod = Math.max(0.5, (t.dmgMod || 1) - 0.3);
+        ctx.addTurnEffect(t, "沉脉压制", 4, null, function(pt){ pt.prioPenalty = 0; pt.dmgMod = (pt.dmgMod || 1) + 0.3; });
+        ctx.msg("清念沉脉结束：回复本技能PP，对方4回合内威力-30%、变化技先手-1！");
+      });
+      ctx.msg("进入清念" + (1 + cp) + "回合！");
+    } },
 
   // ============ 清灵（清念灵体） ============
   { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
@@ -1976,9 +2140,21 @@ const DEFAULT_PETS = [
         } else if (bd.mode === "残脉") {
           if (opp && !opp.isFainted()) {
             var emptySkills = pet.skills.filter(function(s) { return s.pp === 0; }).length;
-            var fixDmg = Math.floor(30 + pet.maxHp * 0.05 + 50 * emptySkills);
-            ctx.doFixedDamage(opp, fixDmg);
-            ctx.msg("【残脉】对敌方造成" + fixDmg + "固伤！");
+            var oppHasMit = ((opp.damageReduction || 0) > 0 && (opp.damageReductionTurns || 0) > 0) || ((opp.damageCap || Infinity) < Infinity && (opp.damageCapTurns || 0) > 0);
+            if (oppHasMit) {
+              // 对方有减伤/限伤：改为治疗对方（0.3×上回合受伤总值 + 30 + 50×本回合使用技能次数）
+              var healAmt = Math.ceil(0.3 * (pet.lastTakenTotal || 0) + 30 + 50 * (pet.skillsUsedThisTurn || 0));
+              var cf = pet.skills.find(function(s) { return s.id === "sk_qy_4"; });
+              if (pet.hp < 500 && cf && cf.pp !== 4) { ctx.invertHealing(opp, 1.0, 1); ctx.msg("【残脉】本次治疗被倒置！"); }
+              ctx.doHeal(opp, healAmt);
+              ctx.msg("【残脉】对方有减伤，改为治疗对方" + healAmt + "点！");
+            } else {
+              // 0.3×上回合所受最高两段伤害总值 + 50×空PP数
+              var segs = (pet.lastTakenSegments || []).slice().sort(function(a, b) { return b - a; }).slice(0, 2);
+              var top2 = segs.reduce(function(a, b) { return a + b; }, 0);
+              var fixDmg = Math.floor(0.3 * top2 + 50 * emptySkills);
+              if (fixDmg > 0) { ctx.doFixedDamage(opp, fixDmg); ctx.msg("【残脉】对敌方造成" + fixDmg + "固伤！"); }
+            }
           }
           if (pet.hp > 200) ctx.doHeal(pet, Math.floor(pet.maxHp * 0.3));
         }
@@ -2207,6 +2383,10 @@ class BattlePet {
     // === 极影迪莫明念引擎字段 ===
     this.lastDealtDamage = 0;         // 上回合造成伤害总值
     this.outputThisTurn = 0;          // 本回合累计对敌输出（含固伤）
+    this.damageTakenThisTurn = [];    // 本回合承伤分段（残脉公式用）
+    this.lastTakenSegments = [];      // 上回合承伤分段
+    this.lastTakenTotal = 0;          // 上回合承伤总值
+    this.skillsUsedThisTurn = 0;      // 本回合使用技能次数
     this.lastTurnOutput = 0;          // 上回合的总输出（回合末结算）
     this.currentDealt = 0;            // 本回合累计造成伤害
     this.lastPPDeletedSkill = null;   // 上次被删除PP的技能
@@ -2266,7 +2446,7 @@ class BattlePet {
       this.preDeathHP = this.hp;
     }
     this.hp = Math.max(0, this.hp - dmg);
-    if (dmg > 0) spawnFloatText(this, dmg, "dmg");
+    if (dmg > 0) { this.damageTakenThisTurn.push(dmg); spawnFloatText(this, dmg, "dmg"); }
     this.segmentIdx++;
     return dmg;
   }
@@ -2891,6 +3071,9 @@ function resolveTurn() {
   
   var pPrio = pSkill ? ((player.priorityOverride !== null && player.priorityOverride !== undefined) ? player.priorityOverride : (pSkill.priority || 8)) : 0;
   var aPrio = aSkill ? ((ai.priorityOverride !== null && ai.priorityOverride !== undefined) ? ai.priorityOverride : (aSkill.priority || 8)) : 0;
+  // 对方施加的先手惩罚：变化技能先手值-1
+  if (pSkill && pSkill.category === "status" && player.prioPenalty) pPrio -= player.prioPenalty;
+  if (aSkill && aSkill.category === "status" && ai.prioPenalty) aPrio -= ai.prioPenalty;
   // 迷雾天气：幽灵系技能先手值+1
   if (gameState.weather === "mist") {
     if (pSkill && pSkill.element === "ghost") pPrio += 1;
@@ -2969,7 +3152,7 @@ function resolveTurn() {
     var pjSk = pj.skills.find(function(s){ return s.id === "sk_jydm_1"; });
     if (pjSk && pjOpp) { pjSk.onUse(pj, pjOpp, createBattleContext()); addMessage("【极尽降华】PP 被删除，被动发动！"); }
   }
-  [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; } });
+  [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; p.lastTakenSegments = (p.damageTakenThisTurn || []).slice(); p.lastTakenTotal = (p.damageTakenThisTurn || []).reduce(function(a,b){ return a + b; }, 0); p.damageTakenThisTurn = []; p.skillsUsedThisTurn = 0; } });
   
   gameState.pendingPlayerSkill = null;
   gameState.pendingAISkill = null;
@@ -3001,6 +3184,12 @@ function executeSkillTurn(user, target, skill, who) {
   var ctx = createBattleContext();
   var ppCostOnMiss = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
   
+  // 轻风散魂：下回合闪避非必中技能（一次性）
+  if (target.dodgeNextTurnNonSure && !skill.semiSure && skill.category !== "status") {
+    target.dodgeNextTurnNonSure = false;
+    addMessage(target.name + " 闪避了" + user.name + " 的非必中技能！");
+    return;
+  }
   // 命中判定：半必中（semiSure）仅在对方"必定闪避"时 miss，其余必中
   if (skill.semiSure) {
     if (target.sureDodge) {
@@ -3050,6 +3239,8 @@ function executeSkillTurn(user, target, skill, who) {
   }
   
   // PP消耗倍率（化念作刃/极影光幕效果；extraPPCost 为极影光幕连续技惩罚）
+  user.skillsUsedThisTurn = (user.skillsUsedThisTurn || 0) + 1;
+  skill.useCount = (skill.useCount || 0) + 1;
   var ppCost = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
   var ppBeforeUse = skill.pp;
   if (skill.__struggle) {
