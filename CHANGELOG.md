@@ -20,6 +20,8 @@
 
 ## 2026-11-10 — 编辑器与旧存档清理（Codex R09/R10 + R01 补充）
 
+- 静态检查排除 `_icon` 元数据，属性计数回到真实的 18 种。
+
 - R09：编辑内置宠物改为写入 `pbg_pet_loadouts` 的 name/emoji/baseStats/level/skillIds 覆盖，不再静默丢弃；`getAllPets` 合并覆盖但保留血脉函数。
 - R10：宠物表单技能槽从 4 个扩展到 5 个，`skillIds` 读取同步到 5 槽，五技能宠物保存后不再丢招。
 - R01 补充：移除 `pbg_v4_loaded` 分支里的 removeItem，旧存档不再被二次清空。

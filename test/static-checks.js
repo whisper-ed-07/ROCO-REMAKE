@@ -26,7 +26,7 @@ const pets = api.DEFAULT_PETS || [];
 const skills = api.DEFAULT_SKILLS || [];
 const ELEMENTS = api.ELEMENTS || {};
 const TYPE_CHART = api.TYPE_CHART || {};
-const elemKeys = Object.keys(ELEMENTS).filter(k => k !== '_emoji');
+const elemKeys = Object.keys(ELEMENTS).filter(k => k !== '_emoji' && k !== '_icon');
 const allSkillIds = new Set(skills.map(s => s.id));
 const allPetIds = new Set(pets.map(p => p.id));
 const VALID_CAT = ['physical', 'special', 'status'];
