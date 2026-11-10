@@ -1,0 +1,369 @@
+{
+  "source": "C:\\dsh work space\\rocoremake\\ROCO REMAKE.html",
+  "sha256": "a8f3317899c09a6f8f3e4f6fd7cab9b2c6f21e0382f1e7ffe9f06ce1a20ff576",
+  "policy": "1v1, player round-robin among available skills, actual greedy AI, 300 submitted commands maximum; no browser/UI timers executed",
+  "summary": {
+    "battles": 16,
+    "finished": 15,
+    "unresolved": 1,
+    "exceptions": 0,
+    "withNonAdvancingCommands": 0,
+    "withInvariantViolations": 1
+  },
+  "results": [
+    {
+      "player": "pet_qingling",
+      "ai": "pet_qingling",
+      "seed": 20261110,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        558,
+        0
+      ],
+      "tail": [
+        "造成 687 点伤害！效果拔群！ 命中要害！",
+        "回复150精力，6回合内免疫异常状态！",
+        "先手：追加206固伤并强制重置双方强化！",
+        "【清念灵体】威力技先手：删对方全体1PP，追加固伤74！",
+        "清灵 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_qingling",
+      "ai": "pet_jydm",
+      "seed": 20261111,
+      "commands": 3,
+      "turns": 3,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        207
+      ],
+      "tail": [
+        "造成 894 点伤害！效果拔群！",
+        "清灵免疫了烧伤！",
+        "烧伤失败：清空双方炽光若焰PP，本技能12回合内无法回复！",
+        "召唤锁定瞬华环境4回合！光系+15%速度、先手出招回100精力、被抵抗追加30%固伤",
+        "清灵 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_qingling",
+      "ai": "pet_qy",
+      "seed": 20261112,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        181,
+        0
+      ],
+      "tail": [
+        "后手：双方回复207精力！",
+        "首格PP=0：清空对方先手使用技能PP！",
+        "清羽的治疗被倒置100%持续1回合！",
+        "【清念灵体】威力技后手：倒置对方下次治疗，删除对方先手技能3PP！",
+        "清羽 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_qingling",
+      "ai": "pet_bmhs",
+      "seed": 20261113,
+      "commands": 4,
+      "turns": 4,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        558,
+        0
+      ],
+      "tail": [
+        "创世神钟的治疗被倒置！受到524点伤害",
+        "创世神钟 回复了全部精力值！无视对方后手技能效果！",
+        "━━━ 第 4 回合 ━━━",
+        "创世神钟 先手！（先手+1 vs +1）",
+        "创世神钟 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_qingling",
+      "seed": 20261210,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        548,
+        0
+      ],
+      "tail": [
+        "极影迪莫 使用了化念作刃！",
+        "造成 1606 点伤害！效果拔群！ 命中要害！",
+        "先手：尝试闪避对方后手不必中技能！",
+        "暴击额外删1PP！",
+        "清灵 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_jydm",
+      "seed": 20261211,
+      "commands": 4,
+      "turns": 4,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        663,
+        0
+      ],
+      "tail": [
+        "【化念作刃】削对方强化、回第2格1PP、60固伤、对方PP消耗加倍！",
+        "【极影光幕】护盾+213！",
+        "━━━ 第 4 回合 ━━━",
+        "极影迪莫 先手！（先手+1 vs -1）",
+        "极影迪莫 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_qy",
+      "seed": 20261212,
+      "commands": 63,
+      "turns": 63,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        604
+      ],
+      "tail": [
+        "清羽 先手！（先手+3 vs ±0）",
+        "极影迪莫 倒下了！",
+        "极影迪莫 释放了极尽降华！光衍至极点！",
+        "全场及场下技能视为光系（6回合），回复与输出+100%！",
+        "【极尽降华】PP 被删除，被动发动！"
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_bmhs",
+      "seed": 20261213,
+      "commands": 300,
+      "turns": 300,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [
+        "pet_jydm: hp=743, effectiveMaxHp=648"
+      ],
+      "outcome": "unresolved",
+      "error": null,
+      "hp": [
+        743,
+        1
+      ],
+      "tail": [
+        "创世神钟 被致命一击！不灭魂体保留1点精力！全体技能-4PP！",
+        "创世神钟 因烧伤受到 32 点伤害！",
+        "━━━ 第 300 回合 ━━━",
+        "极影迪莫 先手！（先手+7 vs +6）",
+        "创世神钟 被致命一击！不灭魂体保留1点精力！全体技能-4PP！"
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_qingling",
+      "seed": 20261310,
+      "commands": 3,
+      "turns": 3,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        604,
+        0
+      ],
+      "tail": [
+        "【清念】回复10%最大精力！",
+        "【清念】回复10%最大精力！",
+        "━━━ 第 3 回合 ━━━",
+        "清灵 先手！（先手+3 vs -1）",
+        "清灵 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_jydm",
+      "seed": 20261311,
+      "commands": 7,
+      "turns": 7,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        548
+      ],
+      "tail": [
+        "冰冻成功！删对方全体1PP，2回合对方治疗-50%！",
+        "印记>3：追加9999固伤！回全体2PP！前两格技能永久免疫删除！",
+        "先手：2回合先手+4，追加2段227固伤！",
+        "印记≥4：冰冻后回全体4PP！",
+        "清羽 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_qy",
+      "seed": 20261312,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        604,
+        0
+      ],
+      "tail": [
+        "【清翎】护盾+200",
+        "【清念】回复10%最大精力！",
+        "━━━ 第 2 回合 ━━━",
+        "清羽 先手！（先手+4 vs +3）",
+        "清羽 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_bmhs",
+      "seed": 20261313,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        333
+      ],
+      "tail": [
+        "造成 108 点伤害！",
+        "创世神钟 失去了属系！变为普通系！",
+        "清羽 的护盾吸收了125点伤害，剩余6874点穿透！",
+        "逆流而行·终结：9999固伤！清空对方全部PP！回复自身1PP！",
+        "清羽 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_qingling",
+      "seed": 20261410,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        558
+      ],
+      "tail": [
+        "创世神钟 回复了全部精力值！无视对方后手技能效果！",
+        "微灵封体：清灵 获得5点微灵印记！",
+        "━━━ 第 2 回合 ━━━",
+        "创世神钟 先手！（先手+4 vs +3）",
+        "创世神钟 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_jydm",
+      "seed": 20261411,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "player-win",
+      "error": null,
+      "hp": [
+        479,
+        0
+      ],
+      "tail": [
+        "逆流而行·终结：9999固伤！清空对方全部PP！回复自身1PP！",
+        "极影迪莫 倒下了！",
+        "极影迪莫 释放了极尽降华！光衍至极点！",
+        "全场及场下技能视为光系（6回合），回复与输出+100%！",
+        "【极尽降华】PP 被删除，被动发动！"
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_qy",
+      "seed": 20261412,
+      "commands": 2,
+      "turns": 2,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        604
+      ],
+      "tail": [
+        "【清翎】护盾+200",
+        "【清念】回复10%最大精力！",
+        "━━━ 第 2 回合 ━━━",
+        "清羽 先手！（先手+7 vs +4）",
+        "创世神钟 倒下了！"
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_bmhs",
+      "seed": 20261413,
+      "commands": 5,
+      "turns": 5,
+      "nonAdvancingCommands": 0,
+      "invariantViolations": [],
+      "outcome": "ai-win",
+      "error": null,
+      "hp": [
+        0,
+        1
+      ],
+      "tail": [
+        "状态回溯造成 523 点固定伤害！",
+        "创世神钟 使用了 重衍纪元（PP 1→0）！",
+        "创世神钟 释放了重衍纪元！纪元重衍，万物复苏！",
+        "创世神钟 将双方全体宠物PP逆转至24回合最低！自身死亡！",
+        "创世神钟 倒下了！"
+      ]
+    }
+  ]
+}

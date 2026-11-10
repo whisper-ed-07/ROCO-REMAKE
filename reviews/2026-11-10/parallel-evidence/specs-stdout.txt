@@ -1,0 +1,58 @@
+{
+  "qy5": {
+    "duration": 7,
+    "atWindowStart": {
+      "dmgMod": 0.7,
+      "prioPenalty": 1
+    },
+    "afterWindow": {
+      "dmgMod": 1,
+      "prioPenalty": 0
+    }
+  },
+  "qy3": {
+    "ppBeforeClear": 3,
+    "afterClear": 0,
+    "afterCanmai": 0,
+    "afterQingnian": 0,
+    "mode": "清念"
+  },
+  "mingnian": {
+    "actualSkillUseCounts": {},
+    "fifthSkillPP": 8,
+    "fifthSkillMaxPP": 8,
+    "marked": true,
+    "marks": 1
+  },
+  "chiguang": {
+    "userSkill": "炽光若焰",
+    "userPP": 0,
+    "targetSameSlotSkill": "清念沉脉",
+    "targetPPBefore": 6,
+    "targetPPAfter": 6
+  },
+  "nlex": {
+    "snapshotTurns": [
+      1
+    ],
+    "oldState": {
+      "hp": 200,
+      "status": "burn"
+    },
+    "before": {
+      "hp": 150,
+      "status": "poison"
+    },
+    "after": {
+      "hp": 200,
+      "status": "burn"
+    }
+  },
+  "canmaiHeal": {
+    "maxHp": 604,
+    "beforeHit": 400,
+    "damage": 50,
+    "afterHit": 350,
+    "afterTurnStart": 531
+  }
+}

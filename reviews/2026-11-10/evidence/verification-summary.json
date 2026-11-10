@@ -1,0 +1,27 @@
+{
+  "reviewedSource": "ROCO REMAKE.html",
+  "sourceSha256": "a8f3317899c09a6f8f3e4f6fd7cab9b2c6f21e0382f1e7ffe9f06ce1a20ff576",
+  "note": "These are fault-reproduction probes, not assertions of correct game behavior.",
+  "steps": [
+    {
+      "name": "static",
+      "executed": true
+    },
+    {
+      "name": "engine",
+      "executed": true
+    },
+    {
+      "name": "specs",
+      "executed": true
+    },
+    {
+      "name": "ui",
+      "executed": true
+    },
+    {
+      "name": "matrix",
+      "executed": true
+    }
+  ]
+}

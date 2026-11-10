@@ -1,0 +1,49 @@
+{
+  "snapshotPath": "C:/Users/wwjgc/Documents/Codex/2026-10-22/cha/work/review-20261110/parallel-snapshot/project/ROCO REMAKE.html",
+  "sha256": "8366efddcd9098bd18123b098e4706cf9684d8aff00f434d6437d24a57216761",
+  "probes": {
+    "restoreSnapshot": {
+      "currentTurn": 5,
+      "savedTurns": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "actualRestoredHP": 101,
+      "expectedTurn": 2,
+      "expectedHP": 102,
+      "reproduced": true
+    },
+    "pendingNilex": {
+      "first": {
+        "pp": 1,
+        "count": 2,
+        "pending": null
+      },
+      "second": {
+        "pp": 0,
+        "count": 1,
+        "pending": {
+          "cnt": 3,
+          "armed": true
+        }
+      },
+      "nextPower": {
+        "hpBefore": 200,
+        "hpAfter": 200,
+        "pending": null,
+        "messages": [
+          "逆流之力积蓄：下一次威力技能将触发终结效果！",
+          "创世神钟 使用了 灭世之威（PP 12→11）！",
+          "创世神钟 使用了灭世之威！",
+          "造成 29 点伤害！追加181点固伤！",
+          "清羽 被恐惧了！"
+        ]
+      },
+      "expectedUseCountOnSecond": 2,
+      "expectedDelayedEffect": "全体技能回复3PP并回复30%精力",
+      "reproduced": true
+    }
+  }
+}

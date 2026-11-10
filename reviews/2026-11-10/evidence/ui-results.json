@@ -1,0 +1,80 @@
+[
+  {
+    "probe": "skill-swap-erases-bloodline-hooks",
+    "pet": "清灵",
+    "beforeHooks": [
+      "onTurnStart",
+      "onSkillUse"
+    ],
+    "afterBloodline": {
+      "name": "清念灵体"
+    },
+    "initialHP": 100,
+    "defaultHPAfterStatus": 300,
+    "savedHPAfterStatus": 100,
+    "stored": "[{\"id\":\"pet_qingling\",\"name\":\"清灵\",\"element\":\"ghost\",\"emoji\":\"👻\",\"level\":100,\"baseStats\":{\"hp\":149,\"atk\":152,\"def\":128,\"spatk\":151,\"spdef\":129,\"spd\":132},\"skillIds\":[\"sk_ql_1\",\"sk_ql_2\",\"sk_ql_3\",\"sk_ql_4\",\"sk_ql_5\"],\"bloodline\":{\"name\":\"清念灵体\"},\"ownedSkillIds\":[\"sk_ql_1\",\"sk_ql_2\",\"sk_ql_3\",\"sk_ql_4\",\"sk_ql_5\"]}]"
+  },
+  {
+    "probe": "switch-window-allows-two-rounds",
+    "afterClick": {
+      "turn": 1,
+      "playerPP": 19,
+      "aiPP": 19
+    },
+    "afterTimer": {
+      "turn": 2,
+      "playerPP": 19,
+      "aiPP": 18
+    },
+    "messages": [
+      "回来吧，p1！",
+      "上吧，p2！",
+      "━━━ 第 1 回合 ━━━",
+      "p2 先手！（先手±0 vs ±0）",
+      "p2 使用了 probe（PP 20→19）！",
+      "ai 使用了 probe（PP 20→19）！",
+      "━━━ 第 2 回合 ━━━",
+      "p2 先手！（先手±0 vs ±0）",
+      "p2 已无技能可用，只能拼命挣扎！",
+      "造成 1 点伤害！没有效果！",
+      "p2 因挣扎受到 1 点反伤！",
+      "ai 使用了 probe（PP 19→18）！"
+    ]
+  },
+  {
+    "probe": "startup-clears-old-and-unrelated-storage",
+    "petStorage": null,
+    "unrelatedKey": null,
+    "version": "1"
+  },
+  {
+    "probe": "builtin-edits-silently-discarded",
+    "petName": "清灵",
+    "skillName": "极尽降华",
+    "petStorage": "[]",
+    "skillStorage": "[]"
+  },
+  {
+    "probe": "pet-edit-removes-fifth-equipped-skill",
+    "before": [
+      "sk_ql_1",
+      "sk_ql_2",
+      "sk_ql_3",
+      "sk_ql_4",
+      "sk_ql_5"
+    ],
+    "after": [
+      "sk_ql_1",
+      "sk_ql_2",
+      "sk_ql_3",
+      "sk_ql_4"
+    ],
+    "ownedAfter": [
+      "sk_ql_1",
+      "sk_ql_2",
+      "sk_ql_3",
+      "sk_ql_4",
+      "sk_ql_5"
+    ]
+  }
+]

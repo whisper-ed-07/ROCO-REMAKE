@@ -1,0 +1,24 @@
+{
+  "battles": 16,
+  "finished": 14,
+  "unresolved": 2,
+  "exceptions": 0,
+  "withNonAdvancingCommands": 0,
+  "withInvariantViolations": 1
+}
+{"player":"pet_qingling","ai":"pet_qingling","outcome":"player-win","commands":2,"turns":2,"violations":[],"error":null}
+{"player":"pet_qingling","ai":"pet_jydm","outcome":"ai-win","commands":3,"turns":3,"violations":[],"error":null}
+{"player":"pet_qingling","ai":"pet_qy","outcome":"player-win","commands":2,"turns":2,"violations":[],"error":null}
+{"player":"pet_qingling","ai":"pet_bmhs","outcome":"player-win","commands":4,"turns":4,"violations":[],"error":null}
+{"player":"pet_jydm","ai":"pet_qingling","outcome":"player-win","commands":2,"turns":2,"violations":[],"error":null}
+{"player":"pet_jydm","ai":"pet_jydm","outcome":"player-win","commands":4,"turns":4,"violations":[],"error":null}
+{"player":"pet_jydm","ai":"pet_qy","outcome":"ai-win","commands":63,"turns":63,"violations":[],"error":null}
+{"player":"pet_jydm","ai":"pet_bmhs","outcome":"unresolved","commands":300,"turns":300,"violations":["pet_jydm: hp=743, effectiveMaxHp=648"],"error":null}
+{"player":"pet_qy","ai":"pet_qingling","outcome":"player-win","commands":3,"turns":3,"violations":[],"error":null}
+{"player":"pet_qy","ai":"pet_jydm","outcome":"ai-win","commands":7,"turns":7,"violations":[],"error":null}
+{"player":"pet_qy","ai":"pet_qy","outcome":"player-win","commands":2,"turns":2,"violations":[],"error":null}
+{"player":"pet_qy","ai":"pet_bmhs","outcome":"unresolved","commands":300,"turns":300,"violations":[],"error":null}
+{"player":"pet_bmhs","ai":"pet_qingling","outcome":"ai-win","commands":2,"turns":2,"violations":[],"error":null}
+{"player":"pet_bmhs","ai":"pet_jydm","outcome":"player-win","commands":3,"turns":3,"violations":[],"error":null}
+{"player":"pet_bmhs","ai":"pet_qy","outcome":"ai-win","commands":2,"turns":2,"violations":[],"error":null}
+{"player":"pet_bmhs","ai":"pet_bmhs","outcome":"ai-win","commands":5,"turns":5,"violations":[],"error":null}
