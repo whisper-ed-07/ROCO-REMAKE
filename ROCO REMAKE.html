@@ -977,7 +977,7 @@ body:has(#intro-screen) .settings-btn { opacity: 0; pointer-events: none; transf
 <script>
 
 
-(function(){if(!localStorage.getItem('roco_v5')){localStorage.clear();localStorage.setItem('roco_v5','1');}})();
+(function(){if(!localStorage.getItem('roco_v5')){localStorage.setItem('roco_v5','1');}})();
 window.onerror = function(msg, url, line, col, err) {
   document.body.innerHTML = "<div style='color:lime;background:#111;padding:20px;font-family:monospace;font-size:14px;white-space:pre-wrap'><h2 style='color:red'>JS ERROR</h2><b>Line " + line + ":" + col + "</b><br>" + msg + "<br><br><pre>" + (err&&err.stack||"") + "</pre></div>";
   return false;
@@ -2337,10 +2337,22 @@ const STORAGE_KEY_PETS = "pbg_custom_pets";
 const STORAGE_KEY_SKILLS = "pbg_custom_skills";
 function loadCustomPets() { try { var d = JSON.parse(localStorage.getItem(STORAGE_KEY_PETS)); return Array.isArray(d) ? d.filter(function(p){return p&&p.id;}) : []; } catch(e) { return []; } }
 function saveCustomPets(pets) { localStorage.setItem(STORAGE_KEY_PETS, JSON.stringify(pets)); }
+const STORAGE_KEY_LOADOUTS = "pbg_pet_loadouts";
+function loadPetLoadouts() { try { var d = JSON.parse(localStorage.getItem(STORAGE_KEY_LOADOUTS)); return d && typeof d === "object" ? d : {}; } catch (e) { return {}; } }
+function savePetLoadouts(map) { localStorage.setItem(STORAGE_KEY_LOADOUTS, JSON.stringify(map)); }
 function loadCustomSkills() { try { var d = JSON.parse(localStorage.getItem(STORAGE_KEY_SKILLS)); return Array.isArray(d) ? d.filter(function(s){return s&&s.id;}) : []; } catch(e) { return []; } }
 function saveCustomSkills(skills) { localStorage.setItem(STORAGE_KEY_SKILLS, JSON.stringify(skills)); }
 function getAllSkills() { return [...DEFAULT_SKILLS, ...loadCustomSkills()].filter(function(s){return s&&s.id;}); }
-function getAllPets() { var custom = loadCustomPets(); var defaults = DEFAULT_PETS.filter(function(dp) { return !custom.some(function(cp) { return cp.id === dp.id; }); }); return [...defaults, ...custom].filter(function(p){return p&&p.id;}); }
+function getAllPets() {
+  var loadouts = loadPetLoadouts();
+  // 内置宠物始终使用 DEFAULT_PETS 定义（保留血脉函数），只合并技能配置
+  var custom = loadCustomPets().filter(function(cp) { return !DEFAULT_PETS.some(function(dp) { return dp.id === cp.id; }); });
+  var defaults = DEFAULT_PETS.map(function(dp) {
+    var lo = loadouts[dp.id];
+    if (!lo) return dp;
+    return Object.assign({}, dp, { skillIds: lo.skillIds, ownedSkillIds: lo.ownedSkillIds });
+  });
+  return [...defaults, ...custom].filter(function(p){return p&&p.id;}); }
 function findSkill(id) { return getAllSkills().find(s => s.id === id); }
 function findPet(id) { return getAllPets().find(p => p.id === id); }
 
@@ -3430,9 +3442,15 @@ function playerSwitch(petIdx) {
   addMessage("回来吧，" + gameState.playerActive.name + "！"); addMessage("上吧，" + newPet.name + "！");
   if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
   gameState.playerActive = newPet; gameState.waitingForSwitch = false; gameState.skipPlayerAction = true;
+  gameState.switchPending = true;
   var sp = document.querySelector("#switch-panel"); if (sp) sp.classList.remove("show");
   renderBattle(document.querySelector("#app")); gameState.isPlayerTurn = false;
-  setTimeout(function() { aiDecideAndResolve(); }, 800);
+  var swBattleId = gameState.battleId || 0;
+  setTimeout(function() {
+    if (gameState.battleOver || (gameState.battleId || 0) !== swBattleId) return;
+    gameState.switchPending = false;
+    aiDecideAndResolve();
+  }, 800);
 }
 
 function checkFaints() {
@@ -3587,6 +3605,8 @@ function toggleOpponentSelection(petId) { var idx = gameState.opponentTeamIds.in
 
 function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false;
   // 新战斗必须清空上一局残留的天气/环境/全局封锁与待结算指令
+  gameState.battleId = (gameState.battleId || 0) + 1;
+  gameState.switchPending = false;
   gameState.weather = null; gameState.weatherTurns = 0;
   gameState.field = null; gameState.fieldTurns = 0;
   gameState.banEffects = null;
@@ -3691,13 +3711,18 @@ function showFleeConfirm() {
 }
 
 function renderBattleActions() { var container = document.querySelector("#battle-actions"); if (!container) return; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
+  if (gameState.switchPending) { container.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text2);font-size:14px\">换宠中…</div>"; return; }
   // 检查是否被控制（仅异常状态自动跳过；PP归零改为等待读秒）
   var allPPEmpty = player.skills.every(function(s){return s.pp<=0;});
   if (!player.canAct() && !allPPEmpty) {
     var reason = (player.status==="sleep"?"正在睡觉":player.status==="freeze"?"被冰冻":player.status==="fear"?"被恐惧":player.status==="paralyze"?"麻痹无法行动":"无法行动");
     document.querySelector("#battle-actions").innerHTML = "<div style=text-align:center;padding:20px;color:var(--text2);font-size:14px>"+player.name+reason+"<br>自动跳过...</div>";
     stopTurnTimer();
-    setTimeout(function(){ gameState.pendingPlayerSkill = null; aiDecideAndResolve(); }, 800);
+    var autoBattleId = gameState.battleId || 0;
+    setTimeout(function(){
+      if (gameState.battleOver || (gameState.battleId || 0) !== autoBattleId) return;
+      gameState.pendingPlayerSkill = null; aiDecideAndResolve();
+    }, 800);
     return;
   }
   startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
@@ -3801,13 +3826,21 @@ function openSkillSwap(pet, keepDraft) {
     var ids = swapDraft.ids.slice(0, 5);
     if (!ids.length) { alert("至少保留 1 个技能！"); return; }
     var base = getAllPets().find(function(p) { return p.id === pet.id; }) || pet;
-    var customPets = loadCustomPets();
-    var ci = customPets.findIndex(function(p) { return p.id === pet.id; });
-    var record = ci >= 0 ? customPets[ci] : JSON.parse(JSON.stringify(base));
-    record.skillIds = ids;
-    record.ownedSkillIds = ownedIds.slice();  // 锁定本宠技能池，后续只能在这批里换
-    if (ci >= 0) customPets[ci] = record; else customPets.push(record);
-    saveCustomPets(customPets);
+    var isBuiltin = DEFAULT_PETS.some(function(dp) { return dp.id === pet.id; });
+    if (isBuiltin) {
+      // R02：内置宠物只保存技能配置，不序列化整只宠物（避免血脉函数丢失）
+      var loadouts = loadPetLoadouts();
+      loadouts[pet.id] = { skillIds: ids, ownedSkillIds: ownedIds.slice() };
+      savePetLoadouts(loadouts);
+    } else {
+      var customPets = loadCustomPets();
+      var ci = customPets.findIndex(function(p) { return p.id === pet.id; });
+      var record = ci >= 0 ? customPets[ci] : JSON.parse(JSON.stringify(base));
+      record.skillIds = ids;
+      record.ownedSkillIds = ownedIds.slice();  // 锁定本宠技能池，后续只能在这批里换
+      if (ci >= 0) customPets[ci] = record; else customPets.push(record);
+      saveCustomPets(customPets);
+    }
     swapDraft = null;
     addMessage(pet.name + " 的技能配置已保存！（" + ids.length + " 个技能）");
     showScreen("skillswap");
