@@ -1417,9 +1417,9 @@ const DEFAULT_SKILLS = [
         bench.skills.forEach(function(s) { s.pp = Math.min(s.maxPp, s.pp + 2); });
         ctx.msg("创世之能PP为空，场下额外恢复2PP！");
       }
-      // 跟踪使用次数
+      // 本次是第几次使用（通用执行在 onUse 之后统一 +1，避免重复计数）
       if (!user.skillUseCounts) user.skillUseCounts = {};
-      user.skillUseCounts["sk_nlex"] = (user.skillUseCounts["sk_nlex"] || 0) + 1;
+      var nlexCount = (user.skillUseCounts["sk_nlex"] || 0) + 1;
       // 当PP=0: 失去属系
       var nlexSkill = user.skills.find(function(s) { return s.id === "sk_nlex"; });
       if (nlexSkill && nlexSkill.pp === 0) {
@@ -1430,9 +1430,7 @@ const DEFAULT_SKILLS = [
           ctx.msg(user.name + " 失去了属系！变为普通系！");
         }
         // 根据使用次数记录延迟效果：下一次威力技能结算时触发
-        var cnt = user.skillUseCounts["sk_nlex"] || 0;
-        user.pendingNilex = { cnt: cnt, armed: false };
-        user.skillUseCounts["sk_nlex"] = 0;
+        user.pendingNilex = { cnt: nlexCount, armed: false };
         ctx.msg("逆流之力积蓄：下一次威力技能将触发终结效果！");
       }
       // 若创世之能PP=0: 清除并锁定强化6回合
@@ -2620,7 +2618,12 @@ function createBattleContext() {
     },
     // 时间回溯：恢复双方全体宠物的精力/PP/强化/异常，返回回溯前后精力差
     restoreSnapshot: function(turnsBack) {
-      var idx = gameState.snapshots.length - 1 - turnsBack;
+      // 快照在回合末保存，按回合号定位：当前回合 - turnsBack
+      var targetTurn = (gameState.turnCount || 0) - turnsBack;
+      var idx = -1;
+      for (var i = gameState.snapshots.length - 1; i >= 0; i--) {
+        if (gameState.snapshots[i].turn <= targetTurn) { idx = i; break; }
+      }
       if (idx < 0) idx = 0;
       var snap = gameState.snapshots[idx];
       if (!snap) return 0;
@@ -2722,6 +2725,7 @@ function processTurnEffects(pet) {
   // Clear segment counter for new turn
   pet.segmentIdx = 0;
   pet.lethalHitThisTurn = false;
+  pet.lethalHandled = false;
   pet.immuneBackhand = false;
   // Clear blockPPRecovery after 1 turn
   pet.blockPPRecovery = false;
@@ -2731,7 +2735,8 @@ function postDamageProcessing() {
   // Check lethal hit survival (不灭魂体 mechanic)
   [gameState.playerActive, gameState.aiActive].forEach(function(pet) {
     if (!pet || !pet.bloodline) return;
-    if (pet.lethalHitThisTurn && pet.bloodline.name === "不灭魂体") {
+    if (pet.lethalHitThisTurn && pet.bloodline.name === "不灭魂体" && !pet.lethalHandled) {
+      pet.lethalHandled = true;
       pet.hp = 1;
       pet.skills.forEach(function(s) { if (!s.immuneToPP) s.pp = Math.max(0, s.pp - 4); });
       addMessage(pet.name + " 被致命一击！不灭魂体保留1点精力！全体技能-4PP！");
@@ -3212,6 +3217,11 @@ function runSkillTurn(user, target, skill, who) {
 
 function executeSkillTurn(user, target, skill, who) {
   if (user.isFainted() || target.isFainted()) return;
+  // R04/R05：执行前复查——已离场、技能 PP 已被删空、或已陷入控制，取消本次行动
+  if (user !== gameState.playerActive && user !== gameState.aiActive) { addMessage(user.name + " 已离场，行动取消！"); return; }
+  if (target !== gameState.playerActive && target !== gameState.aiActive) { addMessage(target.name + " 已不在场上，本次行动取消！"); return; }
+  if (!skill.__struggle && skill.pp <= 0) { addMessage(user.name + " 的" + skill.name + "已无PP，行动取消！"); return; }
+  if (user.status === "sleep" || user.status === "freeze" || user.status === "fear") { addMessage(user.name + " 无法行动！"); return; }
   var isPlayer = who === "player";
   // 迷雾天气：主动行动结算前 80% 概率令自身混乱
   if (gameState.weather === "mist" && (user.statusImmunities || []).indexOf("confuse") < 0 && !user.statImmunity) {
@@ -3426,6 +3436,8 @@ function playerSwitch(petIdx) {
 }
 
 function checkFaints() {
+  // R06：先处理不灭魂体等致死保护，再判定濒死/胜负
+  postDamageProcessing();
   if (gameState.battleOver) return false;
   var player = gameState.playerActive, ai = gameState.aiActive;
   if (player && player.isFainted()) { addMessage(player.name + " 倒下了！"); var np = gameState.playerParty.find(function(p) { return !p.isFainted() && p !== player; }); if (np) { gameState.playerActive = np; addMessage("上吧，" + np.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(false); return true; } }
@@ -3580,6 +3592,12 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   gameState.banEffects = null;
   gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; gameState.pendingFirstMove = null;
   gameState.skipPlayerAction = false; gameState.isPlayerTurn = true;
+  // R07：清理上一局残留的降华全局状态与延迟效果
+  gameState.forceSkillElement = null; gameState.forceSkillElementTurns = 0;
+  gameState.jianghuaBuff = null; gameState.pendingJianghua = null;
+  [gameState.playerParty, gameState.aiParty].forEach(function(party) {
+    (party || []).forEach(function(pet) { pet.pendingNilex = null; });
+  });
   stopTurnTimer();
   addMessage("━━━ 战斗开始 ━━━", "turn");
   showScreen("battle"); }
