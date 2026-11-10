@@ -1329,12 +1329,20 @@ const DEFAULT_SKILLS = [
     } },
 { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
     desc: "不灭之威，创世奇迹。【被动】始终免疫睡眠、冰冻、恐惧。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能PP耗尽后获得永久全异常免疫。本技能免疫PP删除和回复效果。",
+    detail: "① 被动：免疫束缚、恐惧、睡眠、冰冻。\n② 主动：3回合内双方速度+10%、自身输出+25%；每回合吸取对方全体2PP回复自身，并令对方PP最少技能额外消耗1PP。\n③ 首回合：回复全部精力；若先手，额外删除对方全体1PP并免疫对方后手技能的伤害部分。\n④ 次回合：强制重置双方强化，回复首格技能全部PP。\n⑤ 末回合：自身精力<30%时回复70%已损精力并清空本技能PP。\n⑥ 本技能免疫删除与回复；PP为0时自身免疫全部异常。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了创世之能！不灭之威，创世奇迹！");
       var bd = user.bloodlineData;
       bd.creationTurn = 0;
       bd.creationActive = true;
+      // 首回合若先手：额外删除对方全体1PP，并免疫对方后手技能的伤害部分
+      var csznFirst = (gameState.pendingFirstMove === (gameState.playerActive === user ? "player" : "ai"));
+      if (csznFirst) {
+        ctx.deletePP(target, -1, 1);
+        user.immuneBackhand = true;
+        ctx.msg("先手：删除对方全体1PP，免疫对方后手技能的伤害！");
+      }
       // Buff: 双方速度+10%，自身输出+25%
       user.spdMod = (user.spdMod || 1) + 0.1;
       target.spdMod = (target.spdMod || 1) + 0.1;
@@ -1383,16 +1391,15 @@ const DEFAULT_SKILLS = [
   },
   { id: "sk_nlex", name: "逆流而行", element: "water", power: 135, pp: 2, maxPp: 2, accuracy: 100, category: "physical", priority: 12,
     desc: "时间倒流，逆转法则。135威力水系物理攻击，必中。①回溯3回合前的HP状态，追加差值等量固定伤害。②恢复己方场下第2只宠物全体技能1PP（若创世之能PP为空则恢复2PP）。③本技能PP=0时失去属系变为普通系，按累计使用次数触发：第1次使用PP=0时，追加9999点固定伤害，清空对方全体PP，回复自身全体1PP；第2次使用PP=0时，回复自身全体3PP和30%HP。④创世之能PP为空时，清除并锁定双方所有强化6回合。本技能免疫PP删除和回复效果。",
+    detail: "① 135威力神水系物理，必中。\n② 时间回溯：双方全体宠物的精力、PP、强化与异常回到3回合前，并追加回溯前后双方精力差值的固伤。\n③ 回复己方场下第二格宠物全体技能1PP；创世之能PP为空时改为2PP。\n④ 本技能PP为空后，自身失去属系变为普通系；下一次使用威力技能时触发：使用1次→9999固伤+清空对方全体PP+自身全体1PP；使用2次→自身全体3PP+回复30%精力。\n⑤ 创世之能PP为0时，清除并锁定双方强化6回合。\n⑥ 本技能免疫删除与回复。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了逆流而行！时间倒流，逆转法则！");
-      // 保存当前状态快照
-      ctx.saveSnapshot();
       // 威力伤害
       var r = ctx.doDamage(user, target, 135, "physical", "water");
       ctx.msg("造成 " + r.damage + " 点伤害！");
-      // 回溯3回合前的HP状态，追加固伤
-      var hpDiff = Math.abs(ctx.getSnapshotHPDiff(3));
+      // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
+      var hpDiff = ctx.restoreSnapshot(3);
       if (hpDiff > 0) {
         ctx.doFixedDamage(target, hpDiff);
         ctx.msg("状态回溯造成 " + hpDiff + " 点固定伤害！");
@@ -1422,20 +1429,11 @@ const DEFAULT_SKILLS = [
           user.elementLost = true;
           ctx.msg(user.name + " 失去了属系！变为普通系！");
         }
-        // 根据使用次数触发效果
+        // 根据使用次数记录延迟效果：下一次威力技能结算时触发
         var cnt = user.skillUseCounts["sk_nlex"] || 0;
-        if (cnt === 1) {
-          ctx.doFixedDamage(target, 9999);
-          target.skills.forEach(function(s) { s.pp = 0; });
-          user.skills.forEach(function(s) { s.pp = Math.min(s.maxPp, s.pp + 1); });
-          ctx.msg("逆流而行·终结：9999固伤！清空对方全部PP！回复自身1PP！");
-          user.skillUseCounts["sk_nlex"] = 0; // reset
-        } else if (cnt === 2) {
-          user.skills.forEach(function(s) { s.pp = Math.min(s.maxPp, s.pp + 3); });
-          ctx.doHeal(user, Math.floor(user.maxHp * 0.3));
-          ctx.msg("逆流而行·回溯：全体技能恢复3PP！回复30%HP！");
-          user.skillUseCounts["sk_nlex"] = 0;
-        }
+        user.pendingNilex = { cnt: cnt, armed: false };
+        user.skillUseCounts["sk_nlex"] = 0;
+        ctx.msg("逆流之力积蓄：下一次威力技能将触发终结效果！");
       }
       // 若创世之能PP=0: 清除并锁定强化6回合
       if (cszn && cszn.pp === 0) {
@@ -1450,38 +1448,41 @@ const DEFAULT_SKILLS = [
   },
   { id: "sk_mszw", name: "灭世之威", element: "fighting", power: 70, pp: 12, maxPp: 12, accuracy: 100, category: "physical", priority: 9,
     desc: "灭世陨落，威能震世。70威力武系物理攻击。先手时：额外追加对方最大HP30%的固定伤害并施加恐惧。后手时：必中必爆，删除对方全体(1+自身负面强化数)PP；若伤害被抵抗则清空对方上次使用技能的全部PP。若处于创世之能回合内：威力提升至170，物攻按+3级计算，回复200HP。若创世之能PP为空、有2个技能PP为空、且剩余PP总数<8时：追加9999固伤并回满所有技能PP。",
+    detail: "① 70威力武系物理，先手+1。\n② 先手：追加对方最大精力30%固伤并恐惧。\n③ 后手：必中必爆，删除对方全体（1+自身负面强化数）PP；伤害被抵抗时清空对方上次使用技能PP。\n④ 处于创世之能回合内：结束创世之能剩余回合，威力提升至170、物攻按+3结算，并回复200精力。\n⑤ 自身创世之能PP=0、有2个技能PP=0且剩余PP总数<8时：追加9999固伤并回满全体PP。",
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了灭世之威！");
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === user ? "player" : "ai"));
+      var bd = user.bloodlineData;
+      var inCreation = !!(bd && bd.creationActive);
+      // 处于创世之能回合内：消耗剩余回合并把威力提升到 170、物攻按 +3
+      if (inCreation) {
+        bd.creationActive = false; bd.creationTurn = 0;
+        ctx.msg("创世之能剩余回合结束，威力提升至170，视物攻+3！");
+      }
+      var basePower = inCreation ? 170 : 70;
+      var dmgOpts = inCreation ? { atkStageOverride: 3 } : {};
       var r;
       if (isFirst) {
-        // 先手: 额外追加30%对方最大HP伤害 + 恐惧
-        r = ctx.doDamage(user, target, 70, "physical", "fighting");
+        r = ctx.doDamage(user, target, basePower, "physical", "fighting", dmgOpts);
         var bonus = Math.floor(target.maxHp * 0.3);
         ctx.doFixedDamage(target, bonus);
         ctx.msg("造成 " + r.damage + " 点伤害！追加" + bonus + "点固伤！");
         ctx.fear(target);
       } else {
-        // 后手: 必中必爆 + 删PP
-        r = ctx.doDamage(user, target, 70, "physical", "fighting", {guaranteedCrit: true});
+        var backOpts = Object.assign({ guaranteedCrit: true }, dmgOpts);
+        r = ctx.doDamage(user, target, basePower, "physical", "fighting", backOpts);
         var negCount = 0;
         ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s) { if (user[s] < 0) negCount += Math.abs(user[s]); });
         ctx.deletePP(target, -1, 1 + negCount);
         ctx.msg("造成 " + r.damage + " 点伤害！(必爆) 删除对方全体技能" + (1+negCount) + "PP！");
         if (r.effectiveness < 1) {
-          // 伤害被抵抗，清空对方上次使用技能PP
           var lastSkill = target.skills.find(function(s) { return s.pp < s.maxPp; });
           if (lastSkill) { lastSkill.pp = 0; ctx.msg("伤害被抵抗，清空了对方" + lastSkill.name + "的PP！"); }
         }
       }
-      // 若处于创世之能回合内: 结束回合+威力+100+视物攻为3
-      var bd = user.bloodlineData;
-      if (bd && bd.creationActive) {
-        bd.creationActive = false;
-        bd.creationTurn = 0;
-        r = ctx.doDamage(user, target, 170, "physical", "fighting", {atkStageOverride: 3});
+      if (inCreation) {
         ctx.doHeal(user, 200);
-        ctx.msg("创世之能回合内：威力+100(170)，视物攻+3，回复200HP！");
+        ctx.msg("回复200精力！");
       }
       // 创世之能PP=0且2技能PP=0且剩余PP<8
       var cszn = user.skills.find(function(s) { return s.id === "sk_cszn"; });
@@ -1496,6 +1497,7 @@ const DEFAULT_SKILLS = [
   },
   { id: "sk_fthy", name: "覆体魂衣", element: "normal", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 11,
     desc: "覆衣于身，以魂护体。【常规】消耗15%当前HP（不会致死），获得：2回合内超过自身15%最大HP的伤害降至80点；4回合免疫所有异常状态；双防提升2级；净化自身并反转所有负面强化为正。创世之能PP为空时：不消耗HP，回复400HP，1回合内减少70%所受伤害，倒置对方1回合治疗（治疗变为伤害），4回合内每回合回复20%HP并为PP最低的技能回复1PP，但每回合随机降低自身1项强化。若场上有天气则每回合额外回复120HP和全体1PP。",
+    detail: "① 消耗15%当前精力（不致死），2回合内超过自身15%最大精力的伤害降至80点。\n② 4回合免疫异常；双防+2，净化并反转自身负面强化。\n③ 防控回合内自身强化消失时，按消失级数×80对敌造成固伤。\n④ 场上有天气/环境时，防控回合内每回合回复120精力与全体技能1PP。\n⑤ 创世之能PP=0时：不扣血，回复400精力，1回合减伤70%，倒置对方1回合治疗；4回合内每回合回复20%精力、最低PP技能+1PP，并随机降低自身1项强化。",
     onUse: function(user, target, ctx) {
       var cszn = user.skills.find(function(s) { return s.id === "sk_cszn"; });
       var csznEmpty = cszn && cszn.pp === 0;
@@ -1529,7 +1531,17 @@ const DEFAULT_SKILLS = [
         var fthyImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear"];
         user.statusImmunities = user.statusImmunities || [];
         fthyImms.forEach(function(s){if(user.statusImmunities.indexOf(s)<0)user.statusImmunities.push(s)});
-        ctx.addTurnEffect(user, "覆体免疫", 4, null, function(p){ p.statusImmunities = p.statusImmunities.filter(function(s){ return fthyImms.indexOf(s) < 0; }); });
+        user.__fthyStageSum = 0;
+        ctx.addTurnEffect(user, "覆体免疫", 4, function(p) {
+          var sum = 0;
+          ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ sum += Math.abs(p[k] || 0); });
+          if (p.__fthyStageSum !== undefined && sum < p.__fthyStageSum) {
+            var lost = p.__fthyStageSum - sum;
+            var opp = gameState.playerActive === p ? gameState.aiActive : gameState.playerActive;
+            if (opp && lost > 0) { ctx.doFixedDamage(opp, lost * 80, p); ctx.msg("【覆体魂衣】强化消失" + lost + "级，对敌造成" + (lost * 80) + "固伤！"); }
+          }
+          p.__fthyStageSum = sum;
+        }, function(p){ p.statusImmunities = p.statusImmunities.filter(function(s){ return fthyImms.indexOf(s) < 0; }); });
       }
       // 提升2级双抗 + 净化 + 反转负面
       ctx.modifyStat(user, "def", 2);
@@ -1540,16 +1552,20 @@ const DEFAULT_SKILLS = [
         if (user[s] < 0) user[s] = Math.abs(user[s]);
       });
       ctx.msg(user.name + " 双防+2，净化异常，反转负面强化！");
-      // 若场上有天气，防控回合内回复
-      if (gameState.weather) {
-        ctx.doHeal(user, 120);
-        user.skills.forEach(function(s) { s.pp = Math.min(s.maxPp, s.pp + 1); });
-        ctx.msg("天气作用下回复120HP和全体1PP！");
+      // 若场上有天气/环境：防控回合内每回合回复
+      if (gameState.weather || gameState.field) {
+        ctx.addTurnEffect(user, "覆体天气", 4, function(p) {
+          ctx.doHeal(p, 120);
+          p.skills.forEach(function(s){ gainPP(p, s, 1); });
+          ctx.msg("【覆体魂衣】天气/环境回复120精力与全体1PP！");
+        }, null);
+        ctx.msg("场上存在天气/环境：防控回合内每回合回复120HP与全体1PP！");
       }
     }
   },
   { id: "sk_cyjy", name: "重衍纪元", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 1,
     desc: "纪元重衍，万物复苏。若本回合先手且未受到任何伤害：回复己方全体宠物（含场下）所有技能2PP。否则：将双方全体宠物的PP回退至最近24回合内的最低值，随后自身立即死亡。若自身其他技能有PP为空则无法使用。本技能PP不为0时自身所有输出降低40%。本技能免疫PP删除和回复效果。",
+    detail: "① 本技能PP不为0时，自身输出-40%；免疫删除与回复。\n② 自身其他技能有PP为空时，本技能无效。\n③ 先手：将双方全体宠物PP逆转至最近24回合最低值，自身不会死亡。\n④ 后手：同样逆转PP，随后自身死亡。\n⑤ 后手-7。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了重衍纪元！纪元重衍，万物复苏！");
@@ -1567,31 +1583,26 @@ const DEFAULT_SKILLS = [
       // 规格：若本回合先手且未受到任何伤害 → 回复全体2PP；否则 → PP回退+自身立即死亡
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === user ? "player" : "ai"));
       var tookDamage = user.hp < user.maxHp;
-      if (isFirst && !tookDamage) {
-        var party = gameState.playerActive === user ? gameState.playerParty : gameState.aiParty;
+      // 先手：保留 PP 逆转效果且自身不会死亡（玩家 2026-11-10 裁定）；后手：逆转后死亡
+      [gameState.playerParty, gameState.aiParty].forEach(function(party) {
         party.forEach(function(p) {
-          p.skills.forEach(function(s) { s.pp = Math.min(s.maxPp, s.pp + 2); });
-        });
-        ctx.msg("未受伤害！己方全体宠物回复2PP！");
-      } else {
-        // 逆转双方全体宠物PP至24回合最低
-        [gameState.playerParty, gameState.aiParty].forEach(function(party) {
-          party.forEach(function(p) {
-            if (!p || p.isFainted()) return;
-            p.skills.forEach(function(s) {
-              var minPP = s.pp;
-              gameState.ppHistory.forEach(function(h) {
-                h.pets.forEach(function(hp) {
-                  if (hp.id === p.id) {
-                    hp.pps.forEach(function(hs) { if (hs.id === s.id && hs.pp < minPP) minPP = hs.pp; });
-                  }
-                });
+          if (!p || p.isFainted()) return;
+          p.skills.forEach(function(s) {
+            var minPP = s.pp;
+            gameState.ppHistory.forEach(function(h) {
+              h.pets.forEach(function(hp) {
+                if (hp.id === p.id) {
+                  hp.pps.forEach(function(hs) { if (hs.id === s.id && hs.pp < minPP) minPP = hs.pp; });
+                }
               });
-              s.pp = minPP;
             });
+            s.pp = minPP;
           });
         });
-        // 自身死亡（若先手则不死亡）
+      });
+      if (isFirst) {
+        ctx.msg(user.name + " 将双方全体宠物PP逆转至24回合最低！先手：自身不会死亡！");
+      } else {
         user.hp = 0;
         ctx.msg(user.name + " 将双方全体宠物PP逆转至24回合最低！自身死亡！");
       }
@@ -2307,7 +2318,7 @@ const DEFAULT_PETS = [
         // 创世之能被动: 始终免疫睡眠/冰冻/恐惧（注：束缚暂未实现）
     var cszn2 = pet.skills.find(function(s) { return s.id === "sk_cszn"; });
     if (cszn2) {
-      ["freeze","sleep","fear"].forEach(function(s) {
+      ["freeze","sleep","fear","bind"].forEach(function(s) {
         if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s);
       });
     }
@@ -2593,18 +2604,42 @@ function createBattleContext() {
       target.turnEffects.push({ name: name, turnsLeft: turns, onTick: onTick, onExpire: onExpire });
     },
     saveSnapshot: function() {
-      var s = { turn: gameState.turnCount, playerHP: gameState.playerActive.hp, aiHP: gameState.aiActive.hp,
-        playerMaxHP: gameState.playerActive.maxHp, aiMaxHP: gameState.aiActive.maxHp,
-        playerStatus: gameState.playerActive.status, aiStatus: gameState.aiActive.status };
-      gameState.snapshots.push(s);
-      if (gameState.snapshots.length > 10) gameState.snapshots.shift();
+      var make = function(party) {
+        return (party || []).map(function(pet) {
+          return {
+            id: pet.id, hp: pet.hp,
+            pp: pet.skills.map(function(s){ return s.pp; }),
+            stages: [pet.atkStage, pet.defStage, pet.spatkStage, pet.spdefStage, pet.spdStage],
+            status: pet.status, statusTurns: pet.statusTurns,
+            confuseTurns: pet.confuseTurns, bindTurns: pet.bindTurns
+          };
+        });
+      };
+      gameState.snapshots.push({ turn: gameState.turnCount, player: make(gameState.playerParty), ai: make(gameState.aiParty) });
+      if (gameState.snapshots.length > 30) gameState.snapshots.shift();
     },
-    getSnapshotHPDiff: function(turnsBack) {
+    // 时间回溯：恢复双方全体宠物的精力/PP/强化/异常，返回回溯前后精力差
+    restoreSnapshot: function(turnsBack) {
       var idx = gameState.snapshots.length - 1 - turnsBack;
       if (idx < 0) idx = 0;
-      var s = gameState.snapshots[idx];
-      if (!s) return 0;
-      return Math.abs(gameState.aiActive.maxHp - gameState.aiActive.hp - (s.aiMaxHP - s.aiHP));
+      var snap = gameState.snapshots[idx];
+      if (!snap) return 0;
+      var before = 0, after = 0;
+      [[gameState.playerParty, snap.player], [gameState.aiParty, snap.ai]].forEach(function(cfg) {
+        var party = cfg[0] || [], saved = cfg[1] || [];
+        party.forEach(function(pet) { before += pet.hp; });
+        saved.forEach(function(s) { after += s.hp; });
+        party.forEach(function(pet) {
+          var s = saved.find(function(x){ return x.id === pet.id; });
+          if (!s) return;
+          pet.hp = Math.min(pet.maxHp + (pet.maxHpBonus || 0), s.hp);
+          pet.skills.forEach(function(sk, i){ if (s.pp[i] !== undefined) sk.pp = s.pp[i]; });
+          ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k, i){ pet[k] = s.stages[i]; });
+          pet.status = s.status; pet.statusTurns = s.statusTurns;
+          pet.confuseTurns = s.confuseTurns || 0; pet.bindTurns = s.bindTurns || 0;
+        });
+      });
+      return Math.abs(after - before);
     },
     savePPState: function() {
       var state = { turn: gameState.turnCount, pets: [] };
@@ -2709,8 +2744,9 @@ function postDamageProcessing() {
 function forceSwitchPet(pet) {
   if (pet.immuneEject) { addMessage(pet.name + " 免疫了驱逐效果！"); return; }
   var party = gameState.playerActive === pet ? gameState.playerParty : gameState.aiParty;
-  var next = party.find(function(p) { return !p.isFainted() && p !== pet; });
-  if (!next) return;
+  var candidates = party.filter(function(p) { return !p.isFainted() && p !== pet; });
+  if (!candidates.length) return;
+  var next = candidates[Math.floor(Math.random() * candidates.length)];
   if (gameState.playerActive === pet) {
     if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
     addMessage(pet.name + " 被迫换下！"); gameState.playerActive = next; addMessage("换上 " + next.name + "！");
@@ -3152,6 +3188,7 @@ function resolveTurn() {
     var pjSk = pj.skills.find(function(s){ return s.id === "sk_jydm_1"; });
     if (pjSk && pjOpp) { pjSk.onUse(pj, pjOpp, createBattleContext()); addMessage("【极尽降华】PP 被删除，被动发动！"); }
   }
+  createBattleContext().saveSnapshot();
   [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; p.lastTakenSegments = (p.damageTakenThisTurn || []).slice(); p.lastTakenTotal = (p.damageTakenThisTurn || []).reduce(function(a,b){ return a + b; }, 0); p.damageTakenThisTurn = []; p.skillsUsedThisTurn = 0; } });
   
   gameState.pendingPlayerSkill = null;
@@ -3274,6 +3311,25 @@ function executeSkillTurn(user, target, skill, who) {
     skill.onUse(user, target, ctx);
     if (!user.skillUseCounts) user.skillUseCounts = {};
     user.skillUseCounts[skill.id] = (user.skillUseCounts[skill.id] || 0) + 1;
+    // 逆流而行：延迟到下一次威力技能结算（本次只挂起）
+    if (user.pendingNilex && skill.power > 0) {
+      if (!user.pendingNilex.armed) {
+        user.pendingNilex.armed = true;
+      } else {
+        var pn = user.pendingNilex.cnt;
+        user.pendingNilex = null;
+        if (pn === 1) {
+          ctx.doFixedDamage(target, 9999);
+          target.skills.forEach(function(s){ if (!s.immuneToPP) s.pp = 0; });
+          user.skills.forEach(function(s){ gainPP(user, s, 1); });
+          ctx.msg("【逆流而行】终结：9999固伤，清空对方全体PP，回复自身1PP！");
+        } else if (pn === 2) {
+          user.skills.forEach(function(s){ gainPP(user, s, 3); });
+          ctx.doHeal(user, Math.floor((user.maxHp + (user.maxHpBonus || 0)) * 0.3));
+          ctx.msg("【逆流而行】回溯：全体技能+3PP，回复30%精力！");
+        }
+      }
+    }
   } else if (skill.category === "status") {
     applyLegacyStatusSkill(user, target, skill);
   } else {
