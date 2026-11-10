@@ -1111,6 +1111,7 @@ const DEFAULT_SKILLS = [
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       bd.jianghuaTurns = 6; bd.jianghuaFirst = true;
+      bd.jianghuaUseBaseline = Object.assign({}, u.skillUseCounts || {});
       ctx.msg(u.name + " 释放了极尽降华！光衍至极点！");
       // (1) 全场及场下所有技能视为光系：6回合；对方被明念标记时12回合
       var dur = (t.bloodlineData && t.bloodlineData.marked) ? 12 : 6;
@@ -1671,7 +1672,7 @@ const DEFAULT_SKILLS = [
       else { var n = Math.max(1, ql ? ql.maxPp - ql.pp : 1); ctx.deletePP(t, -1, n); ctx.msg("后手：删除对方全体" + n + "PP！"); }
       if (bd.mode === "残脉") { if (self) self.pp = 0; ctx.msg("残脉：本技能PP清空！"); return; }
       if (q >= 5) {
-        bd.qfzn = 0; bd.mode = "残脉";
+        bd.qfzn = 0; enterQingyuMode(u, "残脉");
         gainPP(u, ql, 2);
         ctx.msg("层数≥5：清空清风之念，回复清翎覆尘2PP，转入残脉！");
       } else if (q >= 3) {
@@ -1691,8 +1692,8 @@ const DEFAULT_SKILLS = [
       }
     } },
   { id: "sk_qy_3", name: "残念余梦", element: "ice", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 7,
-    desc: "清天气/环境并召唤梦境；返还上次所受伤害与负面状态；按速度差×残风已损PP×空PP数追加固伤（600/残脉1000）；先手删全体3PP，后手沉睡并锁换宠。",
-    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 返还上次所受伤害（等量固伤），并把自身当前的负面状态退回给对方。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡，自身换宠锁定直到对方苏醒；睡眠失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用后本技能PP清零。",
+    desc: "清天气/环境并召唤梦境，返还伤害与负面状态；先手删PP，后手沉睡锁换宠。清念下记录出招扣费后的PP并清零，经历残脉再入清念时恢复一次。",
+    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 返还上次所受伤害（等量固伤），并把自身当前的负面状态退回给对方。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡，自身换宠锁定直到对方苏醒；睡眠失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用：记录本次出招扣费后的剩余PP，再清零。必须先进入残脉、再进入清念，才恢复记录的PP一次；重复进入原清念不能恢复。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
@@ -1763,11 +1764,11 @@ const DEFAULT_SKILLS = [
       var cap = u.maxHp + (u.maxHpBonus || 0);
       var sh = Math.floor((20 + 0.8 * spdDiff) * (1 + (1 - u.hp / cap) * 2.5));
       ctx.addShield(u, sh);
-      if (!u.skills.some(function(s){ return s.id === "sk_qy_1"; })) { bd.mode = "残脉"; ctx.msg("未携带清翎覆尘：进入残脉！"); }
+      if (!u.skills.some(function(s){ return s.id === "sk_qy_1"; })) { enterQingyuMode(u, "残脉"); ctx.msg("未携带清翎覆尘：进入残脉！"); }
     } },
   { id: "sk_qy_5", name: "清念沉脉", element: "flying", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 11,
-    desc: "清除双方强化并对敌治疗（总级数×60）；治疗<240额外删对方上次技能5PP；自身全体+3PP；消耗全部PP进入清念，结束时回PP并压制对方4回合。",
-    detail: "① 强制清除双方全部强化，对敌方治疗（清空总级数×60）。\n② 若治疗量<240，额外删除对方上次使用技能5PP。\n③ 回复自身全体技能3PP。\n④ 消耗本技能全部PP，进入清念状态（1+消耗PP数）回合。\n⑤ 状态结束：回复本技能（双方损失PP总数×0.5）PP；对方4回合内威力技能伤害-30%（上限50%）、变化技能先手值-1。",
+    desc: "清除双方强化并治疗对方，自身全体+3PP；消耗本技能PP进入清念。持续期结束回PP，再开启4回合窗口：敌方所用技能永久降威力或先手。",
+    detail: "① 强制清除双方全部强化，对敌方治疗（清空总级数×60）。\n② 若治疗量<240，额外删除对方上次使用技能5PP。\n③ 回复自身全体技能3PP。\n④ 清空本技能PP，进入清念状态，持续1+本次出招实际扣除PP+随后清空本技能PP的回合数，不计其他技能PP损失。\n⑤ 整段持续期结束后一次性回复本技能PP（双方当前缺失PP总数×0.5，向上取整）。\n⑥ 回复结算后开启4回合窗口：对方使用威力招时，只将该招按未削弱威力累计削弱30%，上限50%；使用变化招时，只将该招先手永久减1。削弱当次生效，当前行动的先后顺序不重排。窗口结束后不再新增，已造成的削弱永久保留。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var total = 0;
@@ -1780,20 +1781,16 @@ const DEFAULT_SKILLS = [
       var self = u.skills.find(function(s){ return s.id === "sk_qy_5"; });
       var cp = self ? self.pp : 0;
       if (self) self.pp = 0;
-      bd.mode = "清念";
-      if (bd.qy3SavedPP !== undefined) {
-        var q3r = u.skills.find(function(s){ return s.id === "sk_qy_3"; });
-        if (q3r) q3r.pp = Math.min(q3r.maxPp, bd.qy3SavedPP);
-        bd.qy3SavedPP = undefined;
-      }
+      // 玩家裁定：本次常规出招消耗 + 本技能清空消耗，不计其他技能 PP。
+      cp += ctx.skillPPCost || 0;
+      enterQingyuMode(u, "清念");
       ctx.addTurnEffect(u, "清念沉脉", 1 + cp, null, function(p) {
         var lost = 0;
         [p, t].forEach(function(pt){ pt.skills.forEach(function(s){ lost += s.maxPp - s.pp; }); });
         gainPP(p, p.skills.find(function(s){ return s.id === "sk_qy_5"; }), Math.ceil(lost * 0.5));
-        t.prioPenalty = 1;
-        t.dmgMod = Math.max(0.5, (t.dmgMod || 1) - 0.3);
-        // D20261028-01：4回合只是触发窗口，造成的削弱永久保留（不注册恢复）
-        ctx.msg("清念沉脉结束：回复本技能PP，对方4回合内威力-30%、变化技先手-1！");
+        // 在回合开始结算完回复后开启；本回合及随后3回合内的出招可触发。
+        t.qingnianWindowEnd = gameState.turnCount + 3;
+        ctx.msg("清念沉脉结束：回复本技能PP，开启4回合出招削弱窗口；削弱永久保留！");
       });
       ctx.msg("进入清念" + (1 + cp) + "回合！");
     } },
@@ -2095,8 +2092,13 @@ const DEFAULT_PETS = [
         var required = (jydh && jydh.pp === 0)
           ? pet.skills.filter(function(s){ return s.id !== "sk_jydm_1"; }).map(function(s){ return s.id; })
           : pet.skills.map(function(s){ return s.id; });
-        var allUsed = required.every(function(id){ return (pet.skillUseCounts || {})[id] > 0; });
-        var jianghuaQuick = bd.jianghuaTurns > 0 && Object.keys(pet.skillUseCounts || {}).length > 0; // 降华回合内技能使用1次即触发
+        var counts = pet.skillUseCounts || {}, consumed = bd.mingNianConsumed || {};
+        var allUsed = required.length > 0 && required.every(function(id){ return (counts[id] || 0) > (consumed[id] || 0); });
+        var jianghuaQuick = bd.jianghuaTurns > 0 && pet.skills.some(function(s) {
+          return (counts[s.id] || 0) > Math.max(consumed[s.id] || 0, (bd.jianghuaUseBaseline || {})[s.id] || 0);
+        });
+        // 只清零明念的本轮累计；全局终身使用次数留给其他技能读取。
+        if (allUsed || jianghuaQuick) bd.mingNianConsumed = Object.assign({}, counts);
         if ((allUsed || jianghuaQuick) && !bd.marked) {
           bd.marked = true; bd.markTurns = 4; bd.marks = 1; bd.used = {}; bd.markAdds = (bd.markAdds || 0) + 1;
           pet.healMod = (pet.healMod || 1) + 0.15; pet.dmgMod = (pet.dmgMod || 1) + 0.15; pet.spdMod = (pet.spdMod || 1) * 1.05;
@@ -2188,15 +2190,10 @@ const DEFAULT_PETS = [
         // 切换期判定：翼系→清念，冰系→残脉
         if (bd.switchTurn) {
           if (skill.element === "flying") {
-            bd.mode = "清念";
-            if (bd.qy3SavedPP !== undefined) {
-              var q3s = pet.skills.find(function(s){ return s.id === "sk_qy_3"; });
-              if (q3s) q3s.pp = Math.min(q3s.maxPp, bd.qy3SavedPP);
-              bd.qy3SavedPP = undefined;
-            }
+            enterQingyuMode(pet, "清念");
             ctx.msg("切换期使用翼系技能，进入【清念】状态！");
           }
-          else if (skill.element === "ice") { bd.mode = "残脉"; ctx.msg("切换期使用冰系技能，进入【残脉】状态！"); }
+          else if (skill.element === "ice") { enterQingyuMode(pet, "残脉"); ctx.msg("切换期使用冰系技能，进入【残脉】状态！"); }
           bd.switchTurn = false;
         }
         // 翼系技能触发血脉效果（无状态限制）
@@ -2363,24 +2360,61 @@ function loadPetLoadouts() { try { var d = JSON.parse(localStorage.getItem(STORA
 function savePetLoadouts(map) { localStorage.setItem(STORAGE_KEY_LOADOUTS, JSON.stringify(map)); }
 function loadCustomSkills() { try { var d = JSON.parse(localStorage.getItem(STORAGE_KEY_SKILLS)); return Array.isArray(d) ? d.filter(function(s){return s&&s.id;}) : []; } catch(e) { return []; } }
 function saveCustomSkills(skills) { localStorage.setItem(STORAGE_KEY_SKILLS, JSON.stringify(skills)); }
-function getAllSkills() { return [...DEFAULT_SKILLS, ...loadCustomSkills()].filter(function(s){return s&&s.id;}); }
-function getAllPets() {
-  var loadouts = loadPetLoadouts();
-  // 内置宠物始终使用 DEFAULT_PETS 定义（保留血脉函数），只合并技能配置
-  var custom = loadCustomPets().filter(function(cp) { return !DEFAULT_PETS.some(function(dp) { return dp.id === cp.id; }); });
-  var defaults = DEFAULT_PETS.map(function(dp) {
-    var lo = loadouts[dp.id];
-    if (!lo) return dp;
-    var merged = Object.assign({}, dp);
-    if (lo.skillIds) merged.skillIds = lo.skillIds;
-    if (lo.ownedSkillIds) merged.ownedSkillIds = lo.ownedSkillIds;
-    if (lo.name) merged.name = lo.name;
-    if (lo.emoji) merged.emoji = lo.emoji;
-    if (lo.baseStats) merged.baseStats = lo.baseStats;
-    if (lo.level) merged.level = lo.level;
+function getAllSkills() {
+  var custom = loadCustomSkills();
+  var builtinIds = new Set(DEFAULT_SKILLS.map(function(s) { return s.id; }));
+  var defaults = DEFAULT_SKILLS.map(function(skill) {
+    var saved = custom.find(function(s) { return s.id === skill.id; });
+    if (!saved) return skill;
+    var merged = Object.assign({}, skill);
+    if (typeof saved.name === "string" && saved.name.trim()) merged.name = saved.name;
+    if (typeof saved.desc === "string") merged.desc = saved.desc;
     return merged;
   });
-  return [...defaults, ...custom].filter(function(p){return p&&p.id;}); }
+  return defaults.concat(custom.filter(function(s) { return !builtinIds.has(s.id); }));
+}
+function getAllPets() {
+  var loadouts = loadPetLoadouts();
+  var saved = loadCustomPets();
+  var builtinIds = new Set(DEFAULT_PETS.map(function(p) { return p.id; }));
+  var knownSkillIds = new Set(DEFAULT_SKILLS.concat(loadCustomSkills()).map(function(s) { return s.id; }));
+  var custom = saved.filter(function(p) { return !builtinIds.has(p.id); });
+  var defaults = DEFAULT_PETS.map(function(dp) {
+    // 旧档按需读入，保留原始记录及内置血脉函数；新档优先。
+    var legacy = saved.find(function(p) { return p.id === dp.id; });
+    var lo = loadouts[dp.id];
+    if (!legacy && !lo) return dp;
+    var merged = Object.assign({}, dp);
+    var ownedSkillIds = dp.skillIds;
+    [legacy, lo].filter(Boolean).forEach(function(record) {
+      ["name", "emoji"].forEach(function(key) {
+        if (typeof record[key] === "string" && record[key].trim()) merged[key] = record[key];
+      });
+      if (Number.isInteger(record.level) && record.level > 0) merged.level = record.level;
+      var stats = record.baseStats || record.stats;
+      if (stats) {
+        merged.baseStats = Object.assign({}, merged.baseStats);
+        Object.keys(dp.baseStats).forEach(function(key) {
+          if (Number.isFinite(stats[key]) && stats[key] >= 0) merged.baseStats[key] = stats[key];
+        });
+      }
+      if (Array.isArray(record.ownedSkillIds) && record.ownedSkillIds.length) {
+        ownedSkillIds = Array.from(new Set(dp.skillIds.concat(record.ownedSkillIds))).filter(function(id) {
+          return knownSkillIds.has(id);
+        });
+      }
+    });
+    merged.ownedSkillIds = ownedSkillIds;
+    // 丢弃无效或重复槽位，同时保持合法技能的原始顺序。
+    [legacy, lo].filter(Boolean).forEach(function(record) {
+      if (!Array.isArray(record.skillIds)) return;
+      var ids = Array.from(new Set(record.skillIds)).filter(function(id) { return ownedSkillIds.includes(id); });
+      if (ids.length) merged.skillIds = ids.slice(0, 4);
+    });
+    return merged;
+  });
+  return defaults.concat(custom);
+}
 function findSkill(id) { return getAllSkills().find(s => s.id === id); }
 function findPet(id) { return getAllPets().find(p => p.id === id); }
 
@@ -2464,12 +2498,12 @@ class BattlePet {
   }
   isFainted() { return this.hp <= 0; }
   canAct() {
-    // 同一回合内只判定一次（麻痹的随机数不能因渲染/选招/结算重复抽取）
+    // 控制状态即时复查；只缓存麻痹随机数，不能缓存尚未受控时的 true。
+    if (this.isFainted() || this.status === "freeze" || this.status === "sleep" || this.status === "fear") return false;
+    if (this.status !== "paralyze") return true;
     var turn = gameState.turnCount || 0;
     if (this.__canActTurn === turn && this.__canActValue !== undefined) return this.__canActValue;
-    var v = true;
-    if (this.status === "freeze" || this.status === "sleep" || this.status === "fear") v = false;
-    else if (this.status === "paralyze" && Math.random() < 0.25) v = false;
+    var v = Math.random() >= 0.25;
     this.__canActTurn = turn; this.__canActValue = v;
     return v;
   }
@@ -2543,6 +2577,7 @@ function createBattleContext() {
   return {
     doDamage: function(att, def, power, cat, el, opts) {
       opts = opts || {};
+      power = getSkillPower(this.sourceSkillOwner === att ? this.sourceSkill : null, power);
       // 极尽降华：全场技能视为光系（覆盖技能自身系别）
       if (gameState.forceSkillElement) el = gameState.forceSkillElement;
       if (def.immunePowerDamage && power > 0) { this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0; return { damage: 0, effectiveness: 1, isCrit: false }; }
@@ -2752,6 +2787,37 @@ function processBloodlines() {
   });
 }
 
+// 残念余梦的封存 PP 只在真正的残脉→清念转换时恢复一次。
+function enterQingyuMode(pet, mode) {
+  var bd = pet.bloodlineData || (pet.bloodlineData = {});
+  var previous = bd.mode;
+  bd.mode = mode;
+  if (previous === "残脉" && mode === "清念" && bd.qy3SavedPP !== undefined) {
+    var skill = pet.skills.find(function(s) { return s.id === "sk_qy_3"; });
+    if (skill) skill.pp = Math.min(skill.maxPp, bd.qy3SavedPP);
+    delete bd.qy3SavedPP;
+  }
+}
+
+function getSkillPower(skill, power) {
+  return power * (1 - (skill ? skill.qingnianPowerLoss || 0 : 0));
+}
+
+function getSkillPriority(skill) {
+  return (skill.priority === undefined ? 8 : skill.priority) - (skill.qingnianPriorityLoss || 0);
+}
+
+function applyQingnianSuppression(pet, skill) {
+  if (pet.qingnianWindowEnd === undefined || gameState.turnCount > pet.qingnianWindowEnd || skill.__struggle) return;
+  if (skill.category === "status") {
+    skill.qingnianPriorityLoss = (skill.qingnianPriorityLoss || 0) + 1;
+    addMessage("【清念沉脉】" + pet.name + " 的" + skill.name + "先手永久-1！");
+  } else {
+    skill.qingnianPowerLoss = Math.min(0.5, (skill.qingnianPowerLoss || 0) + 0.3);
+    addMessage("【清念沉脉】" + pet.name + " 的" + skill.name + "威力永久削弱" + Math.round(skill.qingnianPowerLoss * 100) + "%！");
+  }
+}
+
 function processTurnEffects(pet) {
   if (!pet || pet.isFainted()) return;
   // 先快照再清空：onTick 内注册的新效果写入新数组，不会被本轮结果覆盖
@@ -2768,12 +2834,7 @@ function processTurnEffects(pet) {
   if (pet.damageCapTurns > 0) pet.damageCapTurns--;
   if (pet.damageReductionTurns > 0) pet.damageReductionTurns--;
   if (pet.healInvertTurns > 0) pet.healInvertTurns--;
-  // Clear segment counter for new turn
-  pet.segmentIdx = 0;
-  pet.lethalHitThisTurn = false;
-  pet.lethalHandled = false;
-  pet.immuneBackhand = false;
-  // Clear blockPPRecovery after 1 turn
+  // 保留既有封锁结束点：上一回合施加的封锁仍覆盖本回合开场回复。
   pet.blockPPRecovery = false;
 }
 
@@ -2920,7 +2981,7 @@ function calcDamage(attacker, defender, skill) {
   var isPhysical = skill.category === "physical";
   var atkStat = isPhysical ? attacker.getStat("atk") : attacker.getStat("spatk");
   var defStat = isPhysical ? defender.getStat("def") : defender.getStat("spdef");
-  var dmg = Math.floor(((2 * attacker.level / 5 + 2) * skill.power * (atkStat / defStat)) / 50 + 2);
+  var dmg = Math.floor(((2 * attacker.level / 5 + 2) * getSkillPower(skill, skill.power) * (atkStat / defStat)) / 50 + 2);
   dmg = Math.floor(dmg * (0.85 + Math.random() * 0.15));
   if (skill.element === (attacker.skillElementOverride || attacker.element)) dmg = Math.floor(dmg * 1.5);
   var eff = getEffectiveness(skill.element, defender.element);
@@ -3065,8 +3126,6 @@ function playerUseSkill(skillIdx) {
 }
 
 function endTurnCleanup() {
-  // 双方都无法行动时也要推进天气/环境计时，避免回合“卡住”
-  if (!gameState.battleOver) tickEnvironments();
   gameState.isPlayerTurn = true; updateBattleUI(); renderBattleActions();
 }
 
@@ -3074,9 +3133,7 @@ function aiDecideAndResolve() {
   if (gameState.battleOver) return;
   var ai = gameState.aiActive, player = gameState.playerActive;
   
-  // AI无法行动（睡眠/冰冻/恐惧/麻痹）时不出招
-  if (!ai.canAct()) { gameState.pendingAISkill = -1; resolveTurn(); return; }
-  
+  // 先选招，行动能力统一在本回合结算内判定，选招阶段不抽取麻痹随机数。
   // AI选技能（与旧版相同逻辑）
   var available = ai.skills.filter(function(s) { return s.pp > 0; });
   if (available.length === 0) {
@@ -3108,9 +3165,17 @@ function resolveTurn() {
   var player = gameState.playerActive, ai = gameState.aiActive;
   var pSkillIdx = gameState.pendingPlayerSkill;
   var aSkillIdx = gameState.pendingAISkill;
+  gameState.turnCount++;
+  // 在任何天气、异常或回合效果伤害前复位；场下宠物本回合也可能被换上。
+  gameState.playerParty.concat(gameState.aiParty).forEach(function(pet) {
+    pet.segmentIdx = 0; pet.lethalHitThisTurn = false; pet.lethalHandled = false;
+    pet.immuneBackhand = false; pet.invincible = false;
+  });
+  [player, ai].forEach(function(pet) { pet.lastDealtDamage = pet.currentDealt || 0; pet.currentDealt = 0; });
   // 无法行动的一方本回合强制空过；状态回合只在这里推进一次
-  if (!player.canAct()) pSkillIdx = -1;
-  if (!ai.canAct()) aSkillIdx = -1;
+  var playerCanAct = player.canAct(), aiCanAct = ai.canAct();
+  if (!playerCanAct) pSkillIdx = -1;
+  if (!aiCanAct) aSkillIdx = -1;
   var playerSkipped = !!gameState.skipPlayerAction;  // 本回合玩家已用"换宠"占用行动
   gameState.skipPlayerAction = false;
   var pSkill = pSkillIdx >= 0 ? player.skills[pSkillIdx] : null;
@@ -3119,7 +3184,7 @@ function resolveTurn() {
   if (aSkill && aSkill.pp <= 0) aSkill = null;
 
   // 玩家无法行动：推进状态（睡眠/冰冻/恐惧/麻痹回合递减），本回合不出招
-  if (!pSkill && !player.canAct()) {
+  if (!pSkill && !playerCanAct) {
     if (player.status === "sleep") {
       player.statusTurns--;
       if (player.statusTurns <= 0) { player.status = null; addMessage(player.name + " 醒过来了！"); }
@@ -3136,7 +3201,7 @@ function resolveTurn() {
     }
   }
   // AI无法行动：推进状态，本回合不出招
-  if (!aSkill && !ai.canAct()) {
+  if (!aSkill && !aiCanAct) {
     if (ai.status === "sleep") {
       ai.statusTurns--;
       if (ai.statusTurns <= 0) { ai.status = null; addMessage(ai.name + " 醒过来了！"); }
@@ -3153,16 +3218,12 @@ function resolveTurn() {
     }
   }
   // 有行动能力却没有可用技能（PP 耗尽）→ 挣扎，避免整局无法推进
-  if (!pSkill && !playerSkipped && player.canAct() && !player.isFainted()) pSkill = makeStruggleSkill();
-  if (!aSkill && ai.canAct() && !ai.isFainted()) aSkill = makeStruggleSkill();
-  // 双方都无法行动：直接结束回合
-  if (!pSkill && !aSkill) { endTurnCleanup(); return; }
+  if (!pSkill && !playerSkipped && playerCanAct) pSkill = makeStruggleSkill();
+  if (!aSkill && aiCanAct) aSkill = makeStruggleSkill();
+  // 双方空过也走完整回合管线，持续效果和计时均正常推进。
   
   var pPrio = pSkill ? ((player.priorityOverride !== null && player.priorityOverride !== undefined) ? player.priorityOverride : (pSkill.priority || 8)) : 0;
   var aPrio = aSkill ? ((ai.priorityOverride !== null && ai.priorityOverride !== undefined) ? ai.priorityOverride : (aSkill.priority || 8)) : 0;
-  // 对方施加的先手惩罚：变化技能先手值-1
-  if (pSkill && pSkill.category === "status" && player.prioPenalty) pPrio -= player.prioPenalty;
-  if (aSkill && aSkill.category === "status" && ai.prioPenalty) aPrio -= ai.prioPenalty;
   // 迷雾天气：幽灵系技能先手值+1
   if (gameState.weather === "mist") {
     if (pSkill && pSkill.element === "ghost") pPrio += 1;
@@ -3175,6 +3236,7 @@ function resolveTurn() {
     if (pCat === aCat) {
       var qlPets = [player, ai].filter(function(pet){ return pet && pet.bloodline && pet.bloodline.name === "清念灵体"; });
       if (qlPets.length > 0) {
+        // 维持微灵印记原有的基础先手计数；与沉脉削弱的联动另行裁定。
         var addMark = (pSkill.priority || 8) + (aSkill.priority || 8);
         var emptyPP = [player, ai].reduce(function(s, pt){ return s + pt.skills.filter(function(sk){ return sk.pp === 0; }).length; }, 0);
         var markCap = 100 + emptyPP * 20;
@@ -3191,9 +3253,10 @@ function resolveTurn() {
     if (pSkill && pSkill.id === "sk_qy_1") pPrio = 1;
     if (aSkill && aSkill.id === "sk_qy_1") aPrio = 1;
   }
+  if (pSkill) pPrio -= pSkill.qingnianPriorityLoss || 0;
+  if (aSkill) aPrio -= aSkill.qingnianPriorityLoss || 0;
   
-  gameState.turnCount++;processWeather();processField();
-  [player, ai].forEach(function(pet){ if (pet) { pet.lastDealtDamage = pet.currentDealt || 0; pet.currentDealt = 0; pet.invincible = false; } });
+  processWeather();processField();
   var ti=document.querySelector("#turn-indicator"); if (ti) ti.style.display = "none";
   createBattleContext().savePPState();
   processBloodlines();
@@ -3239,7 +3302,7 @@ function resolveTurn() {
     var pj = gameState.pendingJianghua; gameState.pendingJianghua = null;
     var pjOpp = gameState.playerActive === pj ? gameState.aiActive : gameState.playerActive;
     var pjSk = pj.skills.find(function(s){ return s.id === "sk_jydm_1"; });
-    if (pjSk && pjOpp) { pjSk.onUse(pj, pjOpp, createBattleContext()); addMessage("【极尽降华】PP 被删除，被动发动！"); }
+    if (pjSk && pjOpp) { applyQingnianSuppression(pj, pjSk); pjSk.onUse(pj, pjOpp, createBattleContext()); addMessage("【极尽降华】PP 被删除，被动发动！"); }
   }
   createBattleContext().saveSnapshot();
   [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; p.lastTakenSegments = (p.damageTakenThisTurn || []).slice(); p.lastTakenTotal = (p.damageTakenThisTurn || []).reduce(function(a,b){ return a + b; }, 0); p.damageTakenThisTurn = []; p.skillsUsedThisTurn = 0; } });
@@ -3269,7 +3332,7 @@ function executeSkillTurn(user, target, skill, who) {
   if (user !== gameState.playerActive && user !== gameState.aiActive) { addMessage(user.name + " 已离场，行动取消！"); return; }
   if (target !== gameState.playerActive && target !== gameState.aiActive) { addMessage(target.name + " 已不在场上，本次行动取消！"); return; }
   if (!skill.__struggle && skill.pp <= 0) { addMessage(user.name + " 的" + skill.name + "已无PP，行动取消！"); return; }
-  if (user.status === "sleep" || user.status === "freeze" || user.status === "fear") { addMessage(user.name + " 无法行动！"); return; }
+  if (!user.canAct()) { addMessage(user.name + " 无法行动！"); return; }
   var isPlayer = who === "player";
   // 迷雾天气：主动行动结算前 80% 概率令自身混乱
   if (gameState.weather === "mist" && (user.statusImmunities || []).indexOf("confuse") < 0 && !user.statImmunity) {
@@ -3277,10 +3340,12 @@ function executeSkillTurn(user, target, skill, who) {
   }
   var lastEff = 1, lastDmgVal = 0;
   var ctx = createBattleContext();
+  ctx.sourceSkill = skill; ctx.sourceSkillOwner = user;
   var ppCostOnMiss = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
   
   // 轻风散魂：下回合闪避非必中技能（一次性）
   if (target.dodgeNextTurnNonSure && !skill.semiSure && skill.category !== "status") {
+    applyQingnianSuppression(user, skill);
     target.dodgeNextTurnNonSure = false;
     addMessage(target.name + " 闪避了" + user.name + " 的非必中技能！");
     return;
@@ -3288,6 +3353,7 @@ function executeSkillTurn(user, target, skill, who) {
   // 命中判定：半必中（semiSure）仅在对方"必定闪避"时 miss，其余必中
   if (skill.semiSure) {
     if (target.sureDodge) {
+      applyQingnianSuppression(user, skill);
       var missBefore = skill.pp;
       skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
       addMessage(target.name + " 必定闪避了 " + user.name + " 的 " + skill.name + "！（PP " + missBefore + "→" + skill.pp + "）");
@@ -3295,6 +3361,7 @@ function executeSkillTurn(user, target, skill, who) {
       return;
     }
   } else if (skill.accuracy < 100 && Math.random() * 100 > skill.accuracy) {
+    applyQingnianSuppression(user, skill);
     var missBefore = skill.pp;
     skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
     addMessage(user.name + " 的 " + skill.name + " 没有命中！（PP " + missBefore + "→" + skill.pp + "）");
@@ -3303,6 +3370,7 @@ function executeSkillTurn(user, target, skill, who) {
   // 化念作刃先手闪避：target 有标志、本技能非必中、user 为后手 → 闪避
   var userIsBackhand = gameState.pendingFirstMove !== (isPlayer ? "player" : "ai");
   if (!skill.semiSure && target.dodgeNextNonSure && skill.accuracy < 100 && userIsBackhand) {
+    applyQingnianSuppression(user, skill);
     var dodgeBefore = skill.pp;
     skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
     addMessage(target.name + " 闪避了后手非必中技能！视物攻+2！（PP " + dodgeBefore + "→" + skill.pp + "）");
@@ -3344,6 +3412,8 @@ function executeSkillTurn(user, target, skill, who) {
     skill.pp = Math.max(0, skill.pp - ppCost);
     addMessage(user.name + " 使用了 " + skill.name + "（PP " + ppBeforeUse + "→" + skill.pp + (ppCost > 1 ? " ×" + ppCost : "") + "）！");
   }
+  ctx.skillPPCost = skill.__struggle ? 0 : ppBeforeUse - skill.pp;
+  applyQingnianSuppression(user, skill);
   // 对方连续技能计数（极影光幕）
   if (user.oppConsecutive) {
     if (user.lastUsedSkillId === skill.id) { user.oppConsecutive[skill.id] = (user.oppConsecutive[skill.id] || 0) + 1; }
@@ -3750,7 +3820,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
   if (gameState.switchPending) { container.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text2);font-size:14px\">换宠中…</div>"; return; }
   // 检查是否被控制（仅异常状态自动跳过；PP归零改为等待读秒）
   var allPPEmpty = player.skills.every(function(s){return s.pp<=0;});
-  if (!player.canAct() && !allPPEmpty) {
+  if (["sleep", "freeze", "fear"].indexOf(player.status) >= 0 && !allPPEmpty) {
     var reason = (player.status==="sleep"?"正在睡觉":player.status==="freeze"?"被冰冻":player.status==="fear"?"被恐惧":player.status==="paralyze"?"麻痹无法行动":"无法行动");
     document.querySelector("#battle-actions").innerHTML = "<div style=text-align:center;padding:20px;color:var(--text2);font-size:14px>"+player.name+reason+"<br>自动跳过...</div>";
     stopTurnTimer();
@@ -3761,7 +3831,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
     }, 800);
     return;
   }
-  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = skill.priority || 8; var prioStr, prioCls; if (prio > 8) { prioStr = "+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + skill.name + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + skill.power : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
+  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = getSkillPriority(skill); var prioStr, prioCls; if (prio > 8) { prioStr = "+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + Math.round(getSkillPower(skill, skill.power) * 100) / 100 : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
     var infoBtn = btn.querySelector(".skill-info");
     if (infoBtn) infoBtn.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 换宠"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
 
@@ -3772,8 +3842,8 @@ var CATEGORY_NAMES = { physical: "物理", special: "特殊", status: "变化" }
 function skillMetaText(skill) {
   var el = ELEMENTS[skill.element] || { name: "?" };
   var acc = skill.semiSure ? "半必中" : (skill.accuracy >= 100 ? "必中" : (skill.accuracy || 100) + "%");
-  var parts = [el.name + "系", CATEGORY_NAMES[skill.category] || skill.category, skill.maxPp + "PP", "先手" + fmtPriority(skill.priority || 8), acc];
-  if (skill.power) parts.push("威力 " + skill.power);
+  var parts = [el.name + "系", CATEGORY_NAMES[skill.category] || skill.category, skill.maxPp + "PP", "先手" + fmtPriority(getSkillPriority(skill)), acc];
+  if (skill.power) parts.push("威力 " + Math.round(getSkillPower(skill, skill.power) * 100) / 100);
   return parts.join(" · ");
 }
 function showSkillDetail(skill) {
@@ -3783,8 +3853,13 @@ function showSkillDetail(skill) {
   var ov = document.createElement("div");
   ov.className = "modal-overlay show";
   ov.id = "skill-detail-overlay";
-  var body = String(skill.detail || skill.desc || "暂无说明").replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  ov.innerHTML = '<div class="modal skill-detail"><h3>' + skill.name + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body">' + body + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
+  var builtin = DEFAULT_SKILLS.find(function(s) { return s.id === skill.id; });
+  var description = skill.detail || skill.desc || "暂无说明";
+  if (builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) {
+    description = skill.desc + "\n\n" + skill.detail;
+  }
+  var body = escapeHtml(description);
+  ov.innerHTML = '<div class="modal skill-detail"><h3>' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body">' + body + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
   document.body.appendChild(ov);
   var close = function() { ov.remove(); };
   ov.querySelector("#skill-detail-close").addEventListener("click", close);
@@ -3832,7 +3907,7 @@ function openSkillSwap(pet, keepDraft) {
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
     var eqIdx = isEq ? equippedIds.indexOf(skill.id) : -1;
-    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + skill.name + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><span class="swap-info-btn" role="button" aria-label="查看技能详情">i</span></div>';
+    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + escapeHtml(skill.name) + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><span class="swap-info-btn" role="button" aria-label="查看技能详情">i</span></div>';
   });
   html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备 ' + equippedIds.length + ' / ' + allSkills.length + ' 个（仅限本宠技能）| 点击切换装备/卸下 · ◀▶ 调整顺序（1 号为最左格）</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
   detail.innerHTML = html;
@@ -3867,7 +3942,7 @@ function openSkillSwap(pet, keepDraft) {
     if (isBuiltin) {
       // R02：内置宠物只保存技能配置，不序列化整只宠物（避免血脉函数丢失）
       var loadouts = loadPetLoadouts();
-      loadouts[pet.id] = { skillIds: ids, ownedSkillIds: ownedIds.slice() };
+      loadouts[pet.id] = Object.assign({}, loadouts[pet.id], { skillIds: ids, ownedSkillIds: ownedIds.slice() });
       savePetLoadouts(loadouts);
     } else {
       var customPets = loadCustomPets();
@@ -3888,8 +3963,8 @@ function openSkillSwap(pet, keepDraft) {
 var mgmtTab = "pets";
 function renderPetManagement(app) { app.innerHTML = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="mgmt-back">\u2190</button><span class="screen-title">宠物管理</span></div><div class="mgmt-tabs"><button class="mgmt-tab ' + (mgmtTab === "pets" ? "active" : "") + '" id="tab-pets">\u{1F43E} 宠物列表</button><button class="mgmt-tab ' + (mgmtTab === "skills" ? "active" : "") + '" id="tab-skills">\u2B50 技能列表</button></div><div class="mgmt-list" id="mgmt-list"></div><button class="add-btn" id="mgmt-add">+ 添加' + (mgmtTab === "pets" ? "自定义宠物" : "自定义技能") + '</button></div>'; document.querySelector("#mgmt-back").addEventListener("click", function() { showScreen("menu"); }); document.querySelector("#tab-pets").addEventListener("click", function() { mgmtTab = "pets"; showScreen("pets"); }); document.querySelector("#tab-skills").addEventListener("click", function() { mgmtTab = "skills"; showScreen("pets"); }); document.querySelector("#mgmt-add").addEventListener("click", function() { mgmtTab === "pets" ? showPetForm() : showSkillForm(); }); renderMgmtList(); }
 
-function renderMgmtList() { try { var list = document.querySelector("#mgmt-list"); if (!list) return; list.innerHTML = ""; if (mgmtTab === "pets") { getAllPets().forEach(function(pet) { var isCustom = pet.id ? pet.id.indexOf("pet_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji">' + pet.emoji + '</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + pet.name + (isCustom ? " \u2728" : "") + (pet.bloodline ? ' <span style="color:var(--gold);font-size: 12px">血脉:' + pet.bloodline.name + '</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:'?'}).name + '系 · Lv.' + (pet.level||'?') + ' · HP:' + (pet.baseStats||pet.stats||{hp:100}).hp + '</div></div><div class="mgmt-item-actions"><button class="edit-pet-btn">编辑</button>' + (isCustom ? '<button class="del-pet-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-pet-btn").addEventListener("click", function() { showPetForm(pet); }); var db = div.querySelector(".del-pet-btn"); if (db) db.addEventListener("click", function() { deletePet(pet.id); }); list.appendChild(div); }); } else { getAllSkills().forEach(function(skill) { var isCustom = skill.id ? skill.id.indexOf("sk_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">\u2726</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + skill.name + (isCustom ? " \u2728" : "") + (skill.onUse ? ' <span style="color:var(--accent);font-size: 12px">扩展</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(skill.element) + (ELEMENTS[skill.element]||{name:"?"}).name + '系 · 威力:' + (skill.power || "-") + ' · PP:' + skill.maxPp + '</div></div><div class="mgmt-item-actions"><button class="edit-sk-btn">编辑</button>' + (isCustom ? '<button class="del-sk-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-sk-btn").addEventListener("click", function() { showSkillForm(skill); }); var db2 = div.querySelector(".del-sk-btn"); if (db2) db2.addEventListener("click", function() { deleteSkill(skill.id); }); list.appendChild(div); }); } } catch(e) { console.error("renderMgmtList error:", e); list.innerHTML = "<div style=color:red>加载失败: " + e.message + "</div>"; } }function showPetForm(pet) { var isEdit = !!pet; var skills = getAllSkills(); if (pet && pet.stats && !pet.baseStats) pet.baseStats = pet.stats;
-  var selSkills = pet ? [...pet.skillIds].slice(0, 4) : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + s.name + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk","攻击"],["def","防御"],["spatk","特攻"],["spdef","特防"],["spd","速度"]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { savePetForm(isEdit, pet); }); }
+function renderMgmtList() { try { var list = document.querySelector("#mgmt-list"); if (!list) return; list.innerHTML = ""; if (mgmtTab === "pets") { getAllPets().forEach(function(pet) { var isCustom = pet.id ? pet.id.indexOf("pet_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji">' + pet.emoji + '</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + pet.name + (isCustom ? " \u2728" : "") + (pet.bloodline ? ' <span style="color:var(--gold);font-size: 12px">血脉:' + pet.bloodline.name + '</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:'?'}).name + '系 · Lv.' + (pet.level||'?') + ' · HP:' + (pet.baseStats||pet.stats||{hp:100}).hp + '</div></div><div class="mgmt-item-actions"><button class="edit-pet-btn">编辑</button>' + (isCustom ? '<button class="del-pet-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-pet-btn").addEventListener("click", function() { showPetForm(pet); }); var db = div.querySelector(".del-pet-btn"); if (db) db.addEventListener("click", function() { deletePet(pet.id); }); list.appendChild(div); }); } else { getAllSkills().forEach(function(skill) { var isCustom = skill.id ? skill.id.indexOf("sk_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">\u2726</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + escapeHtml(skill.name) + (isCustom ? " \u2728" : "") + (skill.onUse ? ' <span style="color:var(--accent);font-size: 12px">扩展</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(skill.element) + (ELEMENTS[skill.element]||{name:"?"}).name + '系 · 威力:' + (skill.power || "-") + ' · PP:' + skill.maxPp + '</div></div><div class="mgmt-item-actions"><button class="edit-sk-btn">编辑</button>' + (isCustom ? '<button class="del-sk-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-sk-btn").addEventListener("click", function() { showSkillForm(skill); }); var db2 = div.querySelector(".del-sk-btn"); if (db2) db2.addEventListener("click", function() { deleteSkill(skill.id); }); list.appendChild(div); }); } } catch(e) { console.error("renderMgmtList error:", e); list.innerHTML = "<div style=color:red>加载失败: " + e.message + "</div>"; } }function showPetForm(pet) { var isEdit = !!pet; var skills = getAllSkills(); if (pet && pet.stats && !pet.baseStats) pet.baseStats = pet.stats;
+  var selSkills = pet ? [...pet.skillIds].slice(0, 4) : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + escapeHtml(s.name) + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk","攻击"],["def","防御"],["spatk","特攻"],["spdef","特防"],["spd","速度"]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { savePetForm(isEdit, pet); }); }
 
 function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name").value.trim(); if (!name) { alert("请输入名称！"); return; } var np = { id: isEdit ? orig.id : ("custom_pet_" + Date.now()), name: name, emoji: document.querySelector("#fp-emoji").value || "\u{1F43E}", element: document.querySelector("#fp-element").value, level: parseInt(document.querySelector("#fp-level").value) || 100, baseStats: { hp: abilityToBase(parseInt(document.querySelector("#fp-hp").value) || calcHpAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, true), atk: abilityToBase(parseInt(document.querySelector("#fp-atk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), def: abilityToBase(parseInt(document.querySelector("#fp-def").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spatk: abilityToBase(parseInt(document.querySelector("#fp-spatk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spdef: abilityToBase(parseInt(document.querySelector("#fp-spdef").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spd: abilityToBase(parseInt(document.querySelector("#fp-spd").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false) }, skillIds: [0,1,2,3].map(function(i) { var el = document.querySelector("#fp-skill-" + i); return el ? el.value : ""; }).filter(Boolean) }; np.ownedSkillIds = Array.from(new Set([].concat(isEdit && orig.ownedSkillIds ? orig.ownedSkillIds : [], np.skillIds)));
   // R09：内置宠物编辑写入 loadout（保留血脉函数），不再静默丢弃
@@ -3898,7 +3973,10 @@ function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name
     var loadouts = loadPetLoadouts();
     var lo = loadouts[orig.id] || {};
     lo.name = np.name; lo.emoji = np.emoji; lo.baseStats = np.baseStats; lo.level = np.level;
-    if (np.skillIds && np.skillIds.length) lo.skillIds = np.skillIds;
+    if (np.skillIds.length) {
+      lo.skillIds = np.skillIds;
+      lo.ownedSkillIds = Array.from(new Set(getOwnedSkillIds(orig).concat(np.skillIds)));
+    }
     loadouts[orig.id] = lo;
     savePetLoadouts(loadouts);
     closeModal(); showScreen("pets"); return;
@@ -3907,9 +3985,38 @@ function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name
 
 function deletePet(petId) { if (!confirm("确定删除？")) return; saveCustomPets(loadCustomPets().filter(function(p) { return p.id !== petId; })); showScreen("pets"); }
 
-function showSkillForm(skill) { var isEdit = !!skill; var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (skill && skill.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var cats = '<option value="physical"' + (skill && skill.category === "physical" ? " selected" : "") + '>物理</option><option value="special"' + (skill && skill.category === "special" ? " selected" : "") + '>特殊</option><option value="status"' + (skill && skill.category === "status" ? " selected" : "") + '>变化</option>'; var effs = '<option value="">无</option><option value="burn">烧伤</option><option value="freeze">冰冻</option><option value="paralyze">麻痹</option><option value="poison">中毒</option><option value="sleep">睡眠</option><option value="confuse">混乱</option>'; var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '技能</h3>'; html += '<div class="form-group"><label>名称</label><input id="fs-name" value="' + (skill ? skill.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>元素</label><select id="fs-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>类型</label><select id="fs-category">' + cats + '</select></div>'; html += '<div class="stat-grid"><div class="form-group"><label>威力</label><input id="fs-power" type="number" value="' + (skill ? skill.power : 80) + '" min="0" max="250"></div><div class="form-group"><label>PP</label><input id="fs-pp" type="number" value="' + (skill ? skill.maxPp : 15) + '" min="1" max="40"></div><div class="form-group"><label>命中</label><input id="fs-accuracy" type="number" value="' + (skill ? skill.accuracy : 100) + '" min="30" max="100"></div></div>'; html += '<div class="form-group"><label>效果</label><select id="fs-effect">' + effs + '</select></div>'; html += '<div class="form-group"><label>效果率%</label><input id="fs-effectChance" type="number" value="' + (skill ? skill.effectChance : 0) + '" min="0" max="100"></div>'; html += '<div class="form-group"><label>描述</label><textarea id="fs-desc">' + (skill ? skill.desc : "") + '</textarea></div>'; html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { saveSkillForm(isEdit, skill); }); }
+function showSkillForm(skill) { var isEdit = !!skill; var isBuiltin = isEdit && DEFAULT_SKILLS.some(function(s) { return s.id === skill.id; }); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (skill && skill.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var cats = '<option value="physical"' + (skill && skill.category === "physical" ? " selected" : "") + '>物理</option><option value="special"' + (skill && skill.category === "special" ? " selected" : "") + '>特殊</option><option value="status"' + (skill && skill.category === "status" ? " selected" : "") + '>变化</option>'; var effs = '<option value="">无</option><option value="burn">烧伤</option><option value="freeze">冰冻</option><option value="paralyze">麻痹</option><option value="poison">中毒</option><option value="sleep">睡眠</option><option value="confuse">混乱</option>'; var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '技能</h3>'; html += '<div class="form-group"><label>名称</label><input id="fs-name" value="' + (skill ? escapeHtml(skill.name).replace(/"/g, "&quot;") : "") + '" maxlength="10"></div>'; if (isBuiltin) html += '<p class="form-group">内置技能仅可编辑名称和描述。战斗参数与效果由原有机制决定。</p><fieldset disabled style="border:0;padding:0;margin:0;min-width:0">'; html += '<div class="form-group"><label>元素</label><select id="fs-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>类型</label><select id="fs-category">' + cats + '</select></div>'; html += '<div class="stat-grid"><div class="form-group"><label>威力</label><input id="fs-power" type="number" value="' + (skill ? skill.power : 80) + '" min="0" max="250"></div><div class="form-group"><label>PP</label><input id="fs-pp" type="number" value="' + (skill ? skill.maxPp : 15) + '" min="1" max="40"></div><div class="form-group"><label>命中</label><input id="fs-accuracy" type="number" value="' + (skill ? skill.accuracy : 100) + '" min="30" max="100"></div></div>'; html += '<div class="form-group"><label>效果</label><select id="fs-effect">' + effs + '</select></div>'; html += '<div class="form-group"><label>效果率%</label><input id="fs-effectChance" type="number" value="' + (skill ? skill.effectChance : 0) + '" min="0" max="100"></div>'; if (isBuiltin) html += '</fieldset>'; html += '<div class="form-group"><label>描述</label><textarea id="fs-desc">' + (skill ? escapeHtml(skill.desc || "") : "") + '</textarea></div>'; html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { saveSkillForm(isEdit, skill); }); }
 
-function saveSkillForm(isEdit, orig) { var name = document.querySelector("#fs-name").value.trim(); if (!name) { alert("请输入名称！"); return; } var ns = { id: isEdit ? orig.id : ("custom_skill_" + Date.now()), name: name, element: document.querySelector("#fs-element").value, power: parseInt(document.querySelector("#fs-power").value) || 0, pp: parseInt(document.querySelector("#fs-pp").value) || 15, maxPp: parseInt(document.querySelector("#fs-pp").value) || 15, accuracy: parseInt(document.querySelector("#fs-accuracy").value) || 100, category: document.querySelector("#fs-category").value, effect: document.querySelector("#fs-effect").value || null, effectChance: parseInt(document.querySelector("#fs-effectChance").value) || 0, desc: document.querySelector("#fs-desc").value.trim() }; var cs = loadCustomSkills(); if (isEdit) { var idx = cs.findIndex(function(s) { return s.id === orig.id; }); if (idx >= 0) cs[idx] = ns; } else cs.push(ns); saveCustomSkills(cs); closeModal(); showScreen("pets"); }
+function saveSkillForm(isEdit, orig) {
+  var name = document.querySelector("#fs-name").value.trim();
+  if (!name) { alert("请输入名称！"); return; }
+  var ns = {
+    id: isEdit ? orig.id : ("custom_skill_" + Date.now()),
+    name: name,
+    desc: document.querySelector("#fs-desc").value.trim()
+  };
+  var isBuiltin = isEdit && DEFAULT_SKILLS.some(function(s) { return s.id === orig.id; });
+  if (!isBuiltin) {
+    var pp = parseInt(document.querySelector("#fs-pp").value) || 15;
+    Object.assign(ns, {
+      element: document.querySelector("#fs-element").value,
+      power: parseInt(document.querySelector("#fs-power").value) || 0,
+      pp: pp,
+      maxPp: pp,
+      accuracy: parseInt(document.querySelector("#fs-accuracy").value) || 100,
+      category: document.querySelector("#fs-category").value,
+      effect: document.querySelector("#fs-effect").value || null,
+      effectChance: parseInt(document.querySelector("#fs-effectChance").value) || 0
+    });
+  }
+  var cs = loadCustomSkills();
+  var idx = cs.findIndex(function(s) { return s.id === ns.id; });
+  if (idx >= 0) cs[idx] = isBuiltin ? Object.assign({}, cs[idx], ns) : ns;
+  else cs.push(ns);
+  saveCustomSkills(cs);
+  closeModal();
+  showScreen("pets");
+}
 
 function deleteSkill(skillId) { if (!confirm("确定删除？")) return; saveCustomSkills(loadCustomSkills().filter(function(s) { return s.id !== skillId; })); saveCustomPets(loadCustomPets().map(function(p) { p.skillIds = p.skillIds.filter(function(sid) { return sid !== skillId; }); return p; })); showScreen("pets"); }
 

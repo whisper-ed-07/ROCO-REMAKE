@@ -1,0 +1,188 @@
+{
+  "policy": "1v1, 4 equipped slots, both sides round-robin available skills, virtual clock 1s per submitted round, maximum 150 rounds",
+  "summary": {
+    "battles": 16,
+    "finished": 15,
+    "roundLimit": 1,
+    "stalled": 0,
+    "exceptions": 0
+  },
+  "results": [
+    {
+      "player": "pet_qingling",
+      "ai": "pet_qingling",
+      "seed": 20261110,
+      "outcome": "player-win",
+      "turns": 2,
+      "hp": [
+        408,
+        0
+      ]
+    },
+    {
+      "player": "pet_qingling",
+      "ai": "pet_jydm",
+      "seed": 20261111,
+      "outcome": "ai-win",
+      "turns": 2,
+      "hp": [
+        0,
+        548
+      ]
+    },
+    {
+      "player": "pet_qingling",
+      "ai": "pet_qy",
+      "seed": 20261112,
+      "outcome": "both-fainted",
+      "turns": 3,
+      "hp": [
+        0,
+        0
+      ]
+    },
+    {
+      "player": "pet_qingling",
+      "ai": "pet_bmhs",
+      "seed": 20261113,
+      "outcome": "player-win",
+      "turns": 2,
+      "hp": [
+        558,
+        0
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_qingling",
+      "seed": 20261210,
+      "outcome": "player-win",
+      "turns": 2,
+      "hp": [
+        548,
+        0
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_jydm",
+      "seed": 20261211,
+      "outcome": "ai-win",
+      "turns": 4,
+      "hp": [
+        0,
+        728
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_qy",
+      "seed": 20261212,
+      "outcome": "ai-win",
+      "turns": 2,
+      "hp": [
+        0,
+        601
+      ]
+    },
+    {
+      "player": "pet_jydm",
+      "ai": "pet_bmhs",
+      "seed": 20261213,
+      "outcome": "ai-win",
+      "turns": 27,
+      "hp": [
+        0,
+        408
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_qingling",
+      "seed": 20261310,
+      "outcome": "both-fainted",
+      "turns": 3,
+      "hp": [
+        0,
+        0
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_jydm",
+      "seed": 20261311,
+      "outcome": "player-win",
+      "turns": 2,
+      "hp": [
+        600,
+        0
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_qy",
+      "seed": 20261312,
+      "outcome": "both-fainted",
+      "turns": 3,
+      "hp": [
+        0,
+        0
+      ]
+    },
+    {
+      "player": "pet_qy",
+      "ai": "pet_bmhs",
+      "seed": 20261313,
+      "outcome": "player-win",
+      "turns": 2,
+      "hp": [
+        604,
+        0
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_qingling",
+      "seed": 20261410,
+      "outcome": "ai-win",
+      "turns": 2,
+      "hp": [
+        0,
+        558
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_jydm",
+      "seed": 20261411,
+      "outcome": "player-win",
+      "turns": 50,
+      "hp": [
+        494,
+        0
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_qy",
+      "seed": 20261412,
+      "outcome": "ai-win",
+      "turns": 2,
+      "hp": [
+        0,
+        604
+      ]
+    },
+    {
+      "player": "pet_bmhs",
+      "ai": "pet_bmhs",
+      "seed": 20261413,
+      "outcome": "round-limit",
+      "turns": 150,
+      "hp": [
+        524,
+        524
+      ]
+    }
+  ]
+}
