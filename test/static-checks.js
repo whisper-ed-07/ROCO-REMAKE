@@ -95,7 +95,7 @@ console.log('  检查项通过 ' + (pass - 0) + ',错误 ' + errors.length + ',�
 console.log('\n[3] 属性克制表(' + elemKeys.length + ' 系)');
 elemKeys.forEach(e => { if (!TYPE_CHART[e]) bad('TYPE_CHART 缺少系别: ' + e); });
 Object.keys(TYPE_CHART).forEach(a => {
-  if (a === '_emoji') return; // ELEMENTS._emoji 是 UI 副产物,引擎为它建了空条目,不算错误
+  if (a === '_emoji' || a === '_icon') return; // UI 元数据键，不算属性
   if (elemKeys.indexOf(a) < 0) bad('TYPE_CHART 含有未定义的系别: ' + a);
   Object.keys(TYPE_CHART[a] || {}).forEach(d => {
     const v = TYPE_CHART[a][d];
