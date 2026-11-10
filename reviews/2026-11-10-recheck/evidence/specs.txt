@@ -1,0 +1,76 @@
+{
+  "baseline": "7cb4308",
+  "sha256": "3ded71768ba3c1c015798d0185902039293e5a89f161a778cfe70c45ae1a7e5b",
+  "checks": {
+    "R11": {
+      "noTargetSkillEverUsed": {
+        "dmgMod": 0.7,
+        "prioPenalty": 1,
+        "targetSkillUses": {}
+      },
+      "afterFourMoreTurns": {
+        "dmgMod": 0.7,
+        "prioPenalty": 1
+      },
+      "permanencePass": true,
+      "triggerGatePass": false
+    },
+    "R12": {
+      "afterUse": {
+        "pp": 0,
+        "saved": 5,
+        "mode": "清念"
+      },
+      "afterQingnianToSameQingnian": {
+        "pp": 5,
+        "saved": null,
+        "mode": "清念"
+      },
+      "postUseRecordPass": true,
+      "fullCycleRequiredPass": false
+    },
+    "R13": {
+      "equipped": [
+        "sk_jydm_2",
+        "sk_jydm_3",
+        "sk_jydm_4",
+        "sk_jydm_5"
+      ],
+      "ppMissingAloneMarked": false,
+      "afterAllUsed": {
+        "marks": 1,
+        "counts": {
+          "sk_jydm_2": 1,
+          "sk_jydm_3": 1,
+          "sk_jydm_4": 1,
+          "sk_jydm_5": 1
+        }
+      },
+      "afterNoFurtherUse": {
+        "marks": 2,
+        "counts": {
+          "sk_jydm_2": 1,
+          "sk_jydm_3": 1,
+          "sk_jydm_4": 1,
+          "sk_jydm_5": 1
+        }
+      },
+      "ppMissingPass": true,
+      "repeatRequiresNewUsePass": false
+    },
+    "R14": {
+      "slot": 4,
+      "targetSkill": "sk_qy_5",
+      "before": 6,
+      "after": 0,
+      "pass": true
+    },
+    "R16": {
+      "maxHp": 604,
+      "after50DamageFrom400": 531,
+      "afterNoDamageTurnStart": 531,
+      "after50DamageFrom250": 200,
+      "pass": true
+    }
+  }
+}

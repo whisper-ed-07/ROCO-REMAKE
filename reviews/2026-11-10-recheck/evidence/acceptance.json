@@ -1,0 +1,403 @@
+{
+  "sourceHash": "3ded71768ba3c1c015798d0185902039293e5a89f161a778cfe70c45ae1a7e5b",
+  "total": 25,
+  "passed": 16,
+  "failed": 9,
+  "checks": [
+    {
+      "name": "E01 每回合天气/环境/降华只递减一次",
+      "pass": false,
+      "actual": {
+        "name": "REGRESSION_double_tick",
+        "turn": 1,
+        "weather": 4,
+        "field": 4,
+        "element": 4,
+        "expectedEach": 5
+      }
+    },
+    {
+      "name": "E02 双方睡醒后回合及行动继续推进",
+      "pass": false,
+      "actual": {
+        "name": "REGRESSION_cache_deadlock",
+        "turn": 0,
+        "pStatus": null,
+        "aStatus": null,
+        "pCanAct": false,
+        "aCanAct": false,
+        "pPP": 5,
+        "aPP": 5
+      }
+    },
+    {
+      "name": "E03 新回合致死保护不被旧幂等标记阻断",
+      "pass": false,
+      "actual": {
+        "name": "REGRESSION_lethal_reset",
+        "hp": 0,
+        "over": true,
+        "handled": true,
+        "log": [
+          {
+            "text": "造成 34 点伤害！",
+            "type": "damage",
+            "side": "ai",
+            "turn": 1
+          },
+          {
+            "text": "struggle 因挣扎受到 8 点反伤！",
+            "type": "damage",
+            "side": "ai",
+            "turn": 1
+          },
+          {
+            "text": "创世神钟 被致命一击！不灭魂体保留1点精力！全体技能-4PP！",
+            "type": "action",
+            "side": "ai",
+            "turn": 1
+          },
+          {
+            "text": "创世神钟 使用了 idle（PP 1→0）！",
+            "type": "action",
+            "side": "player",
+            "turn": 1
+          },
+          {
+            "text": "创世神钟 因中毒受到 65 点伤害！",
+            "type": "damage",
+            "side": "system",
+            "turn": 2
+          },
+          {
+            "text": "━━━ 第 2 回合 ━━━",
+            "type": "turn",
+            "side": "system",
+            "turn": 2
+          },
+          {
+            "text": "struggle 先手！（先手±0 vs ±0）",
+            "type": "system",
+            "side": "system",
+            "turn": 2
+          },
+          {
+            "text": "创世神钟 倒下了！",
+            "type": "system",
+            "side": "system",
+            "turn": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "E04 单次致死保护先于判负",
+      "pass": true,
+      "actual": {
+        "name": "PASS_R06_single_lethal",
+        "hp": 1,
+        "over": false,
+        "handled": true
+      }
+    },
+    {
+      "name": "E05 出手前0PP取消原技能",
+      "pass": true,
+      "actual": {
+        "name": "PASS_R04_zero_pp",
+        "count": 0,
+        "pp": 0
+      }
+    },
+    {
+      "name": "E06 驱逐后旧宠物动作失效",
+      "pass": true,
+      "actual": {
+        "name": "PASS_R05_eject",
+        "active": "bench",
+        "count": 0
+      }
+    },
+    {
+      "name": "E07 新局清除降华全局状态",
+      "pass": true,
+      "actual": {
+        "name": "PASS_R07_reset",
+        "element": null,
+        "buff": null,
+        "pending": null
+      }
+    },
+    {
+      "name": "E08 旧局回调不推进新局",
+      "pass": true,
+      "actual": {
+        "name": "PASS_R08_timeout",
+        "turn": 0
+      }
+    },
+    {
+      "name": "E09 残脉受伤后立即回复",
+      "pass": true,
+      "actual": {
+        "name": "PASS_R16_heal",
+        "hp": 604,
+        "max": 604
+      }
+    },
+    {
+      "name": "M01 敌方未出招时不自动施加沉脉削弱",
+      "pass": false,
+      "actual": {
+        "noTargetSkillEverUsed": {
+          "dmgMod": 0.7,
+          "prioPenalty": 1,
+          "targetSkillUses": {}
+        },
+        "afterFourMoreTurns": {
+          "dmgMod": 0.7,
+          "prioPenalty": 1
+        },
+        "permanencePass": true,
+        "triggerGatePass": false
+      }
+    },
+    {
+      "name": "M02 残念记录扣除本次出招PP后的值",
+      "pass": true,
+      "actual": {
+        "afterUse": {
+          "pp": 0,
+          "saved": 5,
+          "mode": "清念"
+        },
+        "afterQingnianToSameQingnian": {
+          "pp": 5,
+          "saved": null,
+          "mode": "清念"
+        },
+        "postUseRecordPass": true,
+        "fullCycleRequiredPass": false
+      }
+    },
+    {
+      "name": "M03 未经过残脉不得恢复残念记录PP",
+      "pass": false,
+      "actual": {
+        "afterUse": {
+          "pp": 0,
+          "saved": 5,
+          "mode": "清念"
+        },
+        "afterQingnianToSameQingnian": {
+          "pp": 5,
+          "saved": null,
+          "mode": "清念"
+        },
+        "postUseRecordPass": true,
+        "fullCycleRequiredPass": false
+      }
+    },
+    {
+      "name": "M04 PP缺失本身不触发明念",
+      "pass": true,
+      "actual": {
+        "equipped": [
+          "sk_jydm_2",
+          "sk_jydm_3",
+          "sk_jydm_4",
+          "sk_jydm_5"
+        ],
+        "ppMissingAloneMarked": false,
+        "afterAllUsed": {
+          "marks": 1,
+          "counts": {
+            "sk_jydm_2": 1,
+            "sk_jydm_3": 1,
+            "sk_jydm_4": 1,
+            "sk_jydm_5": 1
+          }
+        },
+        "afterNoFurtherUse": {
+          "marks": 2,
+          "counts": {
+            "sk_jydm_2": 1,
+            "sk_jydm_3": 1,
+            "sk_jydm_4": 1,
+            "sk_jydm_5": 1
+          }
+        },
+        "ppMissingPass": true,
+        "repeatRequiresNewUsePass": false
+      }
+    },
+    {
+      "name": "M05 明念重新触发要求新的使用记录",
+      "pass": false,
+      "actual": {
+        "equipped": [
+          "sk_jydm_2",
+          "sk_jydm_3",
+          "sk_jydm_4",
+          "sk_jydm_5"
+        ],
+        "ppMissingAloneMarked": false,
+        "afterAllUsed": {
+          "marks": 1,
+          "counts": {
+            "sk_jydm_2": 1,
+            "sk_jydm_3": 1,
+            "sk_jydm_4": 1,
+            "sk_jydm_5": 1
+          }
+        },
+        "afterNoFurtherUse": {
+          "marks": 2,
+          "counts": {
+            "sk_jydm_2": 1,
+            "sk_jydm_3": 1,
+            "sk_jydm_4": 1,
+            "sk_jydm_5": 1
+          }
+        },
+        "ppMissingPass": true,
+        "repeatRequiresNewUsePass": false
+      }
+    },
+    {
+      "name": "M06 炽光清空对方同格技能",
+      "pass": true,
+      "actual": {
+        "slot": 4,
+        "targetSkill": "sk_qy_5",
+        "before": 6,
+        "after": 0,
+        "pass": true
+      }
+    },
+    {
+      "name": "M07 残脉回血时点及200精力边界",
+      "pass": true,
+      "actual": {
+        "maxHp": 604,
+        "after50DamageFrom400": 531,
+        "afterNoDamageTurnStart": 531,
+        "after50DamageFrom250": 200,
+        "pass": true
+      }
+    },
+    {
+      "name": "S01 四出战槽/五技能池且血脉保留",
+      "pass": true,
+      "actual": {
+        "check": "R02/new-four-slot-rule",
+        "pass": true,
+        "hooks": [
+          "name",
+          "onTurnStart",
+          "onSkillUse"
+        ],
+        "equipped": [
+          "sk_ql_1",
+          "sk_ql_2",
+          "sk_ql_3",
+          "sk_ql_4"
+        ],
+        "owned": [
+          "sk_ql_1",
+          "sk_ql_2",
+          "sk_ql_3",
+          "sk_ql_4",
+          "sk_ql_5"
+        ]
+      }
+    },
+    {
+      "name": "S02 内置宠物直接编辑持久化",
+      "pass": true,
+      "actual": {
+        "name": "new-name",
+        "level": 88
+      }
+    },
+    {
+      "name": "S03 保存技能配置保留之前的宠物编辑",
+      "pass": false,
+      "actual": {
+        "check": "R09-edit-persisted-then-loadout-save-resets",
+        "residual": true,
+        "immediatelyAfterEdit": {
+          "name": "new-name",
+          "level": 88
+        },
+        "afterSkillSave": {
+          "name": "清灵",
+          "level": 100
+        }
+      }
+    },
+    {
+      "name": "S04 旧版合法四槽配置得到迁移",
+      "pass": false,
+      "actual": {
+        "check": "legacy-custom-pet-built-in-override-not-migrated",
+        "residual": true,
+        "oldSkills": [
+          "sk_ql_5",
+          "sk_ql_3",
+          "sk_ql_2",
+          "sk_ql_1"
+        ],
+        "currentBattleSkills": [
+          "sk_ql_1",
+          "sk_ql_2",
+          "sk_ql_3",
+          "sk_ql_4"
+        ],
+        "recordStillExists": true
+      }
+    },
+    {
+      "name": "S05 内置技能编辑持久化",
+      "pass": false,
+      "actual": {
+        "check": "builtin-skill-edit-still-no-op",
+        "residual": true,
+        "nameAfter": "极尽降华",
+        "customStorage": "[]"
+      }
+    },
+    {
+      "name": "S06 启动保留旧数据与同源设置",
+      "pass": true,
+      "actual": {
+        "check": "R01-version-snippets-preserve-storage",
+        "pass": true
+      }
+    },
+    {
+      "name": "S07 换宠期间锁定并只结算一轮",
+      "pass": true,
+      "actual": {
+        "check": "R03-switch-lock-and-one-round",
+        "pass": true
+      }
+    },
+    {
+      "name": "S08 旧换宠回调不影响新局",
+      "pass": true,
+      "actual": {
+        "check": "R08-old-switch-callback-after-new-game",
+        "pass": true
+      }
+    },
+    {
+      "name": "S09 旧自动跳过回调不影响新局",
+      "pass": true,
+      "actual": {
+        "check": "R08-old-auto-skip-callback-after-new-game",
+        "pass": true
+      }
+    }
+  ]
+}

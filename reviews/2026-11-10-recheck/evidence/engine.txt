@@ -1,0 +1,9 @@
+{"name":"REGRESSION_double_tick","turn":1,"weather":4,"field":4,"element":4,"expectedEach":5}
+{"name":"REGRESSION_cache_deadlock","turn":0,"pStatus":null,"aStatus":null,"pCanAct":false,"aCanAct":false,"pPP":5,"aPP":5}
+{"name":"PASS_R06_single_lethal","hp":1,"over":false,"handled":true}
+{"name":"REGRESSION_lethal_reset","hp":0,"over":true,"handled":true,"log":[{"text":"造成 34 点伤害！","type":"damage","side":"ai","turn":1},{"text":"struggle 因挣扎受到 8 点反伤！","type":"damage","side":"ai","turn":1},{"text":"创世神钟 被致命一击！不灭魂体保留1点精力！全体技能-4PP！","type":"action","side":"ai","turn":1},{"text":"创世神钟 使用了 idle（PP 1→0）！","type":"action","side":"player","turn":1},{"text":"创世神钟 因中毒受到 65 点伤害！","type":"damage","side":"system","turn":2},{"text":"━━━ 第 2 回合 ━━━","type":"turn","side":"system","turn":2},{"text":"struggle 先手！（先手±0 vs ±0）","type":"system","side":"system","turn":2},{"text":"创世神钟 倒下了！","type":"system","side":"system","turn":2}]}
+{"name":"PASS_R04_zero_pp","count":0,"pp":0}
+{"name":"PASS_R05_eject","active":"bench","count":0}
+{"name":"PASS_R07_reset","element":null,"buff":null,"pending":null}
+{"name":"PASS_R08_timeout","turn":0}
+{"name":"PASS_R16_heal","hp":604,"max":604}

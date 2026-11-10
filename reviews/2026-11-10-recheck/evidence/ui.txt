@@ -1,0 +1,75 @@
+[
+  {
+    "check": "R02/new-four-slot-rule",
+    "pass": true,
+    "hooks": [
+      "name",
+      "onTurnStart",
+      "onSkillUse"
+    ],
+    "equipped": [
+      "sk_ql_1",
+      "sk_ql_2",
+      "sk_ql_3",
+      "sk_ql_4"
+    ],
+    "owned": [
+      "sk_ql_1",
+      "sk_ql_2",
+      "sk_ql_3",
+      "sk_ql_4",
+      "sk_ql_5"
+    ]
+  },
+  {
+    "check": "R09-edit-persisted-then-loadout-save-resets",
+    "residual": true,
+    "immediatelyAfterEdit": {
+      "name": "new-name",
+      "level": 88
+    },
+    "afterSkillSave": {
+      "name": "清灵",
+      "level": 100
+    }
+  },
+  {
+    "check": "legacy-custom-pet-built-in-override-not-migrated",
+    "residual": true,
+    "oldSkills": [
+      "sk_ql_5",
+      "sk_ql_3",
+      "sk_ql_2",
+      "sk_ql_1"
+    ],
+    "currentBattleSkills": [
+      "sk_ql_1",
+      "sk_ql_2",
+      "sk_ql_3",
+      "sk_ql_4"
+    ],
+    "recordStillExists": true
+  },
+  {
+    "check": "builtin-skill-edit-still-no-op",
+    "residual": true,
+    "nameAfter": "极尽降华",
+    "customStorage": "[]"
+  },
+  {
+    "check": "R01-version-snippets-preserve-storage",
+    "pass": true
+  },
+  {
+    "check": "R03-switch-lock-and-one-round",
+    "pass": true
+  },
+  {
+    "check": "R08-old-switch-callback-after-new-game",
+    "pass": true
+  },
+  {
+    "check": "R08-old-auto-skip-callback-after-new-game",
+    "pass": true
+  }
+]
