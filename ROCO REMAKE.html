@@ -2172,8 +2172,14 @@ const DEFAULT_PETS = [
               if (fixDmg > 0) { ctx.doFixedDamage(opp, fixDmg); ctx.msg("【残脉】对敌方造成" + fixDmg + "固伤！"); }
             }
           }
-          if (pet.hp > 200) ctx.doHeal(pet, Math.floor(pet.maxHp * 0.3));
+          // 回血改由 onAfterDamageSegment 处理（R16）
         }
+      },
+      // R16：残脉②改为每次受伤后结算（原文：每次受到伤害后）
+      onAfterDamageSegment: function(pet) {
+        var bd = pet.bloodlineData;
+        if (!bd || bd.mode !== "残脉") return;
+        if (pet.hp > 200) pet.heal(Math.floor((pet.maxHp + (pet.maxHpBonus || 0)) * 0.3));
       },
       onSkillUse: function(pet, target, ctx, skill) {
         var bd = pet.bloodlineData;
