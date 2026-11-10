@@ -6,10 +6,11 @@
 ## 0. 开工协议
 
 1. 读本文件 + 本次任务相关的 `pets/<宠物名>.md`（机制文档）与 `pets/<宠物名>.txt`（原文）。
-2. 工作目录：`C:\dsh work space\rocoremake`（当前主副本）。`Documents\ROCO-REMAKE` 是旧副本，内容可能落后，不要在那里改。
+2. 工作目录：`C:\dsh work space\rocoremake`（当前主副本）。`Documents\ROCO-REMAKE` 与 `C:\Users\wwjgc\Documents\Codex\2026-10-22\rocoremake` 均为旧副本，保留但不再开发，不用旧文件覆盖主副本。
 3. 确认基线：`git log --oneline -1` 与 `git status`；有未提交改动先查明来源。
 4. 只改任务范围内文件；设计决策问玩家，实现细节自决并在报告里标注。
 5. 完成后按 §9 自检 → 本地提交（不推送）→ 写 `CHANGELOG.md` → 报告。
+6. 玩家于2026-11-10指定两个agent共同维护本项目。同一 `ROCO REMAKE.html` 轮流写入；并行任务优先分配原文核对、审查与测试。保存与提交前重新核对最新提交及文件改动，发现其他agent正在修改同一文件时先协调，禁止覆盖、重置或混入来源未明的改动。
 
 ## 1. 项目现状（2026-11-08）
 
