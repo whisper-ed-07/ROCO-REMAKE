@@ -37,20 +37,51 @@ const EXPORTS = `
   getEffectiveness, calcAllStats, STORAGE_KEY_PETS, STORAGE_KEY_SKILLS
 };`;
 
+// 可推进的虚拟时钟：默认不立即执行回调，测试用 clock.advance(ms) 推进
+function createClock() {
+  let now = 0, seq = 0;
+  const timers = [];
+  const schedule = (fn, ms, interval) => {
+    const t = { id: ++seq, at: now + Math.max(0, ms || 0), fn, interval: interval || null };
+    timers.push(t);
+    return t.id;
+  };
+  const clear = (id) => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); };
+  const advance = (ms) => {
+    const target = now + Math.max(0, ms || 0);
+    for (;;) {
+      let due = null;
+      for (const t of timers) if (t.at <= target && (!due || t.at < due.at)) due = t;
+      if (!due) break;
+      now = due.at;
+      if (due.interval) due.at = now + due.interval; else timers.splice(timers.indexOf(due), 1);
+      due.fn(); // 不吞异常，测试能发现回调里的错误
+    }
+    now = target;
+  };
+  return {
+    advance, now: () => now, pending: () => timers.length,
+    setTimeout: (fn, ms) => schedule(fn, ms, null),
+    setInterval: (fn, ms) => schedule(fn, ms, Math.max(1, ms || 1)),
+    clearTimeout: clear,
+  };
+}
+
 function loadEngine(htmlPath, opts) {
   opts = opts || {};
   const storage = {};
+  const clock = createClock();
   const myMath = Object.create(Math);
   myMath.random = opts.seed === undefined ? Math.random : makeRng(opts.seed);
 
   const sandbox = {
     console, Math: myMath, JSON, Date, Object, Array, String, Number, Boolean, Error, RegExp,
     Map, Set, Promise, parseInt, parseFloat, isNaN, isFinite, Infinity, NaN,
-    setTimeout: (fn) => { try { if (typeof fn === 'function') fn(); } catch (e) { /* 忽略动画回调 */ } return 0; },
-    clearTimeout: () => {},
-    setInterval: () => 0,
-    clearInterval: () => {},
-    requestAnimationFrame: () => 0,
+    setTimeout: (fn, ms) => clock.setTimeout(fn, ms),
+    clearTimeout: (id) => clock.clearTimeout(id),
+    setInterval: (fn, ms) => clock.setInterval(fn, ms),
+    clearInterval: (id) => clock.clearTimeout(id),
+    requestAnimationFrame: (fn) => clock.setTimeout(fn, 16),
     localStorage: {
       getItem: (k) => (k in storage ? storage[k] : null),
       setItem: (k, v) => { storage[k] = String(v); },
@@ -85,7 +116,7 @@ function loadEngine(htmlPath, opts) {
   vm.runInContext(sandbox.__code, sandbox, { filename: 'engine.js' });
   vm.runInContext(EXPORTS, sandbox, { filename: 'harness-exports.js' });
 
-  return { api: sandbox.__api, sandbox, myMath, code: sandbox.__code, html };
+  return { api: sandbox.__api, sandbox, myMath, clock, code: sandbox.__code, html };
 }
 
 module.exports = { loadEngine, makeEl, makeRng };

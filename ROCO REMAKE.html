@@ -2464,9 +2464,14 @@ class BattlePet {
   }
   isFainted() { return this.hp <= 0; }
   canAct() {
-    if (this.status === "freeze" || this.status === "sleep" || this.status === "fear") return false;
-    if (this.status === "paralyze" && Math.random() < 0.25) return false;
-    return true;
+    // 同一回合内只判定一次（麻痹的随机数不能因渲染/选招/结算重复抽取）
+    var turn = gameState.turnCount || 0;
+    if (this.__canActTurn === turn && this.__canActValue !== undefined) return this.__canActValue;
+    var v = true;
+    if (this.status === "freeze" || this.status === "sleep" || this.status === "fear") v = false;
+    else if (this.status === "paralyze" && Math.random() < 0.25) v = false;
+    this.__canActTurn = turn; this.__canActValue = v;
+    return v;
   }
   takeDamage(dmg) {
     // 免疫一切伤害（降华第1回合）
@@ -3060,6 +3065,8 @@ function playerUseSkill(skillIdx) {
 }
 
 function endTurnCleanup() {
+  // 双方都无法行动时也要推进天气/环境计时，避免回合“卡住”
+  if (!gameState.battleOver) tickEnvironments();
   gameState.isPlayerTurn = true; updateBattleUI(); renderBattleActions();
 }
 
