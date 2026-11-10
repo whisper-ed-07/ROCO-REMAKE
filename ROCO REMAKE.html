@@ -1318,8 +1318,9 @@ const DEFAULT_SKILLS = [
           self.noPPRecover = true;
           ctx.addTurnEffect(u, "炽光禁回", 12, null, function(){ self.noPPRecover = false; });
         }
-        var oppIdx = t.skills.findIndex(function(s){ return s.id === "sk_jydm_5"; });
-        if (oppIdx >= 0) t.skills[oppIdx].pp = 0;
+        // R14：清空对方同格技能（不按技能 id 匹配）
+        var mySlot = u.skills.findIndex(function(s){ return s.id === "sk_jydm_5"; });
+        if (mySlot >= 0 && t.skills[mySlot]) t.skills[mySlot].pp = 0;
         ctx.msg("烧伤失败：清空双方炽光若焰PP，本技能12回合内无法回复！");
       }
       // 4回合召唤锁定瞬华环境
@@ -1728,7 +1729,7 @@ const DEFAULT_SKILLS = [
           ctx.msg("睡眠失败：删除对方上次技能3PP与全体1PP！");
         }
       }
-      if (bd.mode === "清念") { var self = u.skills.find(function(s){ return s.id === "sk_qy_3"; }); if (self) self.pp = 0; }
+      if (bd.mode === "清念") { var self = u.skills.find(function(s){ return s.id === "sk_qy_3"; }); if (self) { bd.qy3SavedPP = self.pp; self.pp = 0; } }
     } },
   { id: "sk_qy_4", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12, immuneToPP: true,
     desc: "冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按使用次数>6删PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
@@ -1780,13 +1781,18 @@ const DEFAULT_SKILLS = [
       var cp = self ? self.pp : 0;
       if (self) self.pp = 0;
       bd.mode = "清念";
+      if (bd.qy3SavedPP !== undefined) {
+        var q3r = u.skills.find(function(s){ return s.id === "sk_qy_3"; });
+        if (q3r) q3r.pp = Math.min(q3r.maxPp, bd.qy3SavedPP);
+        bd.qy3SavedPP = undefined;
+      }
       ctx.addTurnEffect(u, "清念沉脉", 1 + cp, null, function(p) {
         var lost = 0;
         [p, t].forEach(function(pt){ pt.skills.forEach(function(s){ lost += s.maxPp - s.pp; }); });
         gainPP(p, p.skills.find(function(s){ return s.id === "sk_qy_5"; }), Math.ceil(lost * 0.5));
         t.prioPenalty = 1;
         t.dmgMod = Math.max(0.5, (t.dmgMod || 1) - 0.3);
-        ctx.addTurnEffect(t, "沉脉压制", 4, null, function(pt){ pt.prioPenalty = 0; pt.dmgMod = (pt.dmgMod || 1) + 0.3; });
+        // D20261028-01：4回合只是触发窗口，造成的削弱永久保留（不注册恢复）
         ctx.msg("清念沉脉结束：回复本技能PP，对方4回合内威力-30%、变化技先手-1！");
       });
       ctx.msg("进入清念" + (1 + cp) + "回合！");
@@ -2057,8 +2063,7 @@ const DEFAULT_PETS = [
         var bd = pet.bloodlineData;
         var opp = ctx.playerActive === pet ? ctx.aiActive : ctx.playerActive;
         var jydh = pet.skills.find(function(s){ return s.id === "sk_jydm_1"; });
-        // 记录技能使用（PP<maxPp 视为用过一次）
-        pet.skills.forEach(function(s){ if (s.pp < s.maxPp) bd.used[s.id] = true; });
+        // R13：使用记录来自 skillUseCounts（实际施放），不再用 PP 缺失推断
         // === 标记增益（效果2） ===
         if (bd.marked) {
           bd.markTurns--;
@@ -2087,9 +2092,11 @@ const DEFAULT_PETS = [
           }
         }
         // === 标记触发（效果1）：四技能各用1次（极尽降华PP空则其余3个） ===
-        var required = (jydh && jydh.pp === 0) ? ["sk_jydm_2","sk_jydm_3","sk_jydm_4"] : ["sk_jydm_1","sk_jydm_2","sk_jydm_3","sk_jydm_4"];
-        var allUsed = required.every(function(id){ return bd.used[id]; });
-        var jianghuaQuick = bd.jianghuaTurns > 0 && Object.keys(bd.used).length > 0; // 降华回合内技能使用1次即触发
+        var required = (jydh && jydh.pp === 0)
+          ? pet.skills.filter(function(s){ return s.id !== "sk_jydm_1"; }).map(function(s){ return s.id; })
+          : pet.skills.map(function(s){ return s.id; });
+        var allUsed = required.every(function(id){ return (pet.skillUseCounts || {})[id] > 0; });
+        var jianghuaQuick = bd.jianghuaTurns > 0 && Object.keys(pet.skillUseCounts || {}).length > 0; // 降华回合内技能使用1次即触发
         if ((allUsed || jianghuaQuick) && !bd.marked) {
           bd.marked = true; bd.markTurns = 4; bd.marks = 1; bd.used = {}; bd.markAdds = (bd.markAdds || 0) + 1;
           pet.healMod = (pet.healMod || 1) + 0.15; pet.dmgMod = (pet.dmgMod || 1) + 0.15; pet.spdMod = (pet.spdMod || 1) * 1.05;
@@ -2174,7 +2181,15 @@ const DEFAULT_PETS = [
         var opp = target;
         // 切换期判定：翼系→清念，冰系→残脉
         if (bd.switchTurn) {
-          if (skill.element === "flying") { bd.mode = "清念"; ctx.msg("切换期使用翼系技能，进入【清念】状态！"); }
+          if (skill.element === "flying") {
+            bd.mode = "清念";
+            if (bd.qy3SavedPP !== undefined) {
+              var q3s = pet.skills.find(function(s){ return s.id === "sk_qy_3"; });
+              if (q3s) q3s.pp = Math.min(q3s.maxPp, bd.qy3SavedPP);
+              bd.qy3SavedPP = undefined;
+            }
+            ctx.msg("切换期使用翼系技能，进入【清念】状态！");
+          }
           else if (skill.element === "ice") { bd.mode = "残脉"; ctx.msg("切换期使用冰系技能，进入【残脉】状态！"); }
           bd.switchTurn = false;
         }
