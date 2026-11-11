@@ -4,7 +4,7 @@ const { loadEngine } = require('./lib/harness');
 const { sandbox: s, api } = loadEngine(path.join(__dirname, '..', 'ROCO REMAKE.html'));
 const document = s.document;
 class Element {
-  constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.attrs = {}; this.listeners = {}; this.style = { setProperty() {} }; this.classList = { add() {}, remove() {}, toggle() {} }; this.disabled = false; }
+  constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.attrs = {}; this.listeners = {}; this.style = { setProperty() {} }; this.classList = { add: c => { if (!this.classList.contains(c)) this.className = (this.className + ' ' + c).trim(); }, remove: c => { this.className = this.className.split(/\s+/).filter(x => x !== c).join(' '); }, contains: c => this.className.split(/\s+/).includes(c), toggle: (c, force) => { const on = force === undefined ? !this.classList.contains(c) : force; if (on) this.classList.add(c); else this.classList.remove(c); return on; } }; this.dataset = {}; this.disabled = false; }
   set className(v) { this.attrs.class = v; } get className() { return this.attrs.class || ''; }
   set id(v) { this.attrs.id = v; } get id() { return this.attrs.id; }
   setAttribute(k,v) { this.attrs[k] = String(v); } getAttribute(k) { return this.attrs[k] ?? null; }
@@ -61,8 +61,18 @@ for (const render of ['renderTeamSelect', 'renderOpponentSelect']) {
   const attr = render === 'renderTeamSelect' ? 'data-pet-id' : 'data-opp-id';
   const id = pets[0].getAttribute(attr), before = pets[0].getAttribute('aria-pressed');
   pets[0].click(); const fresh = app.querySelector('[' + attr + '="' + id + '"]');
+  assert.strictEqual(fresh, pets[0]);
   assert.equal(fresh.getAttribute('aria-pressed'), before === 'true' ? 'false' : 'true');
-  assert.equal(document.activeElement, fresh); app.remove();
+  assert.equal(fresh.classList.contains('selected'), before !== 'true');
+  assert.equal(app.querySelector('.selected-count strong').textContent, 1);
+  assert.equal(app.querySelector(render === 'renderTeamSelect' ? '#btn-ready' : '#opp-ready').disabled, false);
+  assert.equal(document.activeElement, fresh);
+  fresh.click(); assert.equal(fresh.getAttribute('aria-pressed'), 'false');
+  assert.equal(app.querySelector('.selected-count strong').textContent, 0);
+  assert.equal(app.querySelector(render === 'renderTeamSelect' ? '#btn-ready' : '#opp-ready').disabled, true);
+  const ids = render === 'renderTeamSelect' ? api.gameState.selectedTeamIds : api.gameState.opponentTeamIds;
+  ids.push('1', '2', '3', '4', '5', '6'); fresh.click(); assert.equal(ids.length, 6); assert.equal(fresh.getAttribute('aria-pressed'), 'false'); ids.length = 0;
+  app.remove();
 }
 
 const detail = new Element(); detail.id = 'swap-detail'; body.appendChild(detail);
@@ -72,4 +82,24 @@ toggle.click(); toggle = detail.querySelector('.swap-toggle');
 assert.equal(toggle.getAttribute('aria-pressed'), initial === 'true' ? 'false' : 'true');
 assert.equal(document.activeElement, toggle);
 toggle.click(); toggle = detail.querySelector('.swap-toggle'); assert.equal(toggle.getAttribute('aria-pressed'), initial);
+
+// 同步页面挂载和同页刷新；启动层只因自身 opacity 结束或减少动态效果而移除。
+const app = new Element(); app.id = 'app'; body.appendChild(app);
+api.gameState.screen = 'menu'; s.showScreen('team');
+let screen = app.querySelector('.screen'); assert(screen); assert(screen.classList.contains('page-enter'));
+assert.equal(document.activeElement, app.querySelector('.screen-title'));
+s.showScreen('team'); screen = app.querySelector('.screen'); assert(!screen.classList.contains('page-enter'));
+s.showScreen('menu'); assert(app.querySelector('#btn-battle'));
+s.showScreen('intro'); let intro = document.getElementById('intro-screen'); assert(intro);
+intro.click(); assert(app.querySelector('#btn-battle')); assert(intro.parentNode);
+intro.dispatch('transitionend', { target: new Element(), propertyName: 'opacity' }); assert(intro.parentNode);
+intro.dispatch('transitionend', { propertyName: 'transform' }); assert(intro.parentNode);
+intro.dispatch('transitionend', { propertyName: 'opacity' }); assert(!document.getElementById('intro-screen'));
+assert.equal(document.activeElement, app.querySelector('#btn-battle'));
+let change; s.window = { matchMedia: () => ({ matches: false, addEventListener: (t, fn) => { change = fn; }, removeEventListener() {} }) };
+s.showScreen('intro'); intro = document.getElementById('intro-screen'); intro.click(); change({ matches: true });
+assert(!document.getElementById('intro-screen')); assert.equal(document.activeElement, app.querySelector('#btn-battle'));
+s.window.matchMedia = () => ({ matches: true }); s.showScreen('intro'); intro = document.getElementById('intro-screen'); intro.click();
+assert(!document.getElementById('intro-screen'));
+app.remove();
 console.log('frontend interactions passed');
