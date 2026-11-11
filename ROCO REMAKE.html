@@ -969,6 +969,272 @@ body:has(#intro-screen) .settings-btn { opacity: 0; pointer-events: none; transf
 .tag.super { color: #ff9d8a; border-color: rgba(255,157,138,0.55); background: rgba(255,157,138,0.12); }
 .tag.weak { color: #9fb4d0; border-color: rgba(159,180,208,0.45); background: rgba(159,180,208,0.10); }
 .tag.immune { color: #9aa3b8; border-color: rgba(154,163,184,0.45); background: rgba(154,163,184,0.10); }
+
+/* 2026-11 · 对战大厅：页面宽度、阅读层级与触摸控件统一收口 */
+:root {
+  --ui-panel: #131924; --ui-raised: #1a2230; --ui-well: #0d121b;
+  --ui-edge: #2b3443; --ui-muted: #a6b0c1;
+  --ui-wash: rgba(232,195,122,.07); --ui-blue: #a4c6f0;
+}
+html { color-scheme: dark; scroll-padding-top: 24px; }
+body { align-items: flex-start; background-color: var(--bg); }
+#app { max-width: 1280px; overflow: visible; }
+.screen { width: 100%; min-height: 100vh; min-height: 100dvh; padding: 32px clamp(16px,4vw,48px) 88px; animation: screenIn .25s ease; }
+button { touch-action: manipulation; }
+button:disabled { cursor: not-allowed; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.btn, .back-btn, .action-btn, .font-option { min-height: 44px; }
+.btn:hover { transform: translateY(-2px); }
+.btn-secondary, .action-btn { background: var(--ui-raised); border-color: var(--ui-edge); }
+.screen-header { gap: 16px; padding-bottom: 24px; margin-bottom: 24px; }
+.screen-header .back-btn { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 14px; background: var(--ui-panel); }
+.screen-title { font-size: 22px; letter-spacing: .02em; }
+.page-note { color: var(--text2); font-size: 14px; line-height: 1.8; margin: -8px 0 24px; }
+.eyebrow { color: var(--gold); font: 700 11px/1.5 var(--font-game); letter-spacing: .16em; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.section-heading h2 { font-size: 19px; letter-spacing: .03em; }
+.section-heading p { color: var(--text2); font-size: 12px; }
+
+/* 大厅：左侧介绍，右侧明确的三个入口；下方直接进入本宠配置 */
+.lobby { position: relative; gap: 0; }
+.lobby-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--ui-edge); }
+.lobby-brand { display: flex; align-items: center; gap: 14px; }
+.lobby-brand .roco-mark { width: 66px; height: 43px; }
+.lobby-brand strong { display: block; font-size: 15px; letter-spacing: .12em; }
+.lobby-brand small { display: block; color: var(--text2); font-size: 11px; margin-top: 5px; letter-spacing: .12em; }
+.lobby-badge { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.lobby-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.lobby-main { display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(32px,6vw,96px); align-items: center; padding: clamp(40px,7vh,76px) 0; }
+.lobby-hero h1 { color: var(--text); font-size: clamp(38px,5vw,66px); font-weight: 900; line-height: 1.35; letter-spacing: .03em; margin: 18px 0 20px; }
+.lobby-hero h1 em { font-style: normal; color: var(--gold); }
+.lobby-hero p { color: var(--ui-muted); line-height: 1.9; font-size: 15px; max-width: 32em; }
+.lobby-stats { display: flex; gap: 30px; margin-top: 30px; }
+.lobby-stat { display: flex; align-items: baseline; gap: 8px; }
+.lobby-stat strong { font: 600 25px/1 var(--font-game); font-variant-numeric: tabular-nums; color: var(--text); }
+.lobby-stat span { font-size: 12px; color: var(--text2); }
+.lobby-nav { display: flex; flex-direction: column; gap: 12px; }
+.lobby-action { width: 100%; display: grid; grid-template-columns: 42px 1fr 20px; align-items: center; gap: 16px; padding: 22px; text-align: left; border: 1px solid var(--ui-edge); border-radius: 16px; color: var(--text); background: var(--ui-panel); cursor: pointer; transition: border-color .2s, transform .2s, background .2s; }
+.lobby-action:hover { transform: translateX(4px); border-color: var(--gold); }
+.lobby-action.primary { background: linear-gradient(120deg,#efd39a,#d6ad65); border-color: #f0d7a6; color: #241c10; box-shadow: 0 8px 36px #e8c37a16; }
+.lobby-action svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lobby-action strong { display: block; font-size: 19px; letter-spacing: .06em; }
+.lobby-action small { display: block; margin-top: 7px; color: var(--text2); font-size: 12px; line-height: 1.5; }
+.lobby-action.primary small { color: #574322; }
+.lobby-action .nav-arrow { font: 22px/1 var(--font-game); opacity: .65; }
+.lobby-roster { border-top: 1px solid var(--ui-edge); padding-top: 26px; }
+.lobby-pets { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+.lobby-pet { display: flex; align-items: center; gap: 14px; background: var(--ui-panel); color: var(--text); border: 1px solid var(--ui-edge); border-radius: 14px; padding: 18px; text-align: left; cursor: pointer; transition: background .2s, border-color .2s; min-width: 0; }
+.lobby-pet:hover { background: var(--ui-raised); border-color: var(--gold); }
+.lobby-pet .portrait { font-size: 32px; flex: 0 0 40px; }
+.lobby-pet strong { font-size: 14px; display: block; overflow-wrap: anywhere; }
+.lobby-pet small { display: block; font-size: 11px; color: var(--text2); margin-top: 6px; line-height: 1.5; }
+.lobby-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 26px; color: var(--text2); font-size: 11px; line-height: 1.6; }
+.menu-screen-bg { background: radial-gradient(ellipse at 15% 12%,#d6ad650c,transparent 55%),radial-gradient(ellipse at 90% 55%,#7caee80b,transparent 60%),var(--bg); animation: none; background-size: auto; }
+
+/* 阵容、管理和技能配置 */
+.pet-grid, .pet-grid:has(> :nth-child(4)) { grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); align-content: start; flex: 0 0 auto; overflow: visible; gap: 16px; padding: 4px 2px 20px; }
+.pet-card { min-width: 0; min-height: 190px; padding: 26px 16px; background: var(--ui-panel); color: var(--text); border-color: var(--ui-edge); box-shadow: none; font-family: inherit; }
+.pet-card .pet-card-emoji { font-size: 46px; margin-bottom: 16px; }
+.pet-card-name { font-size: 17px; overflow-wrap: anywhere; }
+.pet-card-element { margin-top: 6px; }
+.pet-card-caption { font-size: 11px; color: var(--text2); margin-top: 12px; line-height: 1.7; }
+.pet-card.selected { background: var(--ui-wash); box-shadow: inset 0 0 0 1px var(--gold); }
+.team-ready-bar { margin-top: auto; display: flex; align-items: center; justify-content: flex-end; gap: 24px; padding: 24px 0 0; border-top: 1px solid var(--ui-edge); }
+.team-ready-bar .selected-count { margin: 0 auto 0 0; white-space: nowrap; }
+.team-ready-bar .btn { width: auto !important; min-width: 200px; }
+.mgmt-tabs { background: var(--ui-well); padding: 5px; border: 1px solid var(--ui-edge); border-radius: 14px; gap: 5px; }
+.mgmt-tab { min-height: 44px; border: 1px solid transparent; }
+.mgmt-tab.active { color: var(--gold); border-color: var(--ui-edge); background: var(--ui-raised); }
+.mgmt-list { justify-content: flex-start; overflow: visible; gap: 12px; }
+.mgmt-item { padding: 20px; background: var(--ui-panel); border: 1px solid var(--ui-edge); box-shadow: none; }
+.mgmt-item:hover { transform: none; border-color: var(--line); }
+.mgmt-item-info { min-width: 0; overflow-wrap: anywhere; }
+.mgmt-item-name { line-height: 1.8; }
+.mgmt-item-detail { line-height: 1.8; }
+.mgmt-item-actions { flex-shrink: 0; }
+.mgmt-item-actions button { min-height: 44px; border-width: 1px; }
+.add-btn { margin-top: 18px; min-height: 52px; }
+.pet-detail-card { background: var(--ui-panel); border: 1px solid var(--ui-edge); box-shadow: none; padding: 24px; margin-top: 12px; }
+.skill-swap-item { display: grid; grid-template-columns: 28px minmax(0,1fr) auto 36px; gap: 8px 12px; padding: 16px; background: var(--ui-well); border-color: var(--ui-edge); }
+.skill-swap-item:hover { transform: none; }
+.skill-swap-item .skill-slot { grid-column: 1; grid-row: 1 / 3; color: var(--gold); font: 600 16px var(--font-game); }
+.skill-swap-name { grid-column: 2; grid-row: 1; overflow-wrap: anywhere; font-weight: 700; }
+.swap-toggle { appearance: none; background: none; border: 0; padding: 0; min-height: 36px; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.skill-swap-item .swap-info { grid-column: 2; grid-row: 2; margin: 0; font-size: 12px; line-height: 1.6; }
+.swap-move-group { grid-column: 3; grid-row: 1 / 3; display: flex; gap: 4px; }
+.swap-move { width: 36px; min-height: 40px; font-size: 12px; }
+.swap-info-btn { grid-column: 4; grid-row: 1 / 3; width: 36px; height: 40px; margin: 0; line-height: 38px; opacity: 1; background: var(--ui-panel); font-size: 14px; }
+.swap-help { color: var(--text2); font-size: 12px; line-height: 1.9; margin-top: 16px; }
+
+/* 战场：明确敌我、给日志和技能各自的空间 */
+.battle-bg { background: transparent; padding-bottom: 32px; }
+.battle-top { padding: 0 0 18px; border-bottom: 1px solid var(--ui-edge); gap: 12px; }
+.battle-label { font-size: 13px; color: var(--gold); font-weight: 700; letter-spacing: .08em; margin-right: auto; }
+.turn-timer { flex: 0 1 170px; margin: 0; min-height: 40px; border-radius: 10px; background: var(--ui-panel); }
+.turn-indicator { margin: 0; letter-spacing: .05em; color: var(--gold); }
+.battle-weather { position: static; transform: none; max-width: 100%; flex-wrap: wrap; background: var(--ui-panel); border-color: var(--ui-edge); box-shadow: none; }
+.battle-row { flex: 1 0 auto; gap: 16px; padding: 28px 0; }
+.battle-side { min-width: 0; position: relative; }
+.side-label { font-size: 11px; color: var(--ui-blue); letter-spacing: .1em; font-weight: 700; }
+.enemy-side .side-label { color: var(--accent2); }
+.pet-info-card { min-width: 0; width: 100%; max-width: none; margin: 0; padding: 20px; background: var(--ui-panel); border-color: var(--ui-edge); box-shadow: none; border-radius: 16px; }
+.pet-info-name { text-shadow: none; overflow-wrap: anywhere; }
+.pet-info-lv { color: var(--ui-muted); background: var(--ui-well); }
+.hp-text { font: 600 13px/1.6 var(--font-game); color: var(--ui-muted); }
+.battle-bottom { padding: 0; gap: 24px; height: auto; align-items: stretch; }
+.battle-log { min-width: 0; }
+.log-tools { align-items: center; justify-content: flex-start; padding: 0 0 10px; gap: 6px; }
+.log-heading { font-size: 13px; font-weight: 700; margin-right: auto; }
+.log-tab, .log-copy { min-height: 36px; padding: 6px 12px; font-size: 11px; border-radius: 8px; background: var(--ui-panel); border-color: var(--ui-edge); }
+.battle-messages { margin: 0; height: 34vh; min-height: 190px; max-height: 340px; background: var(--ui-well); color: var(--ui-muted); border-color: var(--ui-edge); box-shadow: none; font-family: inherit; font-size: 12px; }
+.battle-panel { min-width: 0; }
+.panel-heading { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin: 0 0 12px; font-size: 13px; }
+.panel-heading span { font-size: 11px; color: var(--text2); }
+.battle-actions { display: flex; flex-direction: column; gap: 12px; padding: 0; overflow: visible; }
+.battle-skill-list { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; padding: 4px 3px 12px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.skill-card { flex: 1 0 124px; min-width: 0; position: relative; scroll-snap-align: start; }
+.battle-actions .skill-btn { width: 100%; height: 100%; min-height: 170px; color: var(--text); background: var(--ui-panel); box-shadow: none; border-color: var(--ui-edge); padding: 14px 12px 48px; }
+.battle-actions .skill-btn-header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 0; }
+.battle-actions .skill-btn-icon { width: 34px; height: 34px; border-radius: 10px; font-size: 19px; }
+.battle-actions .skill-btn-name { font-size: 14px; line-height: 1.5; white-space: normal; overflow: visible; text-align: left; width: 100%; }
+.battle-actions .skill-btn-prio { position: absolute; top: 14px; right: 10px; font: 600 10px/1.5 var(--font-game); padding: 2px 5px; }
+.battle-actions .skill-btn-body { flex-direction: row; flex-wrap: wrap; padding: 10px 0 0; align-items: baseline; justify-content: flex-start; gap: 5px; font-size: 11px; }
+.battle-actions .skill-btn-body .skill-pp-info { margin-left: 0; }
+.battle-actions .skill-btn-body .skill-ext { display: none; }
+.battle-actions .skill-btn-body .skill-power { color: var(--ui-muted); }
+.battle-actions .skill-btn.no-pp { opacity: .48; pointer-events: auto; }
+.skill-slot-label { position: absolute; bottom: 15px; left: 14px; font: 600 11px var(--font-game); color: var(--text2); pointer-events: none; }
+.battle-actions .skill-info { position: absolute; right: 6px; bottom: 6px; width: 36px; height: 36px; min-height: 36px; line-height: 34px; font-size: 13px; opacity: 1; background: var(--ui-raised); border-color: var(--ui-edge); color: var(--text); }
+.battle-utility-list { display: flex; gap: 10px; justify-content: flex-end; }
+.battle-actions .action-btn { flex: 0 0 auto; min-width: 100px; min-height: 44px; padding: 10px 20px; font-size: 12px; }
+.switch-panel { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%,600px); max-height: 70vh; background: var(--ui-panel); border: 1px solid var(--ui-edge); animation: none; z-index: 80; padding-bottom: max(20px,env(safe-area-inset-bottom)); }
+.switch-pet-btn { min-height: 64px; }
+body:has(.battle-bg) .settings-btn { opacity: 1; transform: none; bottom: auto; top: 12px; right: 12px; width: 40px; height: 40px; min-height: 40px; }
+.battle-top { padding-right: 44px; }
+.settings-btn { background: var(--ui-panel); border-color: var(--ui-edge); box-shadow: 0 4px 16px #0002; }
+
+/* 弹窗：正文独立滚动，关闭按钮固定留在视野中 */
+.modal-overlay { padding: 16px; background: #050910b8; }
+.modal { background: var(--ui-panel); border-color: var(--ui-edge); box-shadow: var(--shadow); max-width: 560px; }
+.form-group input, .form-group select, .form-group textarea { min-height: 44px; background: var(--ui-well); border-color: var(--ui-edge); font-size: 16px; }
+.skill-detail { display: flex; flex-direction: column; overflow: hidden; max-height: 88vh; max-height: 88dvh; padding: 28px; }
+.skill-detail h3 { text-align: left; line-height: 1.5; padding-right: 10px; }
+.skill-detail-meta { text-align: left; line-height: 1.8; border-bottom: 1px solid var(--ui-edge); padding-bottom: 18px; flex-shrink: 0; }
+.skill-detail-body { max-height: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 14px; line-height: 2; overflow-wrap: anywhere; padding: 0 10px 0 0; }
+.skill-detail .form-actions { flex-shrink: 0; border-top: 1px solid var(--ui-edge); padding-top: 18px; margin-top: 18px; }
+.settings-scroll { max-height: none; overflow: visible; padding: 0; }
+.settings-section { padding: 24px; margin-bottom: 16px; background: var(--ui-panel); border: 1px solid var(--ui-edge); border-radius: 16px; }
+.font-option { background: var(--ui-well); border-color: var(--ui-edge); min-height: 68px; }
+
+/* 亮色主题使用同一层级，避免文字落在残留的深色面板上 */
+[data-theme="light"] { --ui-panel: #fffdf8; --ui-raised: #f3eee3; --ui-well: #f5f2eb; --ui-edge: #ddd7cb; --ui-muted: #626b76; --ui-wash: #efe2c6; --ui-blue: #36618b; --line: #cfb77f; --line-soft: #ded8cb; --panel: #fffdf8; --bg: #f6f3ec; --text: #282c35; --text2: #6b6c71; --gold: #8b661c; }
+[data-theme="light"] { color-scheme: light; }
+[data-theme="light"] .menu-screen-bg { background: radial-gradient(ellipse at 20% 15%,#dbc39330,transparent 60%),var(--bg); }
+[data-theme="light"] .menu-screen-bg::after { display: none; }
+[data-theme="light"] .intro-screen { background: radial-gradient(ellipse at 50% 40%,#e1c78d26,transparent 65%),var(--bg); }
+[data-theme="light"] .battle-bg { background: transparent; }
+[data-theme="light"] .battle-messages, [data-theme="light"] .turn-timer { background: var(--ui-well); }
+[data-theme="light"] .pet-info-card, [data-theme="light"] .modal, [data-theme="light"] .switch-panel { background: var(--ui-panel); }
+[data-theme="light"] .msg.damage .msg-text { color: #ab4437; }
+[data-theme="light"] .msg.heal .msg-text { color: #267448; }
+[data-theme="light"] .msg.status .msg-text { color: #78519b; }
+[data-theme="light"] .msg-text b.n { color: var(--text); }
+[data-theme="light"] .skill-btn-prio.fast { color: #267448; }
+[data-theme="light"] .skill-btn-prio.slow { color: #ab4437; }
+[data-theme="light"] .msg.turn .msg-text { color: var(--gold); }
+[data-theme="light"] .log-jump { background: var(--ui-panel); }
+[data-theme="light"] .pet-card-element, [data-theme="light"] .pet-info-element, [data-theme="light"] .skill-swap-name { color: var(--text) !important; }
+[data-theme="light"] .stage-pill.up { color: #267448; }
+[data-theme="light"] .stage-pill.down { color: #ab4437; }
+[data-theme="light"] .w-item.has-weather { color: #805d13; background: #e8d9a24d; box-shadow: none; }
+[data-theme="light"] .w-item.has-field { color: #70508e; background: #bda4d326; box-shadow: none; }
+[data-theme="light"] .result-overlay { background: radial-gradient(ellipse at 50% 35%,#eee1c8f5,#f6f3ecfa); }
+[data-theme="light"] .tag.crit { color: #8b661c; }
+[data-theme="light"] .tag.super { color: #ab4437; }
+[data-theme="light"] .tag.weak { color: #526781; }
+[data-theme="light"] .tag.immune { color: #626b76; }
+
+@media (min-width: 1024px) {
+  .battle-row { flex-direction: row; align-items: center; }
+  .battle-side { flex: 1; }
+  .battle-stage { width: 100px; flex-shrink: 0; }
+  .battle-side .pet-sprite { width: 130px; height: 130px; font-size: 64px; }
+  .battle-bottom { flex-direction: row; }
+  .battle-log { flex: 0 0 38%; }
+  .battle-panel { flex: 1; }
+  .battle-log .battle-messages { flex: none; height: 34vh; min-height: 220px; max-height: 340px; }
+}
+@media (max-width: 1023px) {
+  .lobby-main { gap: 32px; }
+  .lobby-pets { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .battle-row { flex: 0 0 auto; flex-direction: column; gap: 12px; padding: 18px 0; }
+  .battle-side { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 0 14px; align-items: center; }
+  .side-label { grid-column: 1; font-size: 10px; text-align: center; }
+  .battle-side .pet-sprite { grid-column: 1; width: 64px; height: 64px; font-size: 36px; }
+  .battle-side .pet-info-card { grid-column: 2; grid-row: 1 / 3; padding: 14px 16px; }
+  .battle-bottom { flex-direction: column; }
+  .battle-messages { height: 20vh; min-height: 120px; max-height: 200px; }
+}
+@media (max-width: 680px) {
+  .screen { padding: 20px 18px 84px; }
+  .lobby-header { padding-bottom: 20px; }
+  .lobby-brand strong { font-size: 12px; }
+  .lobby-brand small { font-size: 10px; }
+  .lobby-badge { font-size: 10px; }
+  .lobby-main { grid-template-columns: 1fr; padding: 36px 0; gap: 30px; }
+  .lobby-hero h1 { font-size: clamp(36px,9vw,50px); margin: 12px 0 16px; }
+  .lobby-hero p { font-size: 13px; }
+  .lobby-stats { margin-top: 22px; gap: 24px; }
+  .lobby-action { padding: 18px; }
+  .lobby-action strong { font-size: 17px; }
+  .lobby-pet { padding: 14px 10px; gap: 8px; }
+  .lobby-pet .portrait { font-size: 26px; flex-basis: 30px; }
+  .lobby-footer { flex-direction: column; gap: 6px; }
+  .section-heading { align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .section-heading h2 { font-size: 17px; }
+  .pet-grid, .pet-grid:has(> :nth-child(4)) { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .pet-card { min-height: 168px; padding: 20px 12px; }
+  .pet-card-name { font-size: 15px; }
+  .pet-card-caption { font-size: 10px; }
+  .team-ready-bar { flex-direction: column; gap: 16px; }
+  .team-ready-bar .selected-count { margin: 0; }
+  .team-ready-bar .btn { width: 100% !important; }
+  .mgmt-item { padding: 14px; gap: 10px; flex-wrap: wrap; }
+  .mgmt-item-emoji { min-width: 32px; font-size: 28px; }
+  .mgmt-item-info { flex: 1 1 120px; }
+  .mgmt-item-actions { margin-left: auto; }
+  .pet-detail-card { padding: 16px 12px; }
+  .skill-swap-item { grid-template-columns: 22px minmax(0,1fr) 36px; padding: 12px; gap: 6px 8px; }
+  .skill-swap-item .skill-slot { grid-row: 1 / 4; }
+  .skill-swap-name { font-size: 14px; }
+  .skill-swap-item .swap-info { font-size: 11px; }
+  .swap-move-group { grid-column: 2; grid-row: 3; }
+  .swap-info-btn { grid-column: 3; grid-row: 1 / 4; }
+  .screen-title { font-size: 18px; }
+  .battle-top { padding: 0 40px 14px 0; gap: 8px; }
+  .battle-label { font-size: 12px; }
+  .battle-weather { order: 4; flex-basis: 100%; padding: 6px; }
+  .turn-timer { flex-basis: 120px; padding: 5px 8px; }
+  .flee-btn { font-size: 11px; padding: 8px 12px; min-height: 40px; }
+  .battle-side { grid-template-columns: 46px minmax(0,1fr); gap: 0 10px; }
+  .battle-side .pet-sprite { width: 46px; height: 56px; font-size: 30px; }
+  .pet-sprite::after { width: 40px; }
+  .battle-side .pet-info-card { padding: 12px; }
+  .pet-info-name { font-size: 15px; }
+  .pet-info-lv, .pet-info-element { font-size: 10px; padding: 2px 5px; }
+  .battle-bottom { gap: 20px; }
+  .battle-messages { font-size: 12px; padding: 10px 12px; }
+  .log-heading { font-size: 12px; }
+  .log-tab, .log-copy { padding: 5px 9px; font-size: 10px; }
+  .battle-actions .skill-btn { min-height: 168px; }
+  .battle-skill-list { margin: 0 -3px; }
+  .skill-detail { padding: 22px 18px; }
+  .settings-section { padding: 18px; }
+  .font-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
 </style>
 </head>
 <body>
@@ -3681,33 +3947,78 @@ function renderIntro(app) {
   setTimeout(function() { try { el.focus({ preventScroll: true }); } catch (err) {} }, 30);
 }
 
+function uiAttr(value) { return escapeHtml(value).replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+function uiIcon(name) {
+  var paths = {
+    battle: '<path d="m5 3 6 6-2 2-6-6V3h2Zm14 0-6 6 2 2 6-6V3h-2ZM4 20l5-5m6 0 5 5M2 17l5 5m10 0 5-5M9 11l4 4m2-4-4 4"/>',
+    skills: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
+    pets: '<path d="M4 4h6v16H4zm10 0h6v16h-6M7 8v3m10 2v3"/>'
+  };
+  return '<svg viewBox="0 0 24 24" aria-hidden="true">' + paths[name] + '</svg>';
+}
+function pageHeader(title, backId) {
+  return '<div class="screen-header"><button class="back-btn" id="' + backId + '" aria-label="返回上一页">←</button><span class="screen-title">' + title + '</span></div>';
+}
+function petChoiceCard(pet, attr, selected) {
+  var el = ELEMENTS[pet.element] || { name: "?", color: "#888" };
+  return '<button type="button" class="pet-card' + (selected ? ' selected' : '') + '" ' + attr + '="' + uiAttr(pet.id) + '"' +
+    (selected !== undefined ? ' aria-pressed="' + !!selected + '"' : '') + '><span class="pet-card-check" aria-hidden="true">✓</span><span class="pet-card-emoji" aria-hidden="true">' + escapeHtml(pet.emoji) + '</span><span class="pet-card-name">' + escapeHtml(pet.name) + '</span><span class="pet-card-element" style="color:' + el.color + '">' + elemIcon(pet.element) + el.name + '系</span><span class="pet-card-caption">' + escapeHtml(pet.bloodline ? pet.bloodline.name : '自定义伙伴') + ' · Lv.' + pet.level + '</span></button>';
+}
 function renderMenu(app) {
-  var np = getAllPets().length, ns = getAllSkills().length;
-  // 流动背景：极光 + 粒子
-  var bg = '<div class="menu-screen-bg"><div class="aurora-band b1"></div><div class="aurora-band b2"></div><div class="aurora-band b3"></div>';
-  for (var pi = 0; pi < 12; pi++) {
-    var size = 2 + Math.random() * 4;
-    var left = Math.random() * 100;
-    var dur = 6 + Math.random() * 8;
-    var delay = Math.random() * 10;
-    bg += '<div class="particle" style="width:' + size + 'px;height:' + size + 'px;left:' + left + '%;animation-duration:' + dur + 's;animation-delay:' + delay + 's"></div>';
-  }
-  bg += '</div>';
-  app.innerHTML = bg + '<div class="screen active" style="position:relative;z-index:1;"><div class="menu-header"><div class="menu-logo">' + logoMarkSvg("") + '</div><div class="menu-title-cn">洛克王国：对战重置版</div><div class="menu-title-en">ROCO REMAKE</div></div><div class="menu-buttons"><button class="btn btn-primary" id="btn-battle">\u{1F525} 开始对战</button><button class="btn btn-secondary" id="btn-swap">\u{1F4CC} 局外技能更换</button><button class="btn btn-secondary" id="btn-pets">\u{1F4CB} 宠物管理</button></div></div>';
-  document.querySelector("#btn-battle").addEventListener("click", function() { gameState.selectedTeamIds = []; showScreen("team"); });
-  document.querySelector("#btn-swap").addEventListener("click", function() { showScreen("skillswap"); });
-  document.querySelector("#btn-pets").addEventListener("click", function() { showScreen("pets"); });
+  var pets = getAllPets(), skills = getAllSkills();
+  var entries = [
+    ['btn-battle', 'battle', '开始对战', '组建阵容，选择对手，开启新的对决', true],
+    ['btn-swap', 'skills', '技能配置', '挑选四个技能，安排你的出招顺序'],
+    ['btn-pets', 'pets', '宠物与技能', '查看伙伴资料，管理你的自定义内容']
+  ];
+  var content = '<div class="menu-screen-bg"></div><main class="screen active lobby"><header class="lobby-header"><div class="lobby-brand">' + logoMarkSvg('Lobby') + '<div><strong>ROCO REMAKE</strong><small>洛克王国 · 对战重置版</small></div></div><span class="lobby-badge">自定义宠物对战</span></header><div class="lobby-main"><section class="lobby-hero"><div class="eyebrow">对战大厅 / ROCO REMAKE</div><h1>重返洛克，<br><em>再启对决。</em></h1><p>从熟悉的伙伴开始，搭配技能与阵容。<br>每一次出招，都有新的可能。</p><div class="lobby-stats"><div class="lobby-stat"><strong>' + pets.length + '</strong><span>可选伙伴</span></div><div class="lobby-stat"><strong>' + skills.length + '</strong><span>可用技能</span></div><div class="lobby-stat"><strong>4</strong><span>出战技能槽</span></div></div></section><nav class="lobby-nav" aria-label="游戏主菜单">';
+  entries.forEach(function(e) {
+    content += '<button class="lobby-action' + (e[4] ? ' primary' : '') + '" id="' + e[0] + '">' + uiIcon(e[1]) + '<span><strong>' + e[2] + '</strong><small>' + e[3] + '</small></span><span class="nav-arrow" aria-hidden="true">↗</span></button>';
+  });
+  content += '</nav></div><section class="lobby-roster"><div class="section-heading"><h2>伙伴速览</h2><p>点击伙伴，调整出战技能</p></div><div class="lobby-pets">';
+  pets.slice(0,4).forEach(function(pet) {
+    content += '<button class="lobby-pet" data-lobby-pet="' + uiAttr(pet.id) + '"><span class="portrait" aria-hidden="true">' + escapeHtml(pet.emoji) + '</span><span><strong>' + escapeHtml(pet.name) + '</strong><small>' + escapeHtml(pet.bloodline ? pet.bloodline.name : '自定义伙伴') + '</small></span></button>';
+  });
+  app.innerHTML = content + '</div></section><footer class="lobby-footer"><span>配好阵容，再赴战场。</span><span>技能从左至右排列 · 配置保存在本机</span></footer></main>';
+  document.querySelector('#btn-battle').addEventListener('click', function() { gameState.selectedTeamIds = []; showScreen('team'); });
+  document.querySelector('#btn-swap').addEventListener('click', function() { showScreen('skillswap'); });
+  document.querySelector('#btn-pets').addEventListener('click', function() { showScreen('pets'); });
+  document.querySelectorAll('[data-lobby-pet]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pet = findPet(btn.getAttribute('data-lobby-pet'));
+      if (pet) { showScreen('skillswap'); openSkillSwap(pet); }
+    });
+  });
 }
 
-function renderTeamSelect(app) { var allPets = getAllPets(); var html = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="team-back">\u2190</button><span class="screen-title">选择出战宠物（1~6只）</span></div><div class="pet-grid">'; allPets.forEach(function(pet) { var sel = gameState.selectedTeamIds.includes(pet.id); html += '<div class="pet-card' + (sel ? " selected" : "") + '" data-pet-id="' + pet.id + '"><div class="pet-card-check">\u2713</div><div class="pet-card-emoji">' + pet.emoji + '</div><div class="pet-card-name">' + pet.name + '</div><div class="pet-card-element" style="color:' + (ELEMENTS[pet.element]||{color:"#888"}).color + '">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:"?"}).name + '系</div></div>'; }); html += '</div><div class="team-ready-bar"><div class="selected-count">已选择 ' + gameState.selectedTeamIds.length + ' 只</div><button class="btn btn-primary" id="btn-ready" ' + (gameState.selectedTeamIds.length < 1 ? "disabled" : "") + ' style="width:100%">下一步：选择对手</button></div></div>'; app.innerHTML = html; document.querySelector("#team-back").addEventListener("click", function() { showScreen("menu"); }); document.querySelector("#btn-ready").addEventListener("click", function() { startBattle(); }); allPets.forEach(function(pet) { var card = document.querySelector('[data-pet-id="' + pet.id + '"]'); if (card) card.addEventListener("click", function() { toggleTeamSelection(pet.id); }); }); }
+function renderTeamChoice(app, opponent) {
+  var pets = getAllPets(), selected = opponent ? gameState.opponentTeamIds : gameState.selectedTeamIds;
+  var back = opponent ? 'opp-back' : 'team-back', ready = opponent ? 'opp-ready' : 'btn-ready';
+  var attr = opponent ? 'data-opp-id' : 'data-pet-id';
+  var content = '<div class="screen active">' + pageHeader(opponent ? '选择对手阵容' : '组建出战阵容', back) + '<p class="page-note">' + (opponent ? '挑选 1～6 只对手宠物，准备好后即可开战。' : '挑选 1～6 只伙伴，点击卡片即可加入或移出阵容。') + '</p><div class="pet-grid">';
+  pets.forEach(function(pet) { content += petChoiceCard(pet, attr, selected.includes(pet.id)); });
+  app.innerHTML = content + '</div><div class="team-ready-bar"><div class="selected-count">已选择 <strong>' + selected.length + '</strong> / 6 只伙伴</div><button class="btn btn-primary" id="' + ready + '"' + (selected.length ? '' : ' disabled') + '>' + (opponent ? '确认阵容 · 开始对战' : '下一步 · 选择对手') + '</button></div></div>';
+  document.querySelector('#' + back).addEventListener('click', function() { showScreen(opponent ? 'team' : 'menu'); });
+  document.querySelector('#' + ready).addEventListener('click', function() { opponent ? confirmOpponentAndBattle() : startBattle(); });
+  pets.forEach(function(pet) {
+    var card = document.querySelector('[' + attr + '="' + uiAttr(pet.id) + '"]');
+    if (card) card.addEventListener('click', function() { opponent ? toggleOpponentSelection(pet.id) : toggleTeamSelection(pet.id); });
+  });
+}
+function renderTeamSelect(app) { renderTeamChoice(app, false); }
 
-function toggleTeamSelection(petId) { var idx = gameState.selectedTeamIds.indexOf(petId); if (idx >= 0) gameState.selectedTeamIds.splice(idx, 1); else if (gameState.selectedTeamIds.length < 6) gameState.selectedTeamIds.push(petId); renderTeamSelect(document.querySelector("#app")); }
+function focusPetChoice(attr, petId) {
+  document.querySelectorAll('[' + attr + ']').forEach(function(card) {
+    if (card.getAttribute(attr) === petId) card.focus({ preventScroll: true });
+  });
+}
+function toggleTeamSelection(petId) { var idx = gameState.selectedTeamIds.indexOf(petId); if (idx >= 0) gameState.selectedTeamIds.splice(idx, 1); else if (gameState.selectedTeamIds.length < 6) gameState.selectedTeamIds.push(petId); renderTeamSelect(document.querySelector("#app")); focusPetChoice('data-pet-id', petId); }
 
 function startBattle() { var allPets = getAllPets(); var playerPets = gameState.selectedTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (playerPets.length < 1) return; gameState.banEffects = null; gameState.playerParty = playerPets.map(function(p) { return new BattlePet(p); }); gameState.playerActive = gameState.playerParty[0]; gameState.opponentTeamIds = []; showScreen("opponent"); }
 
-function renderOpponentSelect(app) { var allPets = getAllPets(); var html = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="opp-back">\u2190</button><span class="screen-title">选择对手宠物（1~6只）</span></div><div class="pet-grid">'; allPets.forEach(function(pet) { var sel = gameState.opponentTeamIds.includes(pet.id); html += '<div class="pet-card' + (sel ? " selected" : "") + '" data-opp-id="' + pet.id + '"><div class="pet-card-check">\u2713</div><div class="pet-card-emoji">' + pet.emoji + '</div><div class="pet-card-name">' + pet.name + '</div><div class="pet-card-element" style="color:' + (ELEMENTS[pet.element]||{color:"#888"}).color + '">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:"?"}).name + '系</div></div>'; }); html += '</div><div class="team-ready-bar"><div class="selected-count">已选择 ' + gameState.opponentTeamIds.length + ' 只</div><button class="btn btn-primary" id="opp-ready" ' + (gameState.opponentTeamIds.length < 1 ? "disabled" : "") + ' style="width:100%">确认对手并开战！</button></div></div>'; app.innerHTML = html; document.querySelector("#opp-back").addEventListener("click", function() { showScreen("team"); }); document.querySelector("#opp-ready").addEventListener("click", function() { confirmOpponentAndBattle(); }); allPets.forEach(function(pet) { var card = document.querySelector('[data-opp-id="' + pet.id + '"]'); if (card) card.addEventListener("click", function() { toggleOpponentSelection(pet.id); }); }); }
+function renderOpponentSelect(app) { renderTeamChoice(app, true); }
 
-function toggleOpponentSelection(petId) { var idx = gameState.opponentTeamIds.indexOf(petId); if (idx >= 0) gameState.opponentTeamIds.splice(idx, 1); else if (gameState.opponentTeamIds.length < 6) gameState.opponentTeamIds.push(petId); renderOpponentSelect(document.querySelector("#app")); }
+function toggleOpponentSelection(petId) { var idx = gameState.opponentTeamIds.indexOf(petId); if (idx >= 0) gameState.opponentTeamIds.splice(idx, 1); else if (gameState.opponentTeamIds.length < 6) gameState.opponentTeamIds.push(petId); renderOpponentSelect(document.querySelector("#app")); focusPetChoice('data-opp-id', petId); }
 
 function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false;
   // 新战斗必须清空上一局残留的天气/环境/全局封锁与待结算指令
@@ -3734,7 +4045,7 @@ function renderBattle(app) {
   var html =
     '<div class="battle-bg screen active">' +
     // 顶栏：回合指示 + 倒计时 + 天气 + 逃跑
-    '<div class="battle-top">' +
+    '<div class="battle-top"><span class="battle-label">对战进行中</span>' +
       '<div class="turn-indicator" id="turn-indicator" style="display:none"></div>' +
       '<div class="turn-timer" id="turn-timer" style="display:none"><span>\u23F3</span><div class="turn-timer-bar"><div class="turn-timer-fill" id="turn-timer-fill" style="width:100%"></div></div><span id="turn-timer-text">20s</span></div>' +
       '<div class="battle-weather" id="battle-weather" style="display:none"></div>' +
@@ -3742,7 +4053,7 @@ function renderBattle(app) {
     '</div>' +
     // 双宠对置行：玩家左 / 舞台中 / 敌方右
     '<div class="battle-row">' +
-      '<div class="battle-side player-side">' +
+      '<div class="battle-side player-side"><span class="side-label">我方伙伴</span>' +
         '<div class="pet-sprite player" id="player-sprite">' + p.emoji + '</div>' +
         '<div class="pet-info-card" id="player-info" style="border-left:3px solid ' + pEl.color + '">' +
           '<div class="pet-info-top"><span class="pet-info-name">' + p.name + '</span><span class="pet-info-lv">Lv.' + p.level + '</span><span class="pet-info-element" style="background:' + pEl.bg + ';color:' + pEl.color + '">' + elemIcon(p.element) + pEl.name + '</span></div>' +
@@ -3755,7 +4066,7 @@ function renderBattle(app) {
         '</div>' +
       '</div>' +
       '<div class="battle-stage"><div class="stage-vs">VS</div><div class="battle-ground"></div></div>' +
-      '<div class="battle-side enemy-side">' +
+      '<div class="battle-side enemy-side"><span class="side-label">对手伙伴</span>' +
         '<div class="pet-sprite opponent" id="ai-sprite">' + a.emoji + '</div>' +
         '<div class="pet-info-card" id="ai-info" style="border-left:3px solid ' + aEl.color + '">' +
           '<div class="pet-info-top"><span class="pet-info-name">' + a.name + '</span><span class="pet-info-lv">Lv.' + a.level + '</span><span class="pet-info-element" style="background:' + aEl.bg + ';color:' + aEl.color + '">' + elemIcon(a.element) + aEl.name + '</span></div>' +
@@ -3770,8 +4081,8 @@ function renderBattle(app) {
     '</div>' +
     // 底部战斗台：日志左 / 技能面板右
     '<div class="battle-bottom">' +
-      '<div class="battle-log"><div class="log-tools"><button class="log-tab active" data-filter="all">全部</button><button class="log-tab" data-filter="action">行动</button><button class="log-tab" data-filter="system">系统</button><button class="log-copy" id="log-copy">复制</button></div><div class="battle-messages" id="battle-messages"></div><button class="log-jump" id="log-jump" hidden>回到最新</button></div>' +
-      '<div class="battle-panel"><div class="battle-actions" id="battle-actions"></div></div>' +
+      '<div class="battle-log"><div class="log-tools"><span class="log-heading">战斗记录</span><button class="log-tab active" data-filter="all">全部</button><button class="log-tab" data-filter="action">行动</button><button class="log-tab" data-filter="system">系统</button><button class="log-copy" id="log-copy">复制</button></div><div class="battle-messages" id="battle-messages"></div><button class="log-jump" id="log-jump" hidden>回到最新</button></div>' +
+      '<div class="battle-panel"><div class="panel-heading"><strong>选择你的行动</strong><span>技能从左至右 · 01—04</span></div><div class="battle-actions" id="battle-actions"></div></div>' +
     '</div>' +
     // 替换面板
     '<div class="switch-panel" id="switch-panel"><div style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px;">选择替换的宠物：</div><div id="switch-list"></div><button class="btn btn-secondary btn-small" id="switch-cancel">取消</button></div>' +
@@ -3831,9 +4142,38 @@ function renderBattleActions() { var container = document.querySelector("#battle
     }, 800);
     return;
   }
-  startTurnTimer(); if (!allPPEmpty) player.skills.forEach(function(skill, idx) { var el2 = ELEMENTS[skill.element]; var elEmoji = getSkillIcon(skill); var prio = getSkillPriority(skill); var prioStr, prioCls; if (prio > 8) { prioStr = "+" + (prio-8); prioCls = "fast"; } else if (prio < 8) { prioStr = "-" + (8-prio); prioCls = "slow"; } else { prioStr = "±0"; prioCls = "normal"; } var ppRatio = skill.pp / skill.maxPp; var ppCls = ppRatio === 0 ? " pp-empty" : ppRatio < 0.3 ? " pp-empty" : ""; var btn = document.createElement("button"); btn.className = "skill-btn" + (skill.pp <= 0 ? " no-pp" : ""); if (btn.style && btn.style.setProperty) btn.style.setProperty("--el", el2.color); btn.disabled = skill.pp <= 0; btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el2.bg + '">' + elEmoji + '</div><div class="skill-btn-name" style="color:' + el2.color + '">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + prioCls + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? "威" + Math.round(getSkillPower(skill, skill.power) * 100) / 100 : "变化") + '</span><span class="skill-pp-info"><span class="' + ppCls + '">' + skill.pp + '</span>/' + skill.maxPp + '</span>' + (skill.onUse ? '<span class="skill-ext">\u2726</span>' : '') + '</div><span class="skill-info" role="button" aria-label="查看技能详情">i</span>'; btn.addEventListener("click", function() { btn.classList.add("pressed"); btn.classList.add("selected"); playerUseSkill(idx); });
-    var infoBtn = btn.querySelector(".skill-info");
-    if (infoBtn) infoBtn.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); }); container.appendChild(btn); }); var swBtn = document.createElement("button"); swBtn.className = "action-btn"; if (player.bindTurns > 0) { swBtn.textContent = "🔒 束缚中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else if (player.switchLocked) { swBtn.textContent = "🔒 锁定中"; swBtn.disabled = true; swBtn.style.opacity = '0.4'; } else { swBtn.textContent = "🔄 换宠"; swBtn.addEventListener("click", function() { showSwitchPanel(); }); } container.appendChild(swBtn); if (allPPEmpty) { var stBtn = document.createElement("button"); stBtn.className = "skill-btn struggle-btn"; stBtn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:rgba(154,163,184,0.18)">\u{1F4AA}</div><div class="skill-btn-name">挣扎</div><div class="skill-btn-prio normal">\u00b10</div></div><div class="skill-btn-body"><span class="skill-power">威 40</span><span class="skill-pp-info">无 PP</span><span class="skill-ext">\u26A0\uFE0F</span></div>'; stBtn.addEventListener("click", function(){ gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); }); container.appendChild(stBtn); } }
+  startTurnTimer();
+  var skillList = document.createElement('div'); skillList.className = 'battle-skill-list';
+  skillList.setAttribute('aria-label', '出战技能，按第一至第四格排列');
+  var utilities = document.createElement('div'); utilities.className = 'battle-utility-list';
+  container.appendChild(skillList); container.appendChild(utilities);
+  player.skills.forEach(function(skill, idx) {
+    var el = ELEMENTS[skill.element] || {color: '#a6b0c1',bg: 'transparent'};
+    var prio = getSkillPriority(skill), prioStr = prio > 8 ? '+' + (prio-8) : prio < 8 ? '-' + (8-prio) : '±0';
+    var card = document.createElement('div'); card.className = 'skill-card';
+    var btn = document.createElement('button');
+    btn.className = 'skill-btn' + (skill.pp <= 0 ? ' no-pp' : ''); btn.disabled = skill.pp <= 0;
+    btn.style.setProperty('--el',el.color);
+    btn.setAttribute('aria-label', '第' + (idx+1) + '格：使用' + skill.name + '，剩余' + skill.pp + 'PP');
+    btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el.bg + '">' + getSkillIcon(skill) + '</div><div class="skill-btn-name">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + (prio > 8 ? 'fast' : prio < 8 ? 'slow' : 'normal') + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? '威力 ' + Math.round(getSkillPower(skill,skill.power)*100)/100 : '变化技能') + '</span><span class="skill-pp-info"><span class="' + (skill.pp/skill.maxPp < .3 ? 'pp-empty' : '') + '">' + skill.pp + '</span> / ' + skill.maxPp + ' PP</span></div>';
+    btn.addEventListener('click', function() { btn.classList.add('pressed'); btn.classList.add('selected'); playerUseSkill(idx); });
+    var slot = document.createElement('span'); slot.className = 'skill-slot-label'; slot.textContent = '0' + (idx+1); slot.setAttribute('aria-hidden','true');
+    var info = document.createElement('button'); info.className = 'skill-info'; info.textContent = 'i';
+    info.setAttribute('aria-label', '查看' + skill.name + '的技能详情');
+    info.addEventListener('click', function() { showSkillDetail(skill,info); });
+    card.appendChild(btn); card.appendChild(slot); card.appendChild(info); skillList.appendChild(card);
+  });
+  if (allPPEmpty) {
+    var struggle = document.createElement('button'); struggle.className = 'action-btn struggle-btn'; struggle.textContent = '使用挣扎 · 威力40';
+    struggle.addEventListener('click', function() { gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); });
+    utilities.appendChild(struggle);
+  }
+  var swBtn = document.createElement('button'); swBtn.className = 'action-btn';
+  if (player.bindTurns > 0) { swBtn.textContent = '🔒 束缚中'; swBtn.disabled = true; }
+  else if (player.switchLocked) { swBtn.textContent = '🔒 换宠锁定'; swBtn.disabled = true; }
+  else { swBtn.textContent = '↔ 更换宠物'; swBtn.addEventListener('click', showSwitchPanel); }
+  utilities.appendChild(swBtn);
+}
 
 function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
@@ -3846,24 +4186,37 @@ function skillMetaText(skill) {
   if (skill.power) parts.push("威力 " + Math.round(getSkillPower(skill, skill.power) * 100) / 100);
   return parts.join(" · ");
 }
-function showSkillDetail(skill) {
+function showSkillDetail(skill, trigger) {
   if (!skill) return;
-  var old = document.getElementById("skill-detail-overlay");
-  if (old) old.remove();
-  var ov = document.createElement("div");
-  ov.className = "modal-overlay show";
-  ov.id = "skill-detail-overlay";
+  var old = document.getElementById('skill-detail-overlay');
+  if (old) { if (old.closeSkillDetail) old.closeSkillDetail(false); else old.remove(); }
+  var returnFocus = trigger || document.activeElement;
+  var ov = document.createElement('div'); ov.className = 'modal-overlay show'; ov.id = 'skill-detail-overlay';
   var builtin = DEFAULT_SKILLS.find(function(s) { return s.id === skill.id; });
-  var description = skill.detail || skill.desc || "暂无说明";
-  if (builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) {
-    description = skill.desc + "\n\n" + skill.detail;
-  }
-  var body = escapeHtml(description);
-  ov.innerHTML = '<div class="modal skill-detail"><h3>' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body">' + body + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
+  var description = skill.detail || skill.desc || '暂无说明';
+  if (builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) description = skill.desc + '\n\n' + skill.detail;
+  ov.innerHTML = '<div class="modal skill-detail" role="dialog" aria-modal="true" aria-labelledby="skill-detail-title"><h3 id="skill-detail-title">' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body" tabindex="0" aria-label="技能机制正文">' + escapeHtml(description) + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭详情</button></div></div>';
   document.body.appendChild(ov);
-  var close = function() { ov.remove(); };
-  ov.querySelector("#skill-detail-close").addEventListener("click", close);
-  ov.addEventListener("click", function(e) { if (e.target === ov) close(); });
+  var closed = false;
+  function close(restore) {
+    if (closed) return; closed = true;
+    document.removeEventListener('keydown', onKey); ov.remove();
+    if (restore !== false && returnFocus && returnFocus.isConnected !== false && returnFocus.focus) returnFocus.focus();
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    if (e.key === 'Tab') {
+      var items = ov.querySelectorAll('button:not([disabled]), [tabindex="0"]'), first = items[0], last = items[items.length-1];
+      if (!first) return;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+  ov.closeSkillDetail = close;
+  ov.querySelector('#skill-detail-close').addEventListener('click', function() { close(); });
+  ov.addEventListener('click', function(e) { if (e.target === ov) close(); });
+  document.addEventListener('keydown', onKey);
+  ov.querySelector('#skill-detail-close').focus();
 }
 
 // ---------- SKILL SWAP (局外更换技能) ----------
@@ -3871,8 +4224,9 @@ var swapTargetPetId = null;
 
 function renderSkillSwap(app) {
   var allPets = getAllPets();
-  var html = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="swap-back">\u2190</button><span class="screen-title">局外技能更换</span></div><div class="pet-grid" id="swap-pet-grid">';
-  allPets.forEach(function(pet) { html += '<div class="pet-card" data-pet-id="' + pet.id + '"><div class="pet-card-emoji">' + pet.emoji + '</div><div class="pet-card-name">' + pet.name + '</div><div class="pet-card-element" style="color:' + (ELEMENTS[pet.element]||{color:"#888"}).color + '">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:"?"}).name + '系</div></div>'; });
+  var html = '<div class="screen active">' + pageHeader('配置出战技能', 'swap-back') + '<p class="page-note">先选择伙伴，再从专属技能池中搭配最多四个出战技能。</p><div class="pet-grid" id="swap-pet-grid">';
+  allPets.forEach(function(pet) { html += petChoiceCard(pet, 'data-pet-id'); });
+
   html += '</div><div id="swap-detail" style="display:none;"></div></div>';
   app.innerHTML = html;
   document.querySelector("#swap-back").addEventListener("click", function() { showScreen("menu"); });
@@ -3907,22 +4261,29 @@ function openSkillSwap(pet, keepDraft) {
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
     var eqIdx = isEq ? equippedIds.indexOf(skill.id) : -1;
-    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25BC</button></span>' : '') + '<span style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + ';font-weight:600">' + escapeHtml(skill.name) + '</span><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><span class="swap-info-btn" role="button" aria-label="查看技能详情">i</span></div>';
+    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25B6</button></span>' : '') + '<button type="button" class="skill-swap-name swap-toggle" aria-pressed="' + isEq + '" aria-label="' + (isEq ? '卸下' : '装备') + uiAttr(skill.name) + '" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">' + escapeHtml(skill.name) + '</button><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power || "-") + '威 · ' + skill.maxPp + 'PP</span><button type="button" class="swap-info-btn" aria-label="查看技能详情">i</button></div>';
   });
-  html += '</div><div style="text-align:center;margin-top:12px;color:var(--text2);font-size: 12px;">已装备 ' + equippedIds.length + ' / ' + allSkills.length + ' 个（仅限本宠技能）| 点击切换装备/卸下 · ◀▶ 调整顺序（1 号为最左格）</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
+  html += '</div><div class="swap-help">已装备 <strong>' + equippedIds.length + ' / 4</strong> 个 · 本宠技能池 ' + allSkills.length + ' 个<br>点击切换装备 / 卸下，◀ ▶ 调整顺序。1 号为第一格。</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
   detail.innerHTML = html;
   // Toggle skill equip
   allSkills.forEach(function(skill) {
     var item = detail.querySelector('[data-skill-id="' + skill.id + '"]');
     var info = item && item.querySelector(".swap-info-btn");
     if (info) info.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); });
-    if (item) item.addEventListener("click", function() {
+    function toggleSkill() {
       var idx = swapDraft.ids.indexOf(skill.id);
       if (idx < 0 && swapDraft.ids.length >= 4) { alert("最多选择 4 个技能出战！"); return; }
       if (idx >= 0) swapDraft.ids.splice(idx, 1);
       else swapDraft.ids.push(skill.id);
       openSkillSwap(pet, true); // 保留草稿并刷新
-    });
+      var fresh = detail.querySelector('[data-skill-id="' + uiAttr(skill.id) + '"] .swap-toggle');
+      if (fresh) fresh.focus({ preventScroll: true });
+    }
+    if (item) {
+      item.addEventListener('click', toggleSkill);
+      var toggle = item.querySelector('.swap-toggle');
+      if (toggle) toggle.addEventListener('click', function(ev) { ev.stopPropagation(); toggleSkill(); });
+    }
   });
   detail.querySelectorAll('.swap-move').forEach(function(btn) {
     btn.addEventListener('click', function(ev) {
@@ -3932,6 +4293,12 @@ function openSkillSwap(pet, keepDraft) {
       if (i < 0 || j < 0 || j >= swapDraft.ids.length) return;
       swapDraft.ids.splice(i, 1); swapDraft.ids.splice(j, 0, sid);
       openSkillSwap(pet, true);
+      var freshItem = detail.querySelector('[data-skill-id="' + uiAttr(sid) + '"]');
+      if (freshItem) {
+        var arrow = freshItem.querySelector('[data-move="' + btn.getAttribute('data-move') + '"]');
+        var nextFocus = arrow && !arrow.disabled ? arrow : freshItem.querySelector('.swap-toggle');
+        if (nextFocus) nextFocus.focus({ preventScroll: true });
+      }
     });
   });
   detail.querySelector("#swap-save").addEventListener("click", function() {
