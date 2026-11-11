@@ -16,7 +16,7 @@
   --hp-green: #3fb950; --hp-yellow: #e2b04a; --hp-red: #f85149;
   --shield-color: #58a6ff; --border: #3a3440; --radius: 14px;
   --motion-fast: 120ms; --motion-state: 140ms; --motion-panel: 180ms;
-  --motion-page: 200ms; --motion-intro: 360ms; --ease-enter: cubic-bezier(.2,.7,.2,1);
+  --motion-page: 200ms; --motion-intro: 360ms; --motion-result: 220ms; --ease-enter: cubic-bezier(.2,.7,.2,1);
   --shadow: 0 6px 24px rgba(0,0,0,0.6);
   --glow-gold: 0 0 16px rgba(226,176,74,0.3);
   --glow-accent: 0 0 16px rgba(240,114,90,0.3);
@@ -886,6 +886,21 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: .01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important; }
 }
+
+/* 弹层退出只影响视觉，不推迟业务结算。 */
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes switchIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+.modal-overlay.show { animation: overlayIn var(--motion-panel) ease; transition: opacity var(--motion-state) ease-in; }
+.modal-overlay.show .modal { animation: modalIn var(--motion-panel) var(--ease-enter); transition: opacity var(--motion-state) ease-in, transform var(--motion-state) ease-in; }
+.modal-overlay.closing, .result-overlay.closing { opacity: 0; }
+.modal-overlay.closing .modal { opacity: 0; transform: translateY(8px) scale(.985); pointer-events: none; }
+.switch-panel.closing > *, .result-overlay.closing > * { pointer-events: none; }
+.switch-panel.show { animation: switchIn var(--motion-panel) var(--ease-enter); transition: opacity var(--motion-state) ease-in, transform var(--motion-state) ease-in; }
+.switch-panel.closing { opacity: 0; transform: translateX(-50%) translateY(12px); }
+.result-overlay.show { animation: overlayIn var(--motion-result) ease; transition: opacity var(--motion-state) ease-in; }
+.modal-overlay.closing, .modal-overlay.closing .modal, .switch-panel.closing, .result-overlay.closing { animation: none; }
+.result-emoji { animation: none; }
 
 /* Settings apply between battles; battle navigation must be explicit. */
 body:has(.battle-bg) .settings-btn { display: none; }
@@ -3646,6 +3661,12 @@ var uiPageVersion = 0;
 function prefersReducedMotion() {
   return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
+function motionDuration(name, fallback) {
+  if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return fallback;
+  var value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  var number = parseFloat(value);
+  return isFinite(number) && /^(?:\d*\.)?\d+\s*(ms|s)$/.test(value) ? number * (/ms$/.test(value) ? 1 : 1000) : fallback;
+}
 // 仅负责视觉清理，不承载游戏时序。
 function finishVisualTransition(el, property, duration, done) {
   var finished = false, timer, media = typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
@@ -3665,6 +3686,54 @@ function finishVisualTransition(el, property, duration, done) {
   timer = setTimeout(finish, duration + 50);
   return finish;
 }
+// 关闭时先固定正在入场的当前画面，再切换至退出样式。
+function freezeLayerEntrance(el) {
+  var nodes = [el], modal = el.querySelector(".modal"), saved = [];
+  if (modal) nodes.push(modal);
+  if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return function() {};
+  nodes.forEach(function(node) {
+    var style = node.style;
+    if (!style || !style.setProperty || !style.removeProperty || !style.getPropertyValue) return;
+    var computed = window.getComputedStyle(node), props = ["opacity", "transform", "animation"];
+    var original = props.map(function(prop) { return { name: prop, value: style.getPropertyValue(prop), priority: style.getPropertyPriority(prop) }; });
+    var opacity = computed.opacity, transform = computed.transform;
+    style.setProperty("opacity", opacity); style.setProperty("transform", transform); style.setProperty("animation", "none");
+    saved.push({ node: node, original: original });
+  });
+  if (saved.length) void el.offsetWidth;
+  return function(release) {
+    saved.forEach(function(entry) {
+      entry.original.forEach(function(prop) {
+        if (release && prop.name === "animation") return;
+        if (prop.value) entry.node.style.setProperty(prop.name, prop.value, prop.priority);
+        else entry.node.style.removeProperty(prop.name);
+      });
+    });
+  };
+}
+// 捕获具体节点；force 用于重开和页面销毁，避免旧回调影响新弹层。
+function prepareLayer(el, onClosed) {
+  var state = "open", finish = null, forced = false, restoreStyles = function() {};
+  function complete(restoreFocus) { state = "closed"; onClosed(restoreFocus); restoreStyles(false); }
+  el.closeLayer = function(force) {
+    if (state === "closed") return;
+    if (force === true) {
+      forced = true;
+      if (finish) { finish(); return; }
+      complete(false); return;
+    }
+    if (state !== "open") return;
+    state = "closing";
+    if (!prefersReducedMotion() && el.isConnected !== false) restoreStyles = freezeLayerEntrance(el);
+    el.classList.add("closing"); restoreStyles(true);
+    finish = finishVisualTransition(el, "opacity", motionDuration("--motion-state", 140), function() { complete(!forced); });
+  };
+  el.layerIsOpen = function() { return state === "open"; };
+}
+function removeBodyLayer(id) {
+  var el = document.getElementById(id);
+  if (el) { if (el.closeLayer) el.closeLayer(true); else el.remove(); }
+}
 function focusScreen(app) {
   var target = app.querySelector(".screen-title") || app.querySelector("button");
   if (target && target.focus) { if (target.classList.contains("screen-title")) target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
@@ -3673,14 +3742,14 @@ function showScreen(id) {
   var previous = gameState.screen, changed = previous !== id, app = document.querySelector("#app");
   if (changed) {
     uiPageVersion++;
-    var detail = document.getElementById("skill-detail-overlay");
-    if (detail) { if (detail.closeSkillDetail) detail.closeSkillDetail(false); else detail.remove(); }
-    ["modal-overlay", "flee-overlay"].forEach(function(key) { var node = document.getElementById(key); if (node) node.remove(); });
+
     var intro = document.getElementById("intro-screen");
     if (intro && !(previous === "intro" && id === "menu" && intro.dataset.leaving)) {
       if (intro.finishIntro) intro.finishIntro(); else intro.remove();
     }
   }
+  ["skill-detail-overlay", "modal-overlay", "flee-overlay"].forEach(removeBodyLayer);
+  ["switch-panel", "result-overlay"].forEach(function(key) { var layer = document.getElementById(key); if (layer && layer.closeLayer) layer.closeLayer(true); });
   gameState.screen = id; app.innerHTML = "";
   switch(id) { case "intro": renderIntro(app); break; case "menu": renderMenu(app); break; case "team": renderTeamSelect(app); break; case "battle": renderBattle(app); break; case "pets": renderPetManagement(app); break; case "opponent": renderOpponentSelect(app); break; case "skillswap": renderSkillSwap(app); break; case "settings": renderSettings(app); break; }
   if (changed && id !== "intro" && previous !== "intro") {
@@ -3718,7 +3787,7 @@ function renderIntro(app) {
     el.classList.add("leaving");
     showScreen("menu");
     var version = uiPageVersion;
-    el.finishIntro = finishVisualTransition(el, "opacity", 360, function() {
+    el.finishIntro = finishVisualTransition(el, "opacity", motionDuration("--motion-intro", 360), function() {
       el.remove();
       if (uiPageVersion === version && gameState.screen === "menu") focusScreen(app);
     });
@@ -3890,24 +3959,33 @@ function renderBattle(app) {
   });
   renderBattleActions();
   updateBattleUI();
+  ["result-overlay", "switch-panel"].forEach(function(id) {
+    var layer = document.getElementById(id);
+    prepareLayer(layer, function() { layer.classList.remove("show", "closing"); });
+  });
   document.querySelector("#result-back").addEventListener("click", function() { showScreen("menu"); });
-  document.querySelector("#result-close").addEventListener("click", function() { document.querySelector("#result-overlay").classList.remove("show"); var act = document.querySelector("#battle-actions"); if (act) act.innerHTML = "<div style=text-align:center;padding:16px;color:var(--text2);font-size:13px>战斗已结束，可滚动上方日志回顾战况</div>"; });
-  document.querySelector("#switch-cancel").addEventListener("click", function() { gameState.waitingForSwitch = false; document.querySelector("#switch-panel").classList.remove("show"); startTurnTimer(); });
+  document.querySelector("#result-close").addEventListener("click", function() { var layer = document.querySelector("#result-overlay"); if (!layer.layerIsOpen()) return; layer.querySelectorAll("button").forEach(function(button) { button.disabled = true; }); layer.closeLayer(); var act = document.querySelector("#battle-actions"); if (act) act.innerHTML = "<div style=text-align:center;padding:16px;color:var(--text2);font-size:13px>战斗已结束，可滚动上方日志回顾战况</div>"; });
+  document.querySelector("#switch-cancel").addEventListener("click", function() { if (!gameState.waitingForSwitch) return; gameState.waitingForSwitch = false; var panel = document.querySelector("#switch-panel"); panel.querySelectorAll("button").forEach(function(button) { button.disabled = true; }); panel.closeLayer(); startTurnTimer(); });
   document.querySelector("#flee-btn").addEventListener("click", showFleeConfirm);
   gameState.isPlayerTurn = true;
 }
 
 // ========== 逃跑确认弹窗 ==========
 function showFleeConfirm() {
-  if (document.getElementById('flee-overlay')) return; // 重入保护：已存在弹窗则不重复创建
+  var old = document.getElementById('flee-overlay');
+  if (old && old.layerIsOpen && old.layerIsOpen()) return;
+  removeBodyLayer('flee-overlay');
   var ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.id = 'flee-overlay';
   ov.innerHTML = '<div class="modal"><h3>\u{1F3C3} 逃跑确认</h3><p style="text-align:center;color:var(--text2);margin-bottom:16px;line-height:1.8;">确定要逃跑吗？<br>本次战斗进度将不会保留。</p><div class="form-actions"><button class="btn btn-secondary" id="flee-cancel">取消</button><button class="btn btn-danger" id="flee-confirm">确认逃跑</button></div></div>';
   document.body.appendChild(ov);
-  document.querySelector("#flee-cancel").addEventListener("click", function() { ov.remove(); });
-  document.querySelector("#flee-confirm").addEventListener("click", function() { ov.remove(); gameState.battleOver = true; gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; stopTurnTimer(); showScreen("menu"); });
-  document.querySelector("#flee-overlay").addEventListener("click", function(e) { if (e.target.id === "flee-overlay") ov.remove(); });
+  var trigger = document.activeElement, version = uiPageVersion;
+  prepareLayer(ov, function(restore) { ov.remove(); if (restore && version === uiPageVersion && trigger && trigger.isConnected !== false && trigger.focus) trigger.focus(); });
+  function cancel() { if (!ov.layerIsOpen()) return; ov.querySelector("#flee-confirm").disabled = true; ov.closeLayer(); }
+  ov.querySelector("#flee-cancel").addEventListener("click", cancel);
+  ov.querySelector("#flee-confirm").addEventListener("click", function() { if (!ov.layerIsOpen()) return; ov.closeLayer(true); gameState.battleOver = true; gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; stopTurnTimer(); showScreen("menu"); });
+  ov.addEventListener("click", function(e) { if (e.target === ov) cancel(); });
 }
 
 function renderBattleActions() { var container = document.querySelector("#battle-actions"); if (!container) return; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
@@ -3958,7 +4036,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
   utilities.appendChild(swBtn);
 }
 
-function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
+function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
 // ---------- SKILL DETAIL (完整机制展示) ----------
 var CATEGORY_NAMES = { physical: "物理", special: "特殊", status: "变化" };
@@ -3972,7 +4050,7 @@ function skillMetaText(skill) {
 function showSkillDetail(skill, trigger) {
   if (!skill) return;
   var old = document.getElementById('skill-detail-overlay');
-  if (old) { if (old.closeSkillDetail) old.closeSkillDetail(false); else old.remove(); }
+  if (old) { if (old.closeLayer) old.closeLayer(true); else old.remove(); }
   var returnFocus = trigger || document.activeElement;
   var ov = document.createElement('div'); ov.className = 'modal-overlay show'; ov.id = 'skill-detail-overlay';
   var builtin = DEFAULT_SKILLS.find(function(s) { return s.id === skill.id; });
@@ -3980,12 +4058,12 @@ function showSkillDetail(skill, trigger) {
   if (builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) description = skill.desc + '\n\n' + skill.detail;
   ov.innerHTML = '<div class="modal skill-detail" role="dialog" aria-modal="true" aria-labelledby="skill-detail-title"><h3 id="skill-detail-title">' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body" tabindex="0" aria-label="技能机制正文">' + escapeHtml(description) + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
   document.body.appendChild(ov);
-  var closed = false;
-  function close(restore) {
-    if (closed) return; closed = true;
+  var version = uiPageVersion;
+  prepareLayer(ov, function(restore) {
     document.removeEventListener('keydown', onKey); ov.remove();
-    if (restore !== false && returnFocus && returnFocus.isConnected !== false && returnFocus.focus) returnFocus.focus();
-  }
+    if (restore && uiPageVersion === version && returnFocus && returnFocus.isConnected !== false && returnFocus.focus) returnFocus.focus();
+  });
+  function close() { ov.closeLayer(); }
   function onKey(e) {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
     if (e.key === 'Tab') {
@@ -3995,7 +4073,6 @@ function showSkillDetail(skill, trigger) {
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   }
-  ov.closeSkillDetail = close;
   ov.querySelector('#skill-detail-close').addEventListener('click', function() { close(); });
   ov.addEventListener('click', function(e) { if (e.target === ov) close(); });
   document.addEventListener('keydown', onKey);
@@ -4113,8 +4190,8 @@ function openSkillSwap(pet, keepDraft) {
 var mgmtTab = "pets";
 function renderPetManagement(app) { app.innerHTML = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="mgmt-back">\u2190</button><span class="screen-title">宠物管理</span></div><div class="mgmt-tabs"><button class="mgmt-tab ' + (mgmtTab === "pets" ? "active" : "") + '" id="tab-pets">\u{1F43E} 宠物列表</button><button class="mgmt-tab ' + (mgmtTab === "skills" ? "active" : "") + '" id="tab-skills">\u2B50 技能列表</button></div><div class="mgmt-list" id="mgmt-list"></div><button class="add-btn" id="mgmt-add">+ 添加' + (mgmtTab === "pets" ? "自定义宠物" : "自定义技能") + '</button></div>'; document.querySelector("#mgmt-back").addEventListener("click", function() { showScreen("menu"); }); document.querySelector("#tab-pets").addEventListener("click", function() { mgmtTab = "pets"; showScreen("pets"); }); document.querySelector("#tab-skills").addEventListener("click", function() { mgmtTab = "skills"; showScreen("pets"); }); document.querySelector("#mgmt-add").addEventListener("click", function() { mgmtTab === "pets" ? showPetForm() : showSkillForm(); }); renderMgmtList(); }
 
-function renderMgmtList() { try { var list = document.querySelector("#mgmt-list"); if (!list) return; list.innerHTML = ""; if (mgmtTab === "pets") { getAllPets().forEach(function(pet) { var isCustom = pet.id ? pet.id.indexOf("pet_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji">' + pet.emoji + '</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + pet.name + (isCustom ? " \u2728" : "") + (pet.bloodline ? ' <span style="color:var(--gold);font-size: 12px">血脉:' + pet.bloodline.name + '</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:'?'}).name + '系 · Lv.' + (pet.level||'?') + ' · HP:' + (pet.baseStats||pet.stats||{hp:100}).hp + '</div></div><div class="mgmt-item-actions"><button class="edit-pet-btn">编辑</button>' + (isCustom ? '<button class="del-pet-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-pet-btn").addEventListener("click", function() { showPetForm(pet); }); var db = div.querySelector(".del-pet-btn"); if (db) db.addEventListener("click", function() { deletePet(pet.id); }); list.appendChild(div); }); } else { getAllSkills().forEach(function(skill) { var isCustom = skill.id ? skill.id.indexOf("sk_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">\u2726</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + escapeHtml(skill.name) + (isCustom ? " \u2728" : "") + (skill.onUse ? ' <span style="color:var(--accent);font-size: 12px">扩展</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(skill.element) + (ELEMENTS[skill.element]||{name:"?"}).name + '系 · 威力:' + (skill.power || "-") + ' · PP:' + skill.maxPp + '</div></div><div class="mgmt-item-actions"><button class="edit-sk-btn">编辑</button>' + (isCustom ? '<button class="del-sk-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-sk-btn").addEventListener("click", function() { showSkillForm(skill); }); var db2 = div.querySelector(".del-sk-btn"); if (db2) db2.addEventListener("click", function() { deleteSkill(skill.id); }); list.appendChild(div); }); } } catch(e) { console.error("renderMgmtList error:", e); list.innerHTML = "<div style=color:red>加载失败: " + e.message + "</div>"; } }function showPetForm(pet) { var isEdit = !!pet; var skills = getAllSkills(); if (pet && pet.stats && !pet.baseStats) pet.baseStats = pet.stats;
-  var selSkills = pet ? [...pet.skillIds].slice(0, 4) : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + escapeHtml(s.name) + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk","攻击"],["def","防御"],["spatk","特攻"],["spdef","特防"],["spd","速度"]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { savePetForm(isEdit, pet); }); }
+function renderMgmtList() { try { var list = document.querySelector("#mgmt-list"); if (!list) return; list.innerHTML = ""; if (mgmtTab === "pets") { getAllPets().forEach(function(pet) { var isCustom = pet.id ? pet.id.indexOf("pet_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji">' + pet.emoji + '</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + pet.name + (isCustom ? " \u2728" : "") + (pet.bloodline ? ' <span style="color:var(--gold);font-size: 12px">血脉:' + pet.bloodline.name + '</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:'?'}).name + '系 · Lv.' + (pet.level||'?') + ' · HP:' + (pet.baseStats||pet.stats||{hp:100}).hp + '</div></div><div class="mgmt-item-actions"><button class="edit-pet-btn">编辑</button>' + (isCustom ? '<button class="del-pet-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-pet-btn").addEventListener("click", function() { showPetForm(pet); }); var db = div.querySelector(".del-pet-btn"); if (db) db.addEventListener("click", function() { deletePet(pet.id); }); list.appendChild(div); }); } else { getAllSkills().forEach(function(skill) { var isCustom = skill.id ? skill.id.indexOf("sk_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">\u2726</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + escapeHtml(skill.name) + (isCustom ? " \u2728" : "") + (skill.onUse ? ' <span style="color:var(--accent);font-size: 12px">扩展</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(skill.element) + (ELEMENTS[skill.element]||{name:"?"}).name + '系 · 威力:' + (skill.power || "-") + ' · PP:' + skill.maxPp + '</div></div><div class="mgmt-item-actions"><button class="edit-sk-btn">编辑</button>' + (isCustom ? '<button class="del-sk-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-sk-btn").addEventListener("click", function() { showSkillForm(skill); }); var db2 = div.querySelector(".del-sk-btn"); if (db2) db2.addEventListener("click", function() { deleteSkill(skill.id); }); list.appendChild(div); }); } } catch(e) { console.error("renderMgmtList error:", e); list.innerHTML = "<div style=color:red>加载失败: " + e.message + "</div>"; } }function showPetForm(pet) { removeBodyLayer("modal-overlay"); var isEdit = !!pet; var skills = getAllSkills(); if (pet && pet.stats && !pet.baseStats) pet.baseStats = pet.stats;
+  var selSkills = pet ? [...pet.skillIds].slice(0, 4) : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + escapeHtml(s.name) + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk","攻击"],["def","防御"],["spatk","特攻"],["spdef","特防"],["spd","速度"]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); var formLayer = prepareFormLayer(); formLayer.addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { if (formLayer.layerIsOpen()) savePetForm(isEdit, pet); }); }
 
 function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name").value.trim(); if (!name) { alert("请输入名称！"); return; } var np = { id: isEdit ? orig.id : ("custom_pet_" + Date.now()), name: name, emoji: document.querySelector("#fp-emoji").value || "\u{1F43E}", element: document.querySelector("#fp-element").value, level: parseInt(document.querySelector("#fp-level").value) || 100, baseStats: { hp: abilityToBase(parseInt(document.querySelector("#fp-hp").value) || calcHpAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, true), atk: abilityToBase(parseInt(document.querySelector("#fp-atk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), def: abilityToBase(parseInt(document.querySelector("#fp-def").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spatk: abilityToBase(parseInt(document.querySelector("#fp-spatk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spdef: abilityToBase(parseInt(document.querySelector("#fp-spdef").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spd: abilityToBase(parseInt(document.querySelector("#fp-spd").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false) }, skillIds: [0,1,2,3].map(function(i) { var el = document.querySelector("#fp-skill-" + i); return el ? el.value : ""; }).filter(Boolean) }; np.ownedSkillIds = Array.from(new Set([].concat(isEdit && orig.ownedSkillIds ? orig.ownedSkillIds : [], np.skillIds)));
   // R09：内置宠物编辑写入 loadout（保留血脉函数），不再静默丢弃
@@ -4135,7 +4212,7 @@ function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name
 
 function deletePet(petId) { if (!confirm("确定删除？")) return; saveCustomPets(loadCustomPets().filter(function(p) { return p.id !== petId; })); showScreen("pets"); }
 
-function showSkillForm(skill) { var isEdit = !!skill; var isBuiltin = isEdit && DEFAULT_SKILLS.some(function(s) { return s.id === skill.id; }); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (skill && skill.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var cats = '<option value="physical"' + (skill && skill.category === "physical" ? " selected" : "") + '>物理</option><option value="special"' + (skill && skill.category === "special" ? " selected" : "") + '>特殊</option><option value="status"' + (skill && skill.category === "status" ? " selected" : "") + '>变化</option>'; var effs = '<option value="">无</option><option value="burn">烧伤</option><option value="freeze">冰冻</option><option value="paralyze">麻痹</option><option value="poison">中毒</option><option value="sleep">睡眠</option><option value="confuse">混乱</option>'; var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '技能</h3>'; html += '<div class="form-group"><label>名称</label><input id="fs-name" value="' + (skill ? escapeHtml(skill.name).replace(/"/g, "&quot;") : "") + '" maxlength="10"></div>'; if (isBuiltin) html += '<p class="form-group">内置技能仅可编辑名称和描述。战斗参数与效果由原有机制决定。</p><fieldset disabled style="border:0;padding:0;margin:0;min-width:0">'; html += '<div class="form-group"><label>元素</label><select id="fs-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>类型</label><select id="fs-category">' + cats + '</select></div>'; html += '<div class="stat-grid"><div class="form-group"><label>威力</label><input id="fs-power" type="number" value="' + (skill ? skill.power : 80) + '" min="0" max="250"></div><div class="form-group"><label>PP</label><input id="fs-pp" type="number" value="' + (skill ? skill.maxPp : 15) + '" min="1" max="40"></div><div class="form-group"><label>命中</label><input id="fs-accuracy" type="number" value="' + (skill ? skill.accuracy : 100) + '" min="30" max="100"></div></div>'; html += '<div class="form-group"><label>效果</label><select id="fs-effect">' + effs + '</select></div>'; html += '<div class="form-group"><label>效果率%</label><input id="fs-effectChance" type="number" value="' + (skill ? skill.effectChance : 0) + '" min="0" max="100"></div>'; if (isBuiltin) html += '</fieldset>'; html += '<div class="form-group"><label>描述</label><textarea id="fs-desc">' + (skill ? escapeHtml(skill.desc || "") : "") + '</textarea></div>'; html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); document.querySelector("#modal-overlay").addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { saveSkillForm(isEdit, skill); }); }
+function showSkillForm(skill) { removeBodyLayer("modal-overlay"); var isEdit = !!skill; var isBuiltin = isEdit && DEFAULT_SKILLS.some(function(s) { return s.id === skill.id; }); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (skill && skill.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var cats = '<option value="physical"' + (skill && skill.category === "physical" ? " selected" : "") + '>物理</option><option value="special"' + (skill && skill.category === "special" ? " selected" : "") + '>特殊</option><option value="status"' + (skill && skill.category === "status" ? " selected" : "") + '>变化</option>'; var effs = '<option value="">无</option><option value="burn">烧伤</option><option value="freeze">冰冻</option><option value="paralyze">麻痹</option><option value="poison">中毒</option><option value="sleep">睡眠</option><option value="confuse">混乱</option>'; var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '技能</h3>'; html += '<div class="form-group"><label>名称</label><input id="fs-name" value="' + (skill ? escapeHtml(skill.name).replace(/"/g, "&quot;") : "") + '" maxlength="10"></div>'; if (isBuiltin) html += '<p class="form-group">内置技能仅可编辑名称和描述。战斗参数与效果由原有机制决定。</p><fieldset disabled style="border:0;padding:0;margin:0;min-width:0">'; html += '<div class="form-group"><label>元素</label><select id="fs-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>类型</label><select id="fs-category">' + cats + '</select></div>'; html += '<div class="stat-grid"><div class="form-group"><label>威力</label><input id="fs-power" type="number" value="' + (skill ? skill.power : 80) + '" min="0" max="250"></div><div class="form-group"><label>PP</label><input id="fs-pp" type="number" value="' + (skill ? skill.maxPp : 15) + '" min="1" max="40"></div><div class="form-group"><label>命中</label><input id="fs-accuracy" type="number" value="' + (skill ? skill.accuracy : 100) + '" min="30" max="100"></div></div>'; html += '<div class="form-group"><label>效果</label><select id="fs-effect">' + effs + '</select></div>'; html += '<div class="form-group"><label>效果率%</label><input id="fs-effectChance" type="number" value="' + (skill ? skill.effectChance : 0) + '" min="0" max="100"></div>'; if (isBuiltin) html += '</fieldset>'; html += '<div class="form-group"><label>描述</label><textarea id="fs-desc">' + (skill ? escapeHtml(skill.desc || "") : "") + '</textarea></div>'; html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); var formLayer = prepareFormLayer(); formLayer.addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { if (formLayer.layerIsOpen()) saveSkillForm(isEdit, skill); }); }
 
 function saveSkillForm(isEdit, orig) {
   var name = document.querySelector("#fs-name").value.trim();
@@ -4170,7 +4247,19 @@ function saveSkillForm(isEdit, orig) {
 
 function deleteSkill(skillId) { if (!confirm("确定删除？")) return; saveCustomSkills(loadCustomSkills().filter(function(s) { return s.id !== skillId; })); saveCustomPets(loadCustomPets().map(function(p) { p.skillIds = p.skillIds.filter(function(sid) { return sid !== skillId; }); return p; })); showScreen("pets"); }
 
-function closeModal() { var ov = document.querySelector("#modal-overlay"); if (ov) ov.remove(); }
+function prepareFormLayer() {
+  var ov = document.querySelector("#modal-overlay"), trigger = document.activeElement, version = uiPageVersion;
+  prepareLayer(ov, function(restore) { ov.remove(); if (restore && version === uiPageVersion && trigger && trigger.isConnected !== false && trigger.focus) trigger.focus(); });
+  return ov;
+}
+function closeModal() {
+  var ov = document.querySelector("#modal-overlay");
+  if (!ov) return;
+  if (!ov.layerIsOpen || !ov.closeLayer) { ov.remove(); return; }
+  if (!ov.layerIsOpen()) return;
+  var save = ov.querySelector("#form-save"); if (save) save.disabled = true;
+  ov.closeLayer();
+}
 
 // ---------- INIT ----------
 // Auto-clear old cache (remove after first load)
