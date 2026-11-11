@@ -16,7 +16,8 @@
   --hp-green: #3fb950; --hp-yellow: #e2b04a; --hp-red: #f85149;
   --shield-color: #58a6ff; --border: #3a3440; --radius: 14px;
   --motion-fast: 120ms; --motion-state: 140ms; --motion-panel: 180ms;
-  --motion-page: 200ms; --motion-intro: 360ms; --motion-result: 220ms; --ease-enter: cubic-bezier(.2,.7,.2,1);
+  --motion-page: 200ms; --motion-intro: 360ms; --motion-result: 220ms;
+  --motion-hp: 280ms; --motion-ghost: 420ms; --motion-ghost-delay: 80ms; --motion-float: 700ms; --ease-enter: cubic-bezier(.2,.7,.2,1);
   --shadow: 0 6px 24px rgba(0,0,0,0.6);
   --glow-gold: 0 0 16px rgba(226,176,74,0.3);
   --glow-accent: 0 0 16px rgba(240,114,90,0.3);
@@ -36,7 +37,7 @@
   font-size: 20px; transition: all 0.2s ease;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
-.settings-btn:hover { transform: scale(1.1) rotate(45deg); border-color: var(--gold); }
+@media (hover: hover) { .settings-btn:hover { transform: scale(1.1) rotate(45deg); border-color: var(--gold); } }
 /* 设置二级页面：统一尺寸规格（中英文 UI 一致） */
 .settings-scroll { max-height: calc(100vh - 130px); overflow-y: auto; padding: 12px 16px 24px; }
 .settings-section { margin-bottom: 12px; }
@@ -48,7 +49,7 @@
   border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
   color: var(--text); cursor: pointer; transition: all 0.15s ease; overflow: hidden;
 }
-.font-option:hover { background: rgba(226,176,74,0.12); border-color: rgba(226,176,74,0.4); transform: scale(1.04); }
+@media (hover: hover) { .font-option:hover { background: rgba(226,176,74,0.12); border-color: rgba(226,176,74,0.4); transform: scale(1.04); } }
 .font-option.active { border-color: var(--gold); color: var(--gold); background: rgba(226,176,74,0.1); box-shadow: 0 0 12px rgba(226,176,74,0.2); }
 .font-option .font-demo { display: block; height: 28px; line-height: 28px; max-width: 100%; white-space: nowrap; overflow: hidden; }
 .font-option[data-lang="cn"] .font-demo { font-size: 18px; }
@@ -213,12 +214,12 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px;
 }
 
-.btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow); }
+@media (hover: hover) { .btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow); } }
 .btn:active { transform: translateY(0) scale(0.98); }
 .btn-primary { background: linear-gradient(135deg, #f85149, #da3633); color: #fff; box-shadow: 0 4px 16px rgba(248,81,73,0.3); }
-.btn-primary:hover { box-shadow: 0 6px 28px rgba(248,81,73,0.5); }
+@media (hover: hover) { .btn-primary:hover { box-shadow: 0 6px 28px rgba(248,81,73,0.5); } }
 .btn-secondary { background: var(--surface2); color: var(--text); border: 2px solid var(--border); }
-.btn-secondary:hover { border-color: var(--accent); background: var(--surface); }
+@media (hover: hover) { .btn-secondary:hover { border-color: var(--accent); background: var(--surface); } }
 .btn-small { padding: 9px 18px; font-size: 13px; border-radius: 10px; }
 .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
@@ -230,7 +231,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   font-size: 18px; display: flex; align-items: center; justify-content: center;
   transition: all 0.2s ease;
 }
-.screen-header .back-btn:hover { background: var(--surface2); border-color: var(--gold); }
+@media (hover: hover) { .screen-header .back-btn:hover { background: var(--surface2); border-color: var(--gold); } }
 .screen-title { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
 
 /* Team select */
@@ -243,7 +244,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-.pet-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: var(--shadow); }
+@media (hover: hover) { .pet-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: var(--shadow); } }
 .pet-card.selected {
   border-color: var(--gold);
   box-shadow: var(--glow-gold);
@@ -270,11 +271,14 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   width: 100px; height: 100px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 48px; position: relative; transition: all 0.3s ease;
-  animation: fadeInSprite 0.8s ease-out;
+  animation: none;
 }
 .pet-sprite.opponent { background: radial-gradient(circle, rgba(248,81,73,0.1) 0%, transparent 70%); }
 .pet-sprite.player { background: radial-gradient(circle, rgba(88,166,255,0.1) 0%, transparent 70%); }
-.pet-sprite.hit { animation: shake 0.5s ease; }
+.pet-sprite.hit { animation: battleHit var(--motion-panel) ease; }
+.pet-sprite.pet-enter { animation: petEnter var(--motion-panel) var(--ease-enter); }
+@keyframes battleHit { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+@keyframes petEnter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .pet-sprite::after { content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:96px; height:14px; border-radius:50%; background:radial-gradient(ellipse, rgba(226,176,74,0.30) 0%, transparent 72%); filter:blur(3px); pointer-events:none; }
 .pet-sprite.fainted { animation: faintOut 1.2s ease forwards; }
 
@@ -299,8 +303,8 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .pet-info-element { font-size: 12px; padding: 3px 10px; border-radius: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); }
 
 .hp-bar-outer { width: 100%; height: 14px; background: #1a1f2a; border-radius: 7px; overflow: hidden; position: relative; margin-top: 4px; border: 2px solid #3a3440; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
-.hp-bar-inner { height: 100%; border-radius: 5px; transition: width 0.6s ease; position: relative; z-index: 1; }
-.hp-bar-ghost { position: absolute; top:0; bottom:0; left:0; background: rgba(255,255,255,0.25); border-radius: 5px; transition: width 1.2s ease 0.3s; z-index: 0; }
+.hp-bar-inner { height: 100%; border-radius: 5px; transition: width var(--motion-hp) ease; position: relative; z-index: 1; }
+.hp-bar-ghost { position: absolute; top:0; bottom:0; left:0; background: rgba(255,255,255,0.25); border-radius: 5px; transition: width var(--motion-ghost) ease var(--motion-ghost-delay); z-index: 0; }
 .hp-bar-inner::after { content:''; position:absolute; top:0;left:0;right:0;height:40%; background:rgba(255,255,255,0.2); border-radius:5px 5px 0 0; }
 .hp-bar-inner { background: var(--hp-green); }
 .hp-bar-inner.low { background: var(--hp-yellow); }
@@ -308,7 +312,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 
 .shield-value { font-size: 12px; color: var(--shield-color); text-align: right; margin-top: 2px; font-weight: 700; letter-spacing: 0.5px; }
 .shield-bar-outer { width: 100%; height: 8px; background: #1a1f2a; border-radius: 4px; overflow: hidden; margin-top: 3px; border: 1px solid #3a3440; }
-.shield-bar-inner { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #58a6ff, #79c0ff); transition: width 0.4s ease; box-shadow: 0 0 8px rgba(88,166,255,0.3); }
+.shield-bar-inner { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #58a6ff, #79c0ff); transition: width var(--motion-hp) ease; box-shadow: 0 0 8px rgba(88,166,255,0.3); }
 
 .hp-text { font-size: 12px; color: var(--text2); text-align: right; margin-top: 3px; font-weight: 600; letter-spacing: 0.5px; }
 .marks-display { font-size: 12px; color: var(--gold); margin-top: 2px; }
@@ -341,7 +345,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
               linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08)) border-box;
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
-.skill-btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.4); border-color: rgba(240,114,90,0.6); }
+@media (hover: hover) { .skill-btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.4); border-color: rgba(240,114,90,0.6); } }
 .skill-btn.no-pp { opacity: 0.25; pointer-events: none; }
 
 .skill-btn-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; }
@@ -363,12 +367,12 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .skill-btn-body .pp-empty { color: var(--hp-red); font-weight: 700; }
 
 .action-btn { padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s ease; text-align: center; }
-.action-btn:hover { border-color: var(--gold); background: rgba(226,176,74,0.1); transform: scale(1.02); }
+@media (hover: hover) { .action-btn:hover { border-color: var(--gold); background: rgba(226,176,74,0.1); transform: scale(1.02); } }
 
 .switch-panel { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(10,14,20,0.85); backdrop-filter: blur(20px) saturate(140%); -webkit-backdrop-filter: blur(20px) saturate(140%); border-top: 1px solid rgba(255,255,255,0.1); padding: 20px; display: none; flex-direction: column; gap: 10px; z-index: 10; animation: screenIn 0.25s ease; max-height: 60vh; overflow-y: auto; }
 .switch-panel.show { display: flex; }
 .switch-pet-btn { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.2s ease; font-size: 14px; }
-.switch-pet-btn:hover { border-color: var(--accent); background: var(--surface2); transform: scale(1.02); }
+@media (hover: hover) { .switch-pet-btn:hover { border-color: var(--accent); background: var(--surface2); transform: scale(1.02); } }
 .switch-pet-btn.fainted { opacity: 0.35; }
 .switch-pet-btn .switch-emoji { font-size: 26px; }
 
@@ -383,16 +387,16 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   padding: 14px; display: flex; align-items: center; gap: 14px;
   transition: all 0.2s ease;
 }
-.mgmt-item:hover { border-color: var(--accent); transform: translateX(4px); box-shadow: var(--shadow); }
+@media (hover: hover) { .mgmt-item:hover { border-color: var(--accent); transform: translateX(4px); box-shadow: var(--shadow); } }
 .mgmt-item-emoji { font-size: 34px; min-width: 44px; text-align: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
 .mgmt-item-info { flex: 1; }
 .mgmt-item-name { font-weight: 700; font-size: 15px; }
 .mgmt-item-detail { font-size: 12px; color: var(--text2); margin-top: 3px; }
 .mgmt-item-actions { display: flex; gap: 8px; }
 .mgmt-item-actions button { padding: 6px 12px; min-height: 40px; min-width: 64px; border-radius: 8px; border: 2px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; font-size: 12px; transition: all 0.2s ease; }
-.mgmt-item-actions button:hover { border-color: var(--accent); transform: scale(1.05); }
+@media (hover: hover) { .mgmt-item-actions button:hover { border-color: var(--accent); transform: scale(1.05); } }
 .add-btn { padding: 16px; border: 2px dashed var(--border); border-radius: var(--radius); background: transparent; color: var(--text2); cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s ease; text-align: center; }
-.add-btn:hover { border-color: var(--accent); color: var(--accent); }
+@media (hover: hover) { .add-btn:hover { border-color: var(--accent); color: var(--accent); } }
 
 /* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
@@ -422,15 +426,15 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 /* Skill swap */
 .skill-swap-list { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; }
 .skill-swap-item { display: flex; align-items: center; gap: 10px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; transition: all 0.2s ease; }
-.skill-swap-item:hover { border-color: var(--gold); transform: scale(1.02); }
+@media (hover: hover) { .skill-swap-item:hover { border-color: var(--gold); transform: scale(1.02); } }
 .skill-swap-item.equipped { border-color: var(--green); background: rgba(63,185,80,0.08); }
 .skill-swap-item .skill-slot { font-size: 13px; color: var(--text2); min-width: 22px; }
 .swap-move { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; color: var(--text2); font-size: 12px; padding: 2px 6px; cursor: pointer; line-height: 1.2; }
-.swap-move:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+@media (hover: hover) { .swap-move:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); } }
 .swap-move:disabled { opacity: 0.35; cursor: default; }
 .skill-swap-item .swap-info { margin-left: auto; font-size: 12px; color: var(--text2); }
 .swap-move { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; color: var(--text2); font-size: 12px; padding: 2px 6px; cursor: pointer; line-height: 1.2; }
-.swap-move:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+@media (hover: hover) { .swap-move:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); } }
 .swap-move:disabled { opacity: 0.35; cursor: default; }
 .skill-swap-item .swap-info { margin-left: auto; font-size: 12px; color: var(--text2); }
 .pet-detail-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 18px; margin: 8px 0; }
@@ -447,7 +451,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+@media (hover: hover) { ::-webkit-scrollbar-thumb:hover { background: var(--text2); } }
 
 /* ===== 电脑端宽屏：左右对战布局 ===== */
 /* ===== 横屏战斗布局 ===== */
@@ -457,7 +461,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   background:rgba(248,81,73,0.15); border:1px solid rgba(248,81,73,0.45); color:#f85149;
   transition:all 0.2s ease;
 }
-.flee-btn:hover { background:rgba(248,81,73,0.3); transform:scale(1.05); }
+@media (hover: hover) { .flee-btn:hover { background:rgba(248,81,73,0.3); transform:scale(1.05); } }
 .battle-weather {
   position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
   display:flex; gap:8px; align-items:center;
@@ -514,12 +518,12 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 }
 
 /* ===== 伤害飘字 ===== */
-.float-text { position:absolute; top:-8px; left:50%; font-size:22px; font-weight:900; pointer-events:none; z-index:60; text-shadow:0 2px 6px rgba(0,0,0,0.6); animation:floatUp 1s ease-out forwards; white-space:nowrap; }
+.float-text { position:absolute; top:-8px; left:50%; font-size:22px; font-weight:900; pointer-events:none; z-index:60; text-shadow:0 2px 6px rgba(0,0,0,0.6); animation:floatUp var(--motion-float) ease-out forwards; white-space:nowrap; }
 @keyframes floatUp { 0%{opacity:0; transform:translate(-50%,12px) scale(0.7);} 15%{opacity:1; transform:translate(-50%,0) scale(1.15);} 100%{opacity:0; transform:translate(-50%,-46px) scale(1);} }
 /* ===== 技能释放反馈 ===== */
-.skill-btn.pressed { animation:btnPulse 0.3s ease; }
+.skill-btn.pressed { animation:btnPulse var(--motion-fast) ease; }
 .skill-btn.selected { border-color:var(--gold) !important; box-shadow:0 0 14px rgba(226,176,74,0.55) !important; }
-@keyframes btnPulse { 0%{transform:scale(1);} 50%{transform:scale(0.93);} 100%{transform:scale(1);} }
+@keyframes btnPulse { 0%{transform:scale(1);} 50%{transform:scale(.985);} 100%{transform:scale(1);} }
 /* ===== 换宠面板卡片化 ===== */
 .switch-pet-btn { flex-direction:row; align-items:center; }
 .switch-pet-info { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
@@ -599,19 +603,19 @@ textarea:focus-visible, [tabindex]:focus-visible {
 }
 button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: none !important; box-shadow: none !important; }
 .btn { min-height: 48px; border-radius: 11px; padding: 13px 22px; letter-spacing: .3px; font-size: 14px; }
-.btn:hover { transform: translateY(-2px); }
-.btn:active { transform: translateY(0); }
+@media (hover: hover) { .btn:hover { transform: translateY(-2px); } }
+.btn:active:not(:disabled) { transform: scale(.985); }
 .btn-primary { color: #17202b; background: linear-gradient(110deg, #e4c994, #cda86c); border: 1px solid #e8d3aa; box-shadow: 0 6px 18px rgba(157, 117, 48, .13); }
-.btn-primary:hover { box-shadow: 0 8px 24px rgba(157, 117, 48, .2); }
+@media (hover: hover) { .btn-primary:hover { box-shadow: 0 8px 24px rgba(157, 117, 48, .2); } }
 .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
-.btn-secondary:hover { border-color: var(--accent); background: var(--surface2); }
+@media (hover: hover) { .btn-secondary:hover { border-color: var(--accent); background: var(--surface2); } }
 .btn-danger { background: var(--hp-red); color: #111b29; border: 1px solid transparent; }
 [data-theme="light"] .btn-danger { color: #fff; }
 .screen-header { gap: 16px; padding: 0 64px 20px 0; margin-bottom: 28px; border-color: var(--border); }
 .screen-title { font-size: clamp(18px, 2vw, 24px); letter-spacing: .5px; }
 .screen-header .back-btn { width: 40px; height: 40px; flex: 0 0 40px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); }
 .settings-btn { width: 42px; height: 42px; bottom: 20px; right: 20px; border-radius: 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
-.settings-btn:hover { transform: translateY(-2px); }
+@media (hover: hover) { .settings-btn:hover { transform: translateY(-2px); } }
 
 /* Menu: one quiet brand stage, one clear primary action. */
 .menu-screen-bg, [data-theme="light"] .menu-screen-bg {
@@ -654,7 +658,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .menu-buttons .btn-primary .menu-action-detail { color: #3d493f; }
 .menu-action-arrow { font-size: 22px; font-weight: 400; color: var(--gold); transition: transform .2s ease; }
 .menu-buttons .btn-primary .menu-action-arrow { color: #17202b; }
-.menu-buttons .btn:hover .menu-action-arrow { transform: translateX(3px); }
+@media (hover: hover) { .menu-buttons .btn:hover .menu-action-arrow { transform: translateX(3px); } }
 .menu-footer { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); }
 .menu-library-counts { display: flex; gap: 28px; flex-wrap: wrap; }
 .menu-library-counts strong { margin-right: 8px; font-size: 19px; font-weight: 500; color: var(--gold); font-variant-numeric: tabular-nums; }
@@ -663,7 +667,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 /* Selection, management and loadout screens. */
 .pet-grid, .pet-grid:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; align-content: start; flex: none; overflow: visible; padding: 4px 0 24px; }
 .pet-card { background: var(--surface); min-width: 0; min-height: 205px; padding: 26px 16px; border: 1px solid var(--border); border-radius: 16px; box-shadow: none; }
-.pet-card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: var(--shadow); }
+@media (hover: hover) { .pet-card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: var(--shadow); } }
 .pet-card.selected { border-color: var(--gold); background: var(--ui-gold-soft); box-shadow: inset 0 0 0 1px var(--gold); animation: none; outline: none; }
 .pet-card-emoji { font-size: 52px; margin: 8px 0 18px; line-height: 1.15; }
 .pet-card-name { font-size: 17px; overflow-wrap: anywhere; }
@@ -676,20 +680,20 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .mgmt-tab.active { border-color: var(--accent); background: var(--ui-teal-soft); color: var(--accent); }
 .mgmt-list { flex: none; overflow: visible; justify-content: flex-start; gap: 10px; padding: 0 0 22px; }
 .mgmt-item { background: var(--surface); border: 1px solid var(--border); padding: 18px 20px; gap: 18px; }
-.mgmt-item:hover { transform: none; border-color: var(--accent); box-shadow: none; }
+@media (hover: hover) { .mgmt-item:hover { transform: none; border-color: var(--accent); box-shadow: none; } }
 .mgmt-item-info { min-width: 0; overflow-wrap: anywhere; }
 .mgmt-item-name { font-size: 15px; line-height: 1.65; }
 .mgmt-item-detail { font-size: 12px; line-height: 1.75; }
 .mgmt-item-emoji { filter: none; font-size: 32px; }
 .mgmt-item-actions { flex: 0 0 auto; }
 .mgmt-item-actions button { border-width: 1px; min-height: 36px; }
-.mgmt-item-actions button:hover { transform: none; }
+@media (hover: hover) { .mgmt-item-actions button:hover { transform: none; } }
 .add-btn { border-width: 1px; min-height: 56px; background: var(--ui-soft); }
 .pet-detail-card { margin: 0; border-width: 1px; padding: 24px; }
 .pet-detail-card h3 { text-align: left; font-size: 19px; margin-bottom: 20px; }
 .skill-swap-list { overflow: visible; gap: 8px; }
 .skill-swap-item { min-width: 0; flex-wrap: wrap; border-width: 1px; border-radius: 10px; padding: 12px 14px; }
-.skill-swap-item:hover { transform: none; background: var(--surface2); }
+@media (hover: hover) { .skill-swap-item:hover { transform: none; background: var(--surface2); } }
 .skill-swap-item.equipped { border-color: var(--accent); background: var(--ui-teal-soft); }
 .skill-swap-item .skill-slot { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; border-radius: 6px; background: var(--ui-soft); color: var(--text2); }
 .skill-swap-item.equipped .skill-slot { color: var(--accent); }
@@ -697,7 +701,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .swap-move { min-height: 30px; min-width: 30px; padding: 3px 5px; border-radius: 6px; }
 .skill-swap-item .swap-info { white-space: normal; }
 .swap-item-main { display: flex; flex: 1 1 180px; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; padding: 4px 2px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
-.swap-item-main:hover:not(:disabled) { color: var(--gold); }
+@media (hover: hover) { .swap-item-main:hover:not(:disabled) { color: var(--gold); } }
 .swap-item-main > * { min-width: 0; }
 .skill-swap-item .swap-move-group { flex: 0 0 auto; }
 .swap-section-label { margin: 20px 0 10px; color: var(--text2); font-size: 12px; font-weight: 600; letter-spacing: 1px; }
@@ -717,7 +721,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .w-item.has-field { color: var(--shield-color); background: var(--ui-soft); border-color: var(--border); box-shadow: none; }
 .w-icon { font-size: 17px; }
 .flee-btn { margin-left: auto; padding: 8px 13px; background: transparent; color: var(--hp-red); border-color: var(--border); border-radius: 9px; }
-.flee-btn:hover { transform: none; background: var(--ui-soft); border-color: var(--hp-red); }
+@media (hover: hover) { .flee-btn:hover { transform: none; background: var(--ui-soft); border-color: var(--hp-red); } }
 .battle-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); gap: 16px; flex: none; align-items: center; padding: 4px 0 10px; }
 .battle-side { min-width: 0; gap: 16px; align-items: center; }
 .player-side { order: 1; }
@@ -752,7 +756,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .battle-messages .msg:last-child { color: var(--text); background: var(--ui-gold-soft); padding: 6px 8px; border-radius: 6px; }
 .battle-actions, .battle-panel .battle-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; }
 .skill-btn { min-width: 0; min-height: 78px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: none; }
-.skill-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--gold); box-shadow: 0 5px 16px rgba(0, 0, 0, .1); }
+@media (hover: hover) { .skill-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--gold); box-shadow: 0 5px 16px rgba(0, 0, 0, .1); } }
 .skill-btn.selected { box-shadow: inset 0 0 0 1px var(--gold) !important; }
 .skill-btn.no-pp { opacity: .42; }
 .skill-btn-header { padding: 11px 12px 3px; gap: 8px; }
@@ -769,11 +773,11 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 [data-theme="light"] .pet-info-element, [data-theme="light"] .skill-swap-item > span[style*="color"],
 [data-theme="light"] .swap-item-main span[style*="color"] { color: var(--text) !important; }
 .action-btn { min-height: 78px; border-width: 1px; border-radius: 12px; background: var(--ui-soft); }
-.action-btn:hover:not(:disabled) { transform: translateY(-2px); background: var(--ui-gold-soft); }
+@media (hover: hover) { .action-btn:hover:not(:disabled) { transform: translateY(-2px); background: var(--ui-gold-soft); } }
 .switch-panel, [data-theme="light"] .switch-panel { position: fixed; left: 50%; bottom: 20px; right: auto; transform: translateX(-50%); width: min(640px, calc(100% - 32px)); max-height: min(70svh, 640px); padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 20px 80px rgba(0, 0, 0, .4); animation: none; z-index: 80; }
 #switch-list { display: grid; gap: 8px; }
 .switch-pet-btn { width: 100%; border-width: 1px; background: var(--ui-soft); border-radius: 11px; }
-.switch-pet-btn:hover:not(:disabled) { transform: none; }
+@media (hover: hover) { .switch-pet-btn:hover:not(:disabled) { transform: none; } }
 
 /* Forms and settings share the same surfaces in both themes. */
 .modal-overlay { padding: 20px; background: var(--ui-overlay); backdrop-filter: blur(8px); }
@@ -791,7 +795,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .settings-section-title { color: var(--text2); border-color: var(--border); padding: 0 0 12px; margin-bottom: 16px; }
 .font-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .font-option { min-height: 76px; background: var(--surface); border-color: var(--border); }
-.font-option:hover { transform: translateY(-2px); background: var(--ui-gold-soft); }
+@media (hover: hover) { .font-option:hover { transform: translateY(-2px); background: var(--ui-gold-soft); } }
 .font-option.active { background: var(--ui-gold-soft); color: var(--gold); border-color: var(--gold); box-shadow: none; }
 .result-overlay { padding: 28px; background: var(--ui-overlay); }
 .result-text { font-size: clamp(26px, 5vw, 38px); }
@@ -887,6 +891,11 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: .01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important; }
 }
 
+.swap-enter { animation: petEnter var(--motion-panel) var(--ease-enter); }
+.btn, .skill-btn, .action-btn, .switch-pet-btn { transition-duration: var(--motion-fast); }
+button:active:not(:disabled) { transform: scale(.985); }
+@media (hover: hover) { .btn:hover, .skill-btn:hover:not(:disabled), .action-btn:hover:not(:disabled), .switch-pet-btn:hover:not(:disabled), .pet-card:hover { transform: none; } }
+.btn:active:not(:disabled), .skill-btn:active:not(:disabled), .action-btn:active:not(:disabled), .switch-pet-btn:active:not(:disabled), .pet-card:active:not(:disabled) { transform: scale(.985); }
 /* 弹层退出只影响视觉，不推迟业务结算。 */
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -3066,7 +3075,7 @@ function renderBattleLog() {
     out += '<div class="msg ' + type + ' side-' + side + (hidden ? " collapsed" : "") + '">' + badge + '<span class="msg-text">' + decorateMessage(m.text) + '</span></div>';
   });
   if (!out) out = '<div class="msg system"><span class="msg-side"></span><span class="msg-text">暂无记录</span></div>';
-  msgs.innerHTML = out;
+  setMarkupIfChanged(msgs, out);
   if (atBottom) msgs.scrollTop = msgs.scrollHeight; else msgs.scrollTop = prevTop;
   if (jump) jump.hidden = atBottom;
   Array.prototype.forEach.call(document.querySelectorAll(".log-tab"), function(b) {
@@ -3111,17 +3120,44 @@ function addMessage(msg, type, side) {
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+var battleVisualTasks = [];
+function clearBattleVisualTasks() { battleVisualTasks.slice().forEach(function(finish) { finish(); }); }
+function battleVisualTask(node, duration, cleanup) {
+  var done = false, timer, media = typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function finish() {
+    if (done) return; done = true; clearTimeout(timer);
+    if (media && media.removeEventListener) media.removeEventListener("change", changed);
+    else if (media && media.removeListener) media.removeListener(changed);
+    battleVisualTasks = battleVisualTasks.filter(function(task) { return task !== finish; }); cleanup();
+  }
+  function changed(e) { if (e.matches) finish(); }
+  if (prefersReducedMotion() || node.isConnected === false) { finish(); return finish; }
+  battleVisualTasks.push(finish);
+  if (media && media.addEventListener) media.addEventListener("change", changed);
+  else if (media && media.addListener) media.addListener(changed);
+  timer = setTimeout(finish, duration);
+  return finish;
+}
 function spawnFloatText(pet, text, type) {
-  var spriteId = (gameState.playerActive === pet) ? "#player-sprite" : "#ai-sprite";
+  var spriteId = pet === gameState.playerActive ? "#player-sprite" : pet === gameState.aiActive ? "#ai-sprite" : null;
+  if (!spriteId) return;
   var sprite = document.querySelector(spriteId);
   if (!sprite) return;
+  syncBattleIdentity(spriteId === "#player-sprite" ? "player" : "ai", pet);
+  if (prefersReducedMotion()) return;
+  if (type === "dmg") {
+    if (sprite.finishHit) sprite.finishHit();
+    sprite.classList.remove("hit", "pet-enter"); void sprite.offsetWidth; sprite.classList.add("hit");
+    var active = true;
+    sprite.finishHit = function() { if (active) { active = false; sprite.classList.remove("hit"); } };
+    var finishHit = sprite.finishHit;
+    battleVisualTask(sprite, motionDuration("--motion-panel", 180), finishHit);
+  }
   var colors = { dmg:"#ff4757", heal:"#2ed573", shield:"#4dc9f6" };
   var el = document.createElement("div");
-  el.className = "float-text";
-  el.textContent = (type === "dmg" ? "-" : "+") + text;
-  el.style.color = colors[type] || "#fff";
-  sprite.appendChild(el);
-  setTimeout(function(){ el.remove(); }, 1000);
+  el.className = "float-text"; el.textContent = (type === "dmg" ? "-" : "+") + text;
+  el.style.color = colors[type] || "#fff"; sprite.appendChild(el);
+  battleVisualTask(el, motionDuration("--motion-float", 700), function() { el.remove(); });
 }
 
 // ---------- TURN SYSTEM V4: 先手值优先级 ----------
@@ -3524,11 +3560,6 @@ function executeSkillTurn(user, target, skill, who) {
     user.bloodline.onSkillUse(user, target, ctxAfter, skill);
   }
 
-  // 受击动画
-  var spriteId = isPlayer ? "#ai-sprite" : "#player-sprite";
-  var sprite = document.querySelector(spriteId);
-  if (sprite) { sprite.classList.add("hit"); setTimeout(function() { sprite.classList.remove("hit"); }, 400); }
-  
   updateBattleUI();
   checkFaints();
 }
@@ -3587,15 +3618,73 @@ function checkFaints() {
 function endBattle(playerWin) { gameState.battleOver = true; stopTurnTimer(); document.querySelector("#result-overlay").classList.add("show"); document.querySelector("#result-emoji").textContent = playerWin ? "\u{1F3C6}" : "\u{1F494}"; document.querySelector("#result-text").textContent = playerWin ? "你赢了！" : "你输了..."; document.querySelector("#result-text").className = "result-text " + (playerWin ? "win" : "lose"); var act = document.querySelector("#battle-actions"); if (act) act.innerHTML = ""; }
 
 // ---------- BATTLE UI ----------
+var battleVisual = { battleId: null, player: null, ai: null, skillScroll: 0 };
+function resetBattleVisual() { clearBattleVisualTasks(); battleVisual = { battleId: null, player: null, ai: null, skillScroll: 0 }; }
+function hpPercent(pet) { return Math.max(0, Math.min(100, (pet.hp / pet.maxHp) * 100)); }
+function setMarkupIfChanged(el, html) { if (el && el.visualMarkup !== html) { el.innerHTML = html; el.visualMarkup = html; } }
+function enterBattleSprite(sprite) {
+  if (sprite.finishEnter) sprite.finishEnter();
+  if (prefersReducedMotion()) return;
+  sprite.classList.remove("pet-enter"); void sprite.offsetWidth; sprite.classList.add("pet-enter");
+  sprite.finishEnter = battleVisualTask(sprite, motionDuration("--motion-panel", 180), function() { sprite.classList.remove("pet-enter"); sprite.finishEnter = null; });
+}
+function syncBattleIdentity(side, pet) {
+  var sprite = document.querySelector("#" + side + "-sprite"), info = document.querySelector("#" + side + "-info");
+  if (!sprite || sprite.visualPet === pet) return;
+  var changed = sprite.visualPet !== undefined;
+  if (sprite.finishHit) sprite.finishHit();
+  if (sprite.finishEnter) sprite.finishEnter();
+  sprite.classList.remove("hit", "pet-enter"); sprite.textContent = pet.emoji;
+  sprite.visualPet = pet;
+  var el = ELEMENTS[pet.element], name = info && info.querySelector(".pet-info-name");
+  var level = info && info.querySelector(".pet-info-lv"), element = info && info.querySelector(".pet-info-element");
+  if (name) name.textContent = pet.name;
+  if (level) level.textContent = "Lv." + pet.level;
+  if (info && el) info.style.borderLeft = "3px solid " + el.color;
+  if (element && el) { element.style.background = el.bg; element.style.color = el.color; element.innerHTML = elemIcon(pet.element) + el.name; }
+  if (changed) enterBattleSprite(sprite);
+}
+function updateBattleSide(side, pet) {
+  var bar = document.querySelector("#" + side + "-hp-bar");
+  if (!pet || !bar) return;
+  syncBattleIdentity(side, pet);
+  var ghost = bar.parentNode.querySelector(".hp-bar-ghost"), text = document.querySelector("#" + side + "-hp-text");
+  var shield = document.querySelector("#" + side + "-shield"), marks = document.querySelector("#" + side + "-marks"), status = document.querySelector("#" + side + "-status");
+  var pct = hpPercent(pet), previous = battleVisual[side], fresh = !previous || previous.pet !== pet;
+  if (!ghost) { ghost = document.createElement("div"); ghost.className = "hp-bar-ghost"; ghost.style.width = pct + "%"; bar.parentNode.insertBefore(ghost, bar); }
+  if (fresh) { bar.style.transition = "none"; ghost.style.transition = "none"; bar.style.width = pct + "%"; ghost.style.width = pct + "%"; void bar.offsetWidth; bar.style.transition = ""; ghost.style.transition = ""; }
+  else if (pct !== previous.hp) {
+    if (pct > previous.hp || prefersReducedMotion()) { ghost.style.transition = "none"; ghost.style.width = pct + "%"; void ghost.offsetWidth; ghost.style.transition = ""; }
+    else ghost.style.width = pct + "%";
+    bar.style.width = pct + "%";
+  }
+  bar.className = "hp-bar-inner" + (pct < 25 ? " critical" : pct < 50 ? " low" : "");
+  if (text) text.textContent = pet.hp + "/" + pet.maxHp;
+  if (shield) {
+    var shieldPct = Math.min(100, pet.shield / pet.maxHp * 100);
+    var fill = shield.querySelector(".shield-bar-inner");
+    if (pet.shield > 0) {
+      if (shield.finishShield) { shield.finishShield(); shield.finishShield = null; fill = shield.querySelector(".shield-bar-inner"); }
+      if (!fill) { shield.innerHTML = '<div class="shield-bar-outer"><div class="shield-bar-inner"></div></div><div class="shield-value"></div>'; fill = shield.querySelector(".shield-bar-inner"); if (fill) fill.style.width = Math.min(100, pet.shield / pet.maxHp * 100) + "%"; }
+      else if (fresh) { fill.style.transition = "none"; fill.style.width = shieldPct + "%"; void fill.offsetWidth; fill.style.transition = ""; }
+      else if (previous.shieldPct !== shieldPct) fill.style.width = shieldPct + "%";
+      var value = shield.querySelector(".shield-value"); if (value) value.textContent = "🛡️" + pet.shield;
+    } else if (fill && fresh) { shield.innerHTML = ""; }
+    else if (fill && previous && previous.shield > 0) {
+      fill.style.width = "0%";
+      var shieldValue = shield.querySelector(".shield-value"); if (shieldValue) shieldValue.textContent = "";
+      shield.finishShield = battleVisualTask(shield, motionDuration("--motion-hp", 280), function() { shield.innerHTML = ""; shield.finishShield = null; });
+    }
+  }
+  if (marks) marks.textContent = Object.keys(pet.marks).length > 0 ? Object.entries(pet.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : "";
+  setMarkupIfChanged(status, renderStatusBadges(pet));
+  battleVisual[side] = { pet: pet, hp: pct, shield: pet.shield, shieldPct: Math.min(100, pet.shield / pet.maxHp * 100) };
+}
 function updateBattleUI() {
   var p = gameState.playerActive, a = gameState.aiActive;
-  var pHpBar = document.querySelector("#player-hp-bar"), pHpText = document.querySelector("#player-hp-text");
-  var pShield = document.querySelector("#player-shield"), pMarks = document.querySelector("#player-marks"), pStatus = document.querySelector("#player-status");
-  var aHpBar = document.querySelector("#ai-hp-bar"), aHpText = document.querySelector("#ai-hp-text");
-  var aShield = document.querySelector("#ai-shield"), aMarks = document.querySelector("#ai-marks"), aStatus = document.querySelector("#ai-status");
+  if (battleVisual.battleId !== gameState.battleId) { resetBattleVisual(); battleVisual.battleId = gameState.battleId; }
+  updateBattleSide("player", p); updateBattleSide("ai", a);
   var msgs = document.querySelector("#battle-messages");
-  if (p && pHpBar) { var pct = Math.max(0, (p.hp / p.maxHp) * 100); if (!pHpBar.parentNode.querySelector('.hp-bar-ghost')) { var gh = document.createElement('div'); gh.className = 'hp-bar-ghost'; gh.style.width = pct + '%'; pHpBar.parentNode.insertBefore(gh, pHpBar); } else { pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width = Math.max(pct, (pHpBar.parentNode.querySelector('.hp-bar-ghost').style.width||'100%').replace('%','')) + '%'; } pHpBar.style.width = pct + "%"; pHpBar.className = "hp-bar-inner" + (pct < 25 ? " critical" : pct < 50 ? " low" : ""); pHpText.textContent = p.hp + "/" + p.maxHp; if (pShield) pShield.innerHTML = p.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (p.shield / p.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + p.shield + "</div>" : ""; if (pMarks) pMarks.textContent = Object.keys(p.marks).length > 0 ? Object.entries(p.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; pStatus.innerHTML = renderStatusBadges(p); }
-  if (a && aHpBar) { var pct2 = Math.max(0, (a.hp / a.maxHp) * 100); aHpBar.style.width = pct2 + "%"; aHpBar.className = "hp-bar-inner" + (pct2 < 25 ? " critical" : pct2 < 50 ? " low" : ""); aHpText.textContent = a.hp + "/" + a.maxHp; if (aShield) aShield.innerHTML = a.shield > 0 ? "<div class=shield-bar-outer><div class=shield-bar-inner style=width:" + Math.min(100, (a.shield / a.maxHp) * 100) + "%></div></div><div class=shield-value>🛡️" + a.shield + "</div>" : ""; if (aMarks) aMarks.textContent = Object.keys(a.marks).length > 0 ? Object.entries(a.marks).map(function(e) { return e[0] + ":" + e[1]; }).join(" ") : ""; aStatus.innerHTML = renderStatusBadges(a); }
   if (msgs) renderBattleLog();
   // 天气/环境显示
   var wEl = document.querySelector("#battle-weather");
@@ -3750,6 +3839,7 @@ function showScreen(id) {
   }
   ["skill-detail-overlay", "modal-overlay", "flee-overlay"].forEach(removeBodyLayer);
   ["switch-panel", "result-overlay"].forEach(function(key) { var layer = document.getElementById(key); if (layer && layer.closeLayer) layer.closeLayer(true); });
+  if (previous === "battle" && id !== "battle") resetBattleVisual();
   gameState.screen = id; app.innerHTML = "";
   switch(id) { case "intro": renderIntro(app); break; case "menu": renderMenu(app); break; case "team": renderTeamSelect(app); break; case "battle": renderBattle(app); break; case "pets": renderPetManagement(app); break; case "opponent": renderOpponentSelect(app); break; case "skillswap": renderSkillSwap(app); break; case "settings": renderSettings(app); break; }
   if (changed && id !== "intro" && previous !== "intro") {
@@ -3891,8 +3981,29 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   addMessage("━━━ 战斗开始 ━━━", "turn");
   showScreen("battle"); }
 
+function displayedPercent(node, fallback) {
+  if (!node) return fallback;
+  if (typeof window !== "undefined" && window.getComputedStyle && node.parentNode && node.parentNode.getBoundingClientRect) {
+    var width = node.parentNode.getBoundingClientRect().width, current = parseFloat(window.getComputedStyle(node).width);
+    if (width > 0 && isFinite(current)) return Math.max(0, Math.min(100, current / width * 100));
+  }
+  var value = parseFloat(node.style.width); return isFinite(value) ? value : fallback;
+}
 function renderBattle(app) {
   var p = gameState.playerActive, a = gameState.aiActive;
+  var sameBattle = battleVisual.battleId === gameState.battleId;
+  if (!sameBattle) { resetBattleVisual(); battleVisual.battleId = gameState.battleId; }
+  var oldSkills = sameBattle && document.querySelector(".battle-skill-list"); if (oldSkills) battleVisual.skillScroll = oldSkills.scrollLeft;
+  var previousPlayer = sameBattle && battleVisual.player && battleVisual.player.pet === p;
+  var previousAi = sameBattle && battleVisual.ai && battleVisual.ai.pet === a;
+  var oldLog = sameBattle && document.querySelector("#battle-messages"), logTop = oldLog && oldLog.scrollTop;
+  var logBottom = !oldLog || oldLog.scrollHeight - oldLog.scrollTop - oldLog.clientHeight < 40;
+  var pBar = document.querySelector("#player-hp-bar"), aBar = document.querySelector("#ai-hp-bar");
+  var pStart = previousPlayer ? displayedPercent(pBar, hpPercent(p)) : hpPercent(p);
+  var aStart = previousAi ? displayedPercent(aBar, hpPercent(a)) : hpPercent(a);
+  var pGhost = previousPlayer && pBar ? displayedPercent(pBar.parentNode.querySelector(".hp-bar-ghost"), pStart) : pStart;
+  var aGhost = previousAi && aBar ? displayedPercent(aBar.parentNode.querySelector(".hp-bar-ghost"), aStart) : aStart;
+  clearBattleVisualTasks();
   var pEl = ELEMENTS[p.element], aEl = ELEMENTS[a.element];
   var html =
     '<div class="battle-bg screen active">' +
@@ -3909,7 +4020,7 @@ function renderBattle(app) {
         '<div class="pet-sprite player" id="player-sprite">' + p.emoji + '</div>' +
         '<div class="pet-info-card" id="player-info" style="border-left:3px solid ' + pEl.color + '">' +
           '<div class="pet-info-top"><span class="pet-info-name">' + p.name + '</span><span class="pet-info-lv">Lv.' + p.level + '</span><span class="pet-info-element" style="background:' + pEl.bg + ';color:' + pEl.color + '">' + elemIcon(p.element) + pEl.name + '</span></div>' +
-          '<div class="hp-bar-outer"><div class="hp-bar-inner" id="player-hp-bar" style="width:100%"></div></div>' +
+          '<div class="hp-bar-outer"><div class="hp-bar-ghost" style="width:' + pGhost + '%"></div><div class="hp-bar-inner" id="player-hp-bar" style="width:' + pStart + '%"></div></div>' +
           '<div id="player-shield"></div>' +
           '<div class="hp-text" id="player-hp-text">' + p.hp + '/' + p.maxHp + '</div>' +
           '<div class="marks-display" id="player-marks"></div>' +
@@ -3922,7 +4033,7 @@ function renderBattle(app) {
         '<div class="pet-sprite opponent" id="ai-sprite">' + a.emoji + '</div>' +
         '<div class="pet-info-card" id="ai-info" style="border-left:3px solid ' + aEl.color + '">' +
           '<div class="pet-info-top"><span class="pet-info-name">' + a.name + '</span><span class="pet-info-lv">Lv.' + a.level + '</span><span class="pet-info-element" style="background:' + aEl.bg + ';color:' + aEl.color + '">' + elemIcon(a.element) + aEl.name + '</span></div>' +
-          '<div class="hp-bar-outer"><div class="hp-bar-inner" id="ai-hp-bar" style="width:100%"></div></div>' +
+          '<div class="hp-bar-outer"><div class="hp-bar-ghost" style="width:' + aGhost + '%"></div><div class="hp-bar-inner" id="ai-hp-bar" style="width:' + aStart + '%"></div></div>' +
           '<div id="ai-shield"></div>' +
           '<div class="hp-text" id="ai-hp-text">' + a.hp + '/' + a.maxHp + '</div>' +
           '<div class="marks-display" id="ai-marks"></div>' +
@@ -3957,8 +4068,20 @@ function renderBattle(app) {
     gameState.logCollapsed[tn] = !gameState.logCollapsed[tn];
     updateBattleUI();
   });
+  if (previousPlayer && pStart !== hpPercent(p)) battleVisual.player.hp = pStart;
+  if (previousAi && aStart !== hpPercent(a)) battleVisual.ai.hp = aStart;
+  void app.offsetWidth;
   renderBattleActions();
   updateBattleUI();
+  if (previousPlayer && pGhost !== hpPercent(p)) { var pg = document.querySelector("#player-hp-bar").parentNode.querySelector(".hp-bar-ghost"); if (pg) pg.style.width = hpPercent(p) + "%"; }
+  if (previousAi && aGhost !== hpPercent(a)) { var ag = document.querySelector("#ai-hp-bar").parentNode.querySelector(".hp-bar-ghost"); if (ag) ag.style.width = hpPercent(a) + "%"; }
+  if (oldLog) { var newLog = document.querySelector("#battle-messages"); if (newLog) { newLog.scrollTop = logBottom ? newLog.scrollHeight : logTop; var jump = document.querySelector("#log-jump"); if (jump) jump.hidden = logBottom; } }
+  if (sameBattle && !prefersReducedMotion()) {
+    [previousPlayer ? null : "#player-sprite", previousAi ? null : "#ai-sprite"].forEach(function(selector) {
+      var sprite = selector && document.querySelector(selector);
+      if (sprite) enterBattleSprite(sprite);
+    });
+  }
   ["result-overlay", "switch-panel"].forEach(function(id) {
     var layer = document.getElementById(id);
     prepareLayer(layer, function() { layer.classList.remove("show", "closing"); });
@@ -3988,7 +4111,7 @@ function showFleeConfirm() {
   ov.addEventListener("click", function(e) { if (e.target === ov) cancel(); });
 }
 
-function renderBattleActions() { var container = document.querySelector("#battle-actions"); if (!container) return; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
+function renderBattleActions() { var container = document.querySelector("#battle-actions"); if (!container) return; var oldList = container.querySelector(".battle-skill-list"); if (oldList) battleVisual.skillScroll = oldList.scrollLeft; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
   if (gameState.switchPending) { container.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text2);font-size:14px\">换宠中…</div>"; return; }
   // 检查是否被控制（仅异常状态自动跳过；PP归零改为等待读秒）
   var allPPEmpty = player.skills.every(function(s){return s.pp<=0;});
@@ -4034,6 +4157,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
   else if (player.switchLocked) { swBtn.textContent = '🔒 换宠锁定'; swBtn.disabled = true; }
   else { swBtn.textContent = '↔ 换宠'; swBtn.addEventListener('click', showSwitchPanel); }
   utilities.appendChild(swBtn);
+  skillList.scrollLeft = battleVisual.skillScroll || 0;
 }
 
 function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
@@ -4117,6 +4241,8 @@ function openSkillSwap(pet, keepDraft) {
   var equippedIds = swapDraft.ids;
   var allSkills = ownedIds.map(function(id) { return findSkill(id); }).filter(Boolean);
   detail.style.display = "block";
+  detail.classList.remove("swap-enter");
+  if (!keepDraft && !prefersReducedMotion()) { void detail.offsetWidth; detail.classList.add("swap-enter"); }
   var html = '<div class="pet-detail-card"><h3>' + pet.emoji + ' ' + pet.name + ' 技能配置</h3><div class="skill-swap-list">';
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
