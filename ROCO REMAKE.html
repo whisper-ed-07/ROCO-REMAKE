@@ -993,6 +993,39 @@ body:has(#intro-screen) .settings-btn { visibility: hidden; }
   .swap-info-btn { grid-column: 3; grid-row: 1 / 4; }
 }
 
+
+/* ---------- 2026-11-11 前端收口 ---------- */
+.menu-header { padding: 30px 0 18px; }
+.menu-actions-area { padding: 6px 0 18px; }
+.menu-buttons .btn { min-height: 58px; padding: 13px 16px; }
+.menu-buttons .btn-primary { min-height: 72px; margin-bottom: 4px; }
+.menu-buttons .btn-primary .menu-action-title { font-size: 19px; }
+.battle-skill-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; overflow: visible; }
+.skill-card { min-width: 0; }
+.battle-actions .skill-btn { min-height: 92px; padding: 8px 9px 30px; }
+.battle-actions .skill-btn-name { font-size: 12px; line-height: 1.45; }
+.battle-actions .skill-btn-body { font-size: 10.5px; white-space: nowrap; }
+.skill-slot-label { left: 9px; bottom: 8px; font-size: 10px; }
+.skill-info { width: 30px; height: 30px; bottom: 4px; right: 4px; font-size: 12px; }
+.battle-log .battle-messages { height: 18vh; max-height: 18vh; min-height: 108px; }
+.log-tools { margin-bottom: 6px; }
+.battle-utility-list { margin-top: -2px; }
+@media (max-width: 700px) {
+  .menu-shell.screen.active { align-content: start; grid-template-rows: auto auto 1fr auto; }
+  .menu-header { align-self: start; padding: 16px 0 8px; }
+  .menu-actions-area { align-self: start; padding: 20px 0 12px; }
+  .menu-buttons .btn { min-height: 54px; }
+  .menu-buttons .btn-primary { min-height: 66px; }
+  .battle-skill-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .battle-actions .skill-btn { min-height: 112px; padding: 10px 9px 34px; }
+  .battle-side { gap: 10px; }
+  .battle-side .pet-sprite { width: 88px; height: 88px; font-size: 46px; }
+  .battle-log .battle-messages { height: 15vh; max-height: 15vh; min-height: 96px; }
+}
+@media (max-width: 380px) {
+  .battle-skill-list { display: flex; overflow-x: auto; }
+  .skill-card { flex: 1 0 112px; }
+}
 </style>
 </head>
 <body>
