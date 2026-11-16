@@ -75,7 +75,7 @@
 ## 4. 引擎约定
 
 - **ctx**：`doDamage / doFixedDamage / doHeal / addShield / applyStatus / fear / modifyStat / deletePP / restorePP / addTurnEffect / setWeather / setField / setDamageCap / setDamageReduction / invertHealing / msg`，以及 `playerActive/aiActive/playerParty/aiParty` getter。
-- **PP 恢复统一走 `gainPP(pet, skill, n)`**：自动跳过 `immuneToPP / noPPRecover / blockPPRecovery`。新代码不要直接写 `s.pp +=`。
+- **PP 恢复统一走 `gainPP(pet, skill, n)`**：只跳过 `noPPRecover / blockPPRecovery`；`immuneToPP` 只防删除，不防回复。新代码不要直接写 `s.pp +=`。
 - **删除 PP 走 `ctx.deletePP`**：跳过 `immuneToPP / ppLocked`。
 - **回合效果**：`addTurnEffect(target, name, turns, onTick, onExpire)`；onTick 在回合开始执行，`processTurnEffects` 先快照再清空，onTick 内注册的新效果会保留。
 - **回合管线**：`turnCount++` → 天气/环境伤害 → 重置回合统计 → `savePPState` → 血脉 onTurnStart → 烧伤/中毒/束缚/寄生 → 回合效果 → 先手判定 → `executeSkillTurn` ×2 → 不灭魂体结算 → UI → 濒死检查 → `tickEnvironments` → 保存本回合输出。
@@ -98,9 +98,9 @@
 
 ## 6. UI 约定
 
-- 出战技能最多 4 个（技能池可多于 4 个）；战斗技能栏横排 1→4（顺序即首格顺序），超宽横向滚动；局外技能更换用 ◀▶ 调整顺序。
+- 出战技能最多 4 个（技能池可多于 4 个）；战斗技能栏桌面 2×2、移动 1×4（顺序即首格顺序），极窄屏横向滚动；局外技能更换用 ◀▶ 调整顺序。
 - 技能详情：每张技能卡右下角 `i`，内容优先读 `skill.detail`，没有则回退 `desc`。
-- 战斗日志：独立滚动区（桌面 34vh、移动 20vh），`overscroll-behavior: contain`。
+- 战斗日志：独立滚动区（桌面 16–18vh、移动 15vh），`overscroll-behavior: contain`。
 - 启动页：logo 居中，点击淡出进入菜单；`renderIntro()`。
 - 文案全中文；消息统一 `ctx.msg` / `addMessage`。
 
