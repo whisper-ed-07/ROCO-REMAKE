@@ -358,3 +358,10 @@
 - 日志：桌面 18vh、移动 15vh，工具条与换宠行间距收紧。
 - 将此前追加的 6 段重复媒体查询合并为一段，未改 JavaScript、技能、数值与回合逻辑。
 - 验证：静态 0 错 0 警；核心 25/25；存档 3/3；前端交互与动效回归通过。
+
+## 2026-11-16 — [LCS] 修复三条机制根因（原文核对 P1）
+
+- `gainPP` 不再把 `immuneToPP` 当作“禁止回复”，只拦 `noPPRecover`；恢复万念俱灰/微灵封体/轻风散魂/清翎覆尘四处特殊回 PP。
+- 回合效果记录 `createdTurn`，本回合创建的效果不在本回合递减；`damageCapTurns/damageReductionTurns/healInvertTurns` 移到回合末递减，修复“1 回合减伤当场归零”。
+- `skillPPCostMult` 统一为固定额外消耗，不再多次 `+1` 叠加（封灵千噬/太虚威压/极影光幕）。
+- 验证：静态 0/0；core-regressions 全 PASS；regression-extras 6/6；矩阵 14 结束 / 2 到回合上限 / 0 卡死 / 0 异常。

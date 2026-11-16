@@ -1949,7 +1949,7 @@ const DEFAULT_SKILLS = [
         var firstZero = owner.skills[0] && owner.skills[0].pp <= 0;
         if (firstZero) ctx.doHeal(owner, 100);
         var opp = currentOpp(owner);
-        if (opp) opp.skillPPCostMult = (opp.skillPPCostMult || 1) + 1;
+        if (opp) opp.skillPPCostMult = 2;
         ctx.msg("封灵千噬每回合：+10微灵、100护盾" + (firstZero ? "、首格PP=0回100" : "") + "！");
       };
       var strike = function(owner) {
@@ -1962,8 +1962,8 @@ const DEFAULT_SKILLS = [
       u.statusImmunities = u.statusImmunities || [];
       flImms.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
       ctx.addTurnEffect(u, "封灵噬免疫", 3, null, function(p){ p.statusImmunities = p.statusImmunities.filter(function(x){ return flImms.indexOf(x) < 0; }); });
-      t.skillPPCostMult = (t.skillPPCostMult || 1) + 1;
-      ctx.addTurnEffect(t, "封灵噬PP", 3, null, function(p){ p.skillPPCostMult = Math.max(1, (p.skillPPCostMult || 1) - 1); });
+      t.skillPPCostMult = 2;
+      ctx.addTurnEffect(t, "封灵噬PP", 3, null, function(p){ p.skillPPCostMult = 1; });
       strike(u);
       if (isFirst) {
         u.critRateBonus = (u.critRateBonus || 0) + 1.0;
@@ -2015,7 +2015,7 @@ const DEFAULT_SKILLS = [
       ctx.applyStatus(t, "fear");
       if (t.status !== "fear") {
         ctx.deletePP(t, -1, 2);
-        t.skillPPCostMult = (t.skillPPCostMult || 1) + 1;
+        t.skillPPCostMult = 2;
         t.switchLocked = true;
         ctx.addTurnEffect(t, "太虚威压", 3, function(p){ p.switchLocked = true; }, function(p){ p.skillPPCostMult = Math.max(1, (p.skillPPCostMult || 1) - 1); p.switchLocked = false; });
         ctx.msg("恐惧失败：删对方全体2PP，3回合内对方使用额外消耗1PP且无法换宠！");
@@ -2737,7 +2737,7 @@ function createBattleContext() {
     addMark: function(target, name, amount) { if (!target.marks[name]) target.marks[name] = 0; target.marks[name] += amount; },
     getMark: function(target, name) { return target.marks[name] || 0; },
     addTurnEffect: function(target, name, turns, onTick, onExpire) {
-      target.turnEffects.push({ name: name, turnsLeft: turns, onTick: onTick, onExpire: onExpire });
+      target.turnEffects.push({ name: name, turnsLeft: turns, onTick: onTick, onExpire: onExpire, createdTurn: gameState.turnCount || 0 });
     },
     saveSnapshot: function() {
       var make = function(party) {
@@ -2828,7 +2828,8 @@ function createBattleContext() {
 function gainPP(pet, skill, amount) {
   if (!skill || amount <= 0) return 0;
   if (pet && pet.blockPPRecovery) return 0;
-  if (skill.immuneToPP || skill.noPPRecover) return 0;
+  // immuneToPP 只防“删除”，不防“回复”；noPPRecover 才表示不可回复
+  if (skill.noPPRecover) return 0;
   var before = skill.pp;
   skill.pp = Math.min(skill.maxPp, skill.pp + amount);
   return skill.pp - before;
@@ -2883,14 +2884,12 @@ function processTurnEffects(pet) {
   queue.forEach(function(e) {
     if (!e) return;
     if (e.onTick) e.onTick(pet);
+    // 本回合刚创建的效果不在本回合递减，避免“1回合”当场归零
+    if (e.createdTurn === (gameState.turnCount || 0)) { pet.turnEffects.push(e); return; }
     e.turnsLeft--;
     if (e.turnsLeft <= 0) { if (e.onExpire) e.onExpire(pet); }
     else pet.turnEffects.push(e);
   });
-  // Decrement damage cap turns
-  if (pet.damageCapTurns > 0) pet.damageCapTurns--;
-  if (pet.damageReductionTurns > 0) pet.damageReductionTurns--;
-  if (pet.healInvertTurns > 0) pet.healInvertTurns--;
   // 保留既有封锁结束点：上一回合施加的封锁仍覆盖本回合开场回复。
   pet.blockPPRecovery = false;
 }
@@ -2973,6 +2972,12 @@ function processField() {
 
 // 天气/环境计时在回合末统一递减，保证"持续 N 回合"恰好结算 N 次
 function tickEnvironments() {
+  [gameState.playerActive, gameState.aiActive].forEach(function(pet) {
+    if (!pet) return;
+    if (pet.damageCapTurns > 0) pet.damageCapTurns--;
+    if (pet.damageReductionTurns > 0) pet.damageReductionTurns--;
+    if (pet.healInvertTurns > 0) pet.healInvertTurns--;
+  });
   if (gameState.weather) {
     gameState.weatherTurns--;
     if (gameState.weatherTurns <= 0) { gameState.weather = null; gameState.weatherTurns = 0; addMessage("天气消散了..."); }
