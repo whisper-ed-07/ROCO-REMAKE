@@ -1258,12 +1258,22 @@ const DEFAULT_SKILLS = [
       }, null);
       // 次回合及再下一回合：减对方强化30%效果+回第2格1PP+60固伤+PP消耗加倍
       ctx.addTurnEffect(u, "化念作刃削", 2, function(p) {
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (t[k] > 0) t[k] = Math.max(0, t[k] - 1); if (t[k] < 0) t[k] = Math.min(0, t[k] + 1); });
+        var ratio = bd.marked ? 0.66 : 0.7;
+        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (t[k]) t[k] = Math.trunc(t[k] * ratio); });
         if (u.skills[1]) u.skills[1].pp = Math.min(u.skills[1].maxPp, u.skills[1].pp + 1);
-        ctx.doFixedDamage(t, 60);
+        ctx.doFixedDamage(t, bd.marked ? 72 : 60);
         t.skillPPCostMult = 2;
-        ctx.msg("【化念作刃】削对方强化、回第2格1PP、60固伤、对方PP消耗加倍！");
-      }, null);
+        ctx.msg("【化念作刃】削对方强化、回第2格1PP、" + (bd.marked ? 72 : 60) + "固伤、对方PP消耗加倍！");
+      }, function() {
+        // 末回合：对方被标记、有 2 项负面强化且 m>2 → 200+60% 当前精力
+        if (!bd.marked || m <= 2) return;
+        var neg = 0;
+        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (t[k] < 0) neg++; });
+        if (neg < 2) return;
+        var dmg = 200 + Math.floor(0.6 * t.hp);
+        ctx.doFixedDamage(t, dmg);
+        ctx.msg("【化念作刃】末回合斩杀：" + dmg + "点固伤！");
+      });
     } },{ id: "sk_jydm_3", name: "极影光幕", element: "light", power: 0, pp: 6, maxPp: 6, accuracy: 90, category: "status", priority: 13, semiSure: true, desc: "速变如极影，处处现光幕。回60%精力+10回合闪避一次致命伤害（成功回全体1PP）；净化+5回合免疫+速度提升（上限10%）；4回合叠加护盾（上限100%精力）；对方连续使用同一技能3回合+则PP消耗+2；印记≥2回复+50%。", detail: "① 回复60%最大精力（印记≥2时+50%），10回合内闪避一次致命伤害。\n② 净化自身，5回合免疫异常与负面强化，速度提升（5+上回合伤害/220）%，上限10%。\n③ 4回合内每回合获得（70+0.2×对方上回合输出+0.1×速度）护盾，可叠加，上限100%最大精力。\n④ 6回合内对方连续3回合使用同一技能时，该技能PP消耗+2。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
@@ -1437,6 +1447,10 @@ const DEFAULT_SKILLS = [
         },
         function(pet) {
           bd.creationActive = false;
+          // 回收创世之能的增益，避免反复使用叠加
+          pet.spdMod = Math.max(0, (pet.spdMod || 1) - 0.1);
+          if (target) target.spdMod = Math.max(0, (target.spdMod || 1) - 0.1);
+          pet.dmgMod = Math.max(0, (pet.dmgMod || 1) - 0.25);
           // PP变为0后免疫异常
           var skill = pet.skills.find(function(s) { return s.id === "sk_cszn"; });
           if (skill && skill.pp === 0) {
@@ -1801,6 +1815,7 @@ const DEFAULT_SKILLS = [
         var next = party.find(function(p){ return !p.isFainted() && p !== t; });
         if (!next) return null;
         if (side === "player") gameState.playerActive = next; else gameState.aiActive = next;
+        callBloodlineEnter(next);
         ctx.msg("驱逐对方，换上" + next.name + "！");
         return next;
       };
@@ -2188,7 +2203,7 @@ const DEFAULT_PETS = [
         var opp = ctx.playerActive === pet ? ctx.aiActive : ctx.playerActive;
         var hasQl = pet.skills.some(function(s) { return s.id === "sk_qy_1"; });
         var hasCf = pet.skills.some(function(s) { return s.id === "sk_qy_4"; });
-        if (!hasQl && !hasCf) {
+        if (!hasQl || !hasCf) {
           pet.statusImmunities = pet.statusImmunities || [];
           ["freeze","sleep","paralyze","burn","poison","confuse","fear"].forEach(function(s) { if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); });
           pet.damageReduction = Math.max(pet.damageReduction || 0, 20);
@@ -2234,6 +2249,17 @@ const DEFAULT_PETS = [
           // 回血改由 onAfterDamageSegment 处理（R16）
         }
       },
+      // 上场钩子：按首格技能决定初始形态，并重置形态计时
+      onEnter: function(pet, ctx) {
+        var hasQl = pet.skills.some(function(s){ return s.id === "sk_qy_1"; });
+        var hasCf = pet.skills.some(function(s){ return s.id === "sk_qy_4"; });
+        if (!hasQl || !hasCf) return;
+        var bd = pet.bloodlineData = pet.bloodlineData || {};
+        bd.mode = (pet.skills[0] && pet.skills[0].id === "sk_qy_1") ? "清念"
+                : (pet.skills[0] && pet.skills[0].id === "sk_qy_4") ? "残脉" : "清念";
+        bd.turnCount = 0; bd.qfzn = 0; bd.healCount = 0; bd.switchTurn = false;
+        if (ctx) ctx.msg("【清羽】以首格技能进入" + (bd.mode === "清念" ? "清念" : "残脉") + "状态！");
+      },
       // R16：残脉②改为每次受伤后结算（原文：每次受到伤害后）
       onAfterDamageSegment: function(pet) {
         var bd = pet.bloodlineData;
@@ -2253,8 +2279,8 @@ const DEFAULT_PETS = [
           else if (skill.element === "ice") { enterQingyuMode(pet, "残脉"); ctx.msg("切换期使用冰系技能，进入【残脉】状态！"); }
           bd.switchTurn = false;
         }
-        // 翼系技能触发血脉效果（无状态限制）
-        if (skill.element === "flying") {
+        // 翼系技能触发血脉效果（仅清念态）
+        if (skill.element === "flying" && bd.mode === "清念") {
           // (1) 3回合免疫异常与负面强化
           if (!pet.qingNianImmune) pet.qingNianImmune = [];
           var imms = ["freeze","sleep","paralyze","burn","poison","fear","bind","confuse"];
@@ -2287,8 +2313,8 @@ const DEFAULT_PETS = [
           var oppHeal = Math.ceil(0.2 * lostSum);
           if (opp && !opp.isFainted() && oppHeal > 0) { ctx.doHeal(opp, oppHeal); ctx.msg("【清念】对敌方治疗" + oppHeal + "HP！"); }
         }
-        // 冰系技能触发血脉效果（残脉③，无状态限制）
-        if (skill.element === "ice") {
+        // 冰系技能触发血脉效果（仅残脉态）
+        if (skill.element === "ice" && bd.mode === "残脉") {
           // (1) 2回合免疫异常（可叠加回合数）
           pet.qyIceImmuneTurns = (pet.qyIceImmuneTurns || 0) + 2;
           var iceImms = ["freeze","sleep","paralyze","burn","poison","fear","bind","confuse"];
@@ -2917,9 +2943,9 @@ function forceSwitchPet(pet) {
   var next = candidates[Math.floor(Math.random() * candidates.length)];
   if (gameState.playerActive === pet) {
     if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
-    addMessage(pet.name + " 被迫换下！"); gameState.playerActive = next; addMessage("换上 " + next.name + "！");
+    addMessage(pet.name + " 被迫换下！"); gameState.playerActive = next; callBloodlineEnter(next); addMessage("换上 " + next.name + "！");
   } else {
-    addMessage(pet.name + " 被迫换下！"); gameState.aiActive = next; addMessage("对手换上 " + next.name + "！");
+    addMessage(pet.name + " 被迫换下！"); gameState.aiActive = next; callBloodlineEnter(next); addMessage("对手换上 " + next.name + "！");
   }
   renderBattle(document.querySelector("#app"));
 }
@@ -3624,6 +3650,10 @@ function applyEndOfTurnEffects(pet) {
   if (pet.leechSeed) { var drain = Math.floor(pet.maxHp / 8); pet.takeDamage(drain); var opp = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive; if (opp && !opp.isFainted()) opp.heal(drain); addMessage(pet.name + " 被寄生种子吸取了 " + drain + " HP！"); }
 }
 
+function callBloodlineEnter(pet) {
+  if (pet && pet.bloodline && pet.bloodline.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
+}
+
 function playerSwitch(petIdx) {
   var newPet = gameState.playerParty[petIdx];
   if (newPet === gameState.playerActive || newPet.isFainted()) return;
@@ -3631,7 +3661,7 @@ function playerSwitch(petIdx) {
   if (gameState.playerActive.switchLocked) { addMessage(gameState.playerActive.name + " 无法换宠！"); return; }
   addMessage("回来吧，" + gameState.playerActive.name + "！"); addMessage("上吧，" + newPet.name + "！");
   if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
-  gameState.playerActive = newPet; gameState.waitingForSwitch = false; gameState.skipPlayerAction = true;
+  gameState.playerActive = newPet; callBloodlineEnter(newPet); gameState.waitingForSwitch = false; gameState.skipPlayerAction = true;
   gameState.switchPending = true;
   var sp = document.querySelector("#switch-panel"); if (sp) sp.classList.remove("show");
   renderBattle(document.querySelector("#app")); gameState.isPlayerTurn = false;
@@ -3648,8 +3678,8 @@ function checkFaints() {
   postDamageProcessing();
   if (gameState.battleOver) return false;
   var player = gameState.playerActive, ai = gameState.aiActive;
-  if (player && player.isFainted()) { addMessage(player.name + " 倒下了！"); var np = gameState.playerParty.find(function(p) { return !p.isFainted() && p !== player; }); if (np) { gameState.playerActive = np; addMessage("上吧，" + np.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(false); return true; } }
-  if (ai && ai.isFainted()) { addMessage(ai.name + " 倒下了！"); var na = gameState.aiParty.find(function(p) { return !p.isFainted() && p !== ai; }); if (na) { gameState.aiActive = na; addMessage("对手派出了 " + na.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(true); return true; } }
+  if (player && player.isFainted()) { addMessage(player.name + " 倒下了！"); var np = gameState.playerParty.find(function(p) { return !p.isFainted() && p !== player; }); if (np) { gameState.playerActive = np; callBloodlineEnter(np); addMessage("上吧，" + np.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(false); return true; } }
+  if (ai && ai.isFainted()) { addMessage(ai.name + " 倒下了！"); var na = gameState.aiParty.find(function(p) { return !p.isFainted() && p !== ai; }); if (na) { gameState.aiActive = na; callBloodlineEnter(na); addMessage("对手派出了 " + na.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(true); return true; } }
   return false;
 }
 
@@ -4000,7 +4030,7 @@ function renderOpponentSelect(app) { renderTeamChoice(app, true); }
 
 function toggleOpponentSelection(petId) { var idx = gameState.opponentTeamIds.indexOf(petId); if (idx >= 0) gameState.opponentTeamIds.splice(idx, 1); else if (gameState.opponentTeamIds.length < 6) gameState.opponentTeamIds.push(petId); updateTeamChoice(true, petId); }
 
-function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false;
+function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; callBloodlineEnter(gameState.aiActive); callBloodlineEnter(gameState.playerActive); gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false;
   // 新战斗必须清空上一局残留的天气/环境/全局封锁与待结算指令
   gameState.battleId = (gameState.battleId || 0) + 1;
   gameState.switchPending = false;
