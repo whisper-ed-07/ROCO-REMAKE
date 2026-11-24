@@ -186,7 +186,7 @@ test('R15 逆流回溯：按 snapshot.turn 定位并恢复精力/PP/强化/异�
 });
 
 test('R16 残脉：受伤结算后回血，回合开始不回血', () => {
-  const e = env(), p = built(e, 'pet_qy', qids), a = pet(e, 'a');
+  const e = env(), p = built(e, 'pet_qy', ['sk_qy_4', 'sk_qy_1']), a = pet(e, 'a');
   setup(e, p, a);
   p.maxHp = p.hp = 1000;
   a.maxHp = a.hp = 1000;
@@ -203,6 +203,51 @@ test('R16 残脉：受伤结算后回血，回合开始不回血', () => {
   p.hp = 210;
   ctx.doFixedDamage(p, 50, a); // 210 - 50 = 160，受伤后不足 200
   assert.strictEqual(p.hp, 160, '受伤后精力不高于200时不回复');
+});
+
+test('R17 原初血脉：从上场起减免威力伤害与固伤，限时减伤不覆盖常驻值', () => {
+  const e = env();
+  const attacker = pet(e, 'enemy');
+  const primary = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_2']);
+  const both = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4']);
+  const other = built(e, 'pet_qy', ['sk_qy_4', 'sk_qy_2']);
+  setup(e, primary, attacker);
+  const ctx = e.api.createBattleContext();
+  const fixedLoss = (target) => {
+    const before = target.hp;
+    ctx.doFixedDamage(target, 100, attacker);
+    return before - target.hp;
+  };
+  assert.equal(fixedLoss(primary), 80, '回合开始前的伤害也会减免');
+  assert.equal(fixedLoss(other), 80, '缺少任一核心技能均生效');
+  assert.equal(fixedLoss(both), 100, '同时携带两招时不应用此项减伤');
+
+  const before = primary.hp;
+  const hit = ctx.doDamage(attacker, primary, 100, 'special', 'normal');
+  assert.equal(before - primary.hp, Math.floor(hit.damage * .8), '威力伤害走相同的减免结算');
+
+  ctx.setDamageReduction(primary, 10);
+  assert.equal(fixedLoss(primary), 80, '较小的限时减伤无法压低常驻减伤');
+  ctx.setDamageReduction(primary, 40);
+  assert.equal(fixedLoss(primary), 60, '较高的限时减伤生效');
+  e.sandbox.tickEnvironments();
+  assert.equal(fixedLoss(primary), 80, '限时减伤到期后回到原初血脉的 20%');
+  e.api.gameState.banEffects = { dmgReduction: true };
+  assert.equal(fixedLoss(primary), 100, '全局禁减伤可封锁原初血脉减伤');
+});
+
+test('R18 残脉：识别对方清羽的原初血脉减伤', () => {
+  const e = env();
+  const residual = built(e, 'pet_qy', ['sk_qy_4', 'sk_qy_1']);
+  const opponent = built(e, 'pet_qy', ['sk_qy_2']);
+  setup(e, residual, opponent);
+  const ctx = e.api.createBattleContext();
+  residual.bloodline.onEnter(residual, ctx);
+  residual.lastTakenSegments = [100];
+  residual.lastTakenTotal = 100;
+  opponent.hp = 200;
+  residual.bloodline.onTurnStart(residual, ctx);
+  assert.equal(opponent.hp, 260, '目标持有有效常驻减伤时改为治疗');
 });
 
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
