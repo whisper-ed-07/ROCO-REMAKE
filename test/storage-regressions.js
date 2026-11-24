@@ -119,6 +119,8 @@ function equipTest() {
   clickSkill(ids[0]);
   clickSkill(ids[4]);
   e.detail.querySelector('left:' + ids[4]).click();
+  const movedRow = e.detail.innerHTML.split('data-skill-id="' + ids[4] + '">')[1];
+  assert.match(movedRow, /^<span class="skill-slot skill-order" aria-hidden="true">3<\/span>/);
   e.detail.querySelector('#swap-save').click();
 
   const reload = openEngine(snapshot(e.storage));

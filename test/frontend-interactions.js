@@ -45,6 +45,7 @@ const skills = api.DEFAULT_SKILLS.slice(0, 4).map((skill, i) => ({ ...skill, pp:
 api.gameState.playerActive = { skills, isFainted: () => false }; api.gameState.switchPending = false;
 s.renderBattleActions();
 let cards = actions.querySelectorAll('.skill-card'); assert.equal(cards.length, 4);
+assert.deepEqual(cards.map(card => card.querySelector('.skill-slot-label').textContent), ['1', '2', '3', '4']);
 let buttons = cards.map(c => c.querySelector('.skill-btn')); let infos = cards.map(c => c.querySelector('.skill-info'));
 assert(buttons[0].disabled); buttons[0].click(); assert.deepEqual(slots, []); assert(!infos[0].disabled); infos[0].focus(); infos[0].click(); assert.deepEqual(slots, []);
 let overlay = document.getElementById('skill-detail-overlay'); assert(overlay); assert.equal(overlay.querySelector('[role=dialog]')?.getAttribute('aria-modal'), 'true');
