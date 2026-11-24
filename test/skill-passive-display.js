@@ -54,6 +54,22 @@ test('换装技能列表显示可用被动和原文中待实装的被动', () =>
   assert.match(list.innerHTML, /skill-passive-tag">PP保护/);
 });
 
+test('清羽两招的血脉联动整段加粗，原初血脉单独起行', () => {
+  const { api, sandbox } = loadEngine(game);
+  for (const [id, priority, mode] of [['sk_qy_1', 15, '清念'], ['sk_qy_4', 12, '残脉']]) {
+    const skill = api.findSkill(id);
+    assert.equal(skill.priority, priority);
+    sandbox.showSkillDetail({ ...skill, desc: '<自定义说明>' });
+    const dialog = sandbox.document.body.children.at(-1).innerHTML;
+    assert.match(dialog, /&lt;自定义说明&gt;/);
+    const emphasis = dialog.match(/<strong class="skill-bloodline-detail">([^]*?)<\/strong>\n\n①/);
+    assert.ok(emphasis, skill.name + '的技能效果正文位于加粗段落之后');
+    assert.ok(emphasis[1].includes('首格为' + skill.name));
+    assert.ok(emphasis[1].includes('上场进入' + mode + '状态'));
+    assert.match(emphasis[1], /\n进入原初血脉状态：缺少清翎覆尘或残风临霜时，自开场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧，并在每回合开始获得 20% 减伤。/);
+  }
+});
+
 test('创世之能的免疫随是否携带和当前 PP 更新，状态提示显示来源', () => {
   const { api, sandbox } = loadEngine(game);
   const definition = api.findPet('pet_bmhs');
