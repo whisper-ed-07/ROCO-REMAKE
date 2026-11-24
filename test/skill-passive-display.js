@@ -70,6 +70,20 @@ test('清羽两招的血脉联动整段加粗，原初血脉单独起行', () =>
   }
 });
 
+test('微灵封体的局内详情注明 PP 保护、回复范围和全队封锁', () => {
+  const { api, sandbox } = loadEngine(game);
+  sandbox.showSkillDetail(api.findSkill('sk_ql_1'));
+  const dialog = sandbox.document.body.children.at(-1).innerHTML;
+  assert.match(dialog, /幽灵系 · 变化 · 1PP · 先手\+7 · 必中/);
+  assert.match(dialog, /skill-passive-tag">PP保护/);
+  assert.match(dialog, /本技能免疫常规 PP 删除/);
+  assert.match(dialog, /自身携带的每个技能回复[^]*?这次回复也适用于万念俱灰/);
+  assert.match(dialog, /解除当前在场双方已有的限伤、减伤、护盾和反弹/);
+  assert.match(dialog, /双方队伍的所有宠物都无法再获得这四类效果/);
+  assert.match(dialog, /发动后免疫本回合剩余时间内的威力伤害/);
+  assert.match(dialog, /按施放者当时的已损精力计算[^]*?每次最多 15 点/);
+});
+
 test('创世之能的免疫随是否携带和当前 PP 更新，状态提示显示来源', () => {
   const { api, sandbox } = loadEngine(game);
   const definition = api.findPet('pet_bmhs');

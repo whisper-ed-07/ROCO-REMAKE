@@ -445,5 +445,28 @@ test('R25 清翎覆尘：疾风优先，使用次数包含本次，比例为零�
   }
 });
 
+test('微灵封体只用自己的 PP 回复例外，万念俱灰仍受禁回 PP 约束', () => {
+  for (const recoveryBlocked of [false, true]) {
+    const e = env();
+    const p = built(e, 'pet_qingling', ['sk_ql_1', 'sk_ql_2']);
+    const a = pet(e, 'enemy');
+    const [seal, wannen] = p.skills;
+    setup(e, p, a);
+    const ctx = e.api.createBattleContext();
+    p.hp = 250;
+    wannen.pp = 1;
+
+    assert.equal(e.sandbox.gainPP(p, wannen, 2), 0);
+    assert.equal(e.sandbox.gainPP(p, wannen, 2, 'sk_ql_3'), 0);
+    ctx.deletePP(p, 0, 1);
+    assert.equal(seal.pp, 1);
+
+    p.blockPPRecovery = recoveryBlocked;
+    e.api.executeSkillTurn(p, a, seal, 'player');
+    assert.equal(wannen.pp, recoveryBlocked ? 1 : 5);
+    assert.equal(seal.pp, recoveryBlocked ? 0 : 1);
+  }
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;

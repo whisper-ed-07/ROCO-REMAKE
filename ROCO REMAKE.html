@@ -1938,8 +1938,9 @@ const DEFAULT_SKILLS = [
 
   // ============ 清灵（清念灵体） ============
   { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
-    desc: "净化并回满精力，回复全体技能(3+使用前精力比例)PP；本局永久屏蔽双方限伤/减伤/护盾/反弹；永久免疫异常与负面强化，1回合免疫威力伤害；6回合每回合给双方(5+施放者已损/50)点微灵印记(max15)。",
-    detail: "① 净化自身（异常、混乱、束缚、寄生种子、负面强化），回复全部精力值，全体技能回复（3 + 使用前精力/最大精力）点PP，向上取整。\n② 破除并永久限制场上双方获得：限伤、减伤、护盾、反弹效果——本局剩余时间内双方所有宠物均无法再获得这些效果。\n③ 永久免疫异常状态与负面强化；使用后1回合内免疫威力伤害。\n④ 后续6回合，每回合赋予双方（5 + 施放者已损精力/50）点微灵印记，单次上限15；每回合独立判定、向上取整。",
+    passiveLabel: "PP保护",
+    desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队的同类效果。永久防控，限时免疫威力伤害。后续6回合向双方赋予微灵印记。",
+    detail: "本技能免疫常规 PP 删除。\n① 净化自身的异常状态和寄生种子，清除七项负面强化，并回复全部精力。自身携带的每个技能回复（3 + 施放前当前精力 ÷ 最大精力）点 PP，向上取整。这次回复也适用于万念俱灰。\n② 解除当前在场双方已有的限伤、减伤、护盾和反弹（含技能效果反弹与伤害反弹）。本局剩余时间内，双方队伍的所有宠物都无法再获得这四类效果。\n③ 本局永久免疫异常状态与负面强化。发动后免疫本回合剩余时间内的威力伤害。\n④ 后续 6 回合内，每回合按施放者当时的已损精力计算微灵印记。双方各获得（5 + 已损精力 ÷ 50）点，向上取整，每次最多 15 点。",
     onUse: function(u, t, ctx) {
       ctx.msg(u.name + " 释放了微灵封体！");
       var cap = u.maxHp + (u.maxHpBonus || 0);
@@ -1948,7 +1949,7 @@ const DEFAULT_SKILLS = [
       STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
       ctx.doHeal(u, cap - u.hp);
       var ppHeal = Math.ceil(3 + ratio);
-      u.skills.forEach(function(s){ gainPP(u, s, ppHeal); });
+      u.skills.forEach(function(s){ gainPP(u, s, ppHeal, "sk_ql_1"); });
       ctx.msg("净化并回复全部精力，全体技能+" + ppHeal + "PP！");
       gameState.banEffects = { shield: true, dmgReduction: true, damageCap: true, reflect: true };
       [u, t].forEach(function(p){ p.shield = 0; p.damageReduction = 0; p.damageReductionTurns = 0; p.damageCap = Infinity; p.damageCapTurns = 0; p.damageCapThreshold = 0; p.immuneBackhand = false; p.reflectBackhand = false; });
@@ -1956,7 +1957,7 @@ const DEFAULT_SKILLS = [
       ctx.grantStatusImmunity(u, "微灵封体", Infinity, { stats: true });
       u.immunePowerDamage = true;
       ctx.addTurnEffect(u, "封体威力免疫", 1, null, function(p){ p.immunePowerDamage = false; });
-      ctx.msg("永久免疫异常与负面强化，1回合免疫威力伤害！");
+      ctx.msg("永久免疫异常与负面强化，本回合剩余时间内免疫威力伤害！");
       [u, t].forEach(function(p){
         ctx.addTurnEffect(p, "微灵封体印", 6, function(pp){
           var lost = (u.maxHp + (u.maxHpBonus || 0)) - u.hp;
@@ -1968,7 +1969,7 @@ const DEFAULT_SKILLS = [
       });
     }
   },
-  { id: "sk_ql_2", name: "万念俱灰", element: "ghost", power: 150, pp: 6, maxPp: 6, accuracy: 100, category: "physical", priority: 11, immuneToPP: true, noPPRecover: true,
+  { id: "sk_ql_2", name: "万念俱灰", element: "ghost", power: 150, pp: 6, maxPp: 6, accuracy: 100, category: "physical", priority: 11, immuneToPP: true, ppRecoverySource: "sk_ql_1",
     desc: "免疫删除与除微灵封体外所有回复PP。威力=损失PP×(150+微灵)，max500(首格PP=0时1000)；首格PP>0时伤害≤0.9×对方最大精力，PP=0后≥0.3×自身最大精力；回150+6回合免疫；先手追加固伤并重置强化(首格PP=0必暴击)；后手双方回威力×1.1(无上限)。",
     detail: "本技能免疫PP删除；除「微灵封体」外，任何效果都无法回复本技能PP。\n① 实际威力 = 本技能已损失PP数 ×（150 + 微灵印记数），向上取整；上限500；首格技能PP=0时上限1000。\n② 输出伤害：首格PP>0时不超过对方最大精力的90%；首格PP=0后不低于自身最大精力的30%。\n③ 回复150精力，之后6回合免疫异常状态。\n④ 先手：追加（实际伤害×0.3）点固伤，并强制重置双方强化；首格PP=0时必定暴击。\n⑤ 后手：双方各回复（本技能威力×1.1）点精力，不设上限；首格PP=0时清空对方本回合先手使用技能的PP。",
     onUse: function(u, t, ctx) {
@@ -2874,12 +2875,11 @@ function createBattleContext() {
   };
 }
 
-// PP 恢复统一入口：immuneToPP / noPPRecover / ppLocked / blockPPRecovery 均在此判定
-function gainPP(pet, skill, amount) {
+// PP 回复封锁与技能指定来源在此判定。
+function gainPP(pet, skill, amount, sourceSkillId) {
   if (!skill || amount <= 0) return 0;
   if (pet && pet.blockPPRecovery) return 0;
-  // immuneToPP 只防“删除”，不防“回复”；noPPRecover 才表示不可回复
-  if (skill.noPPRecover) return 0;
+  if (skill.noPPRecover || (skill.ppRecoverySource && skill.ppRecoverySource !== sourceSkillId)) return 0;
   var before = skill.pp;
   skill.pp = Math.min(skill.maxPp, skill.pp + amount);
   return skill.pp - before;
