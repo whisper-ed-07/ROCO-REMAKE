@@ -107,7 +107,15 @@ function equipTest() {
   function clickSkill(id) { e.detail.querySelector('[data-skill-id="' + id + '"]').click(); }
   assert.equal(Array.from(e.detail.innerHTML.matchAll(/data-skill-id="/g)).length, 5);
   clickSkill(ids[4]);
-  assert.deepEqual(e.alerts, ['最多选择 4 个技能出战！']);
+  assert.deepEqual(e.alerts, []);
+  const notice = e.body.children.find(child => child.id === 'skill-limit-overlay');
+  assert.ok(notice);
+  assert.match(notice.innerHTML, /最多选择 4 个技能出战！/);
+  assert.deepEqual(Array.from(e.sandbox.swapDraft.ids), ids.slice(0, 4));
+  assert.equal(e.root.querySelector('#app').inert, true);
+  e.sandbox.preferences.motion = 'reduce';
+  notice.querySelector('#skill-limit-confirm').click();
+  assert.equal(e.root.querySelector('#app').inert, false);
   clickSkill(ids[0]);
   clickSkill(ids[4]);
   e.detail.querySelector('left:' + ids[4]).click();

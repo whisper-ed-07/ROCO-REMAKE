@@ -4263,7 +4263,7 @@ function showScreen(id) {
       if (intro.finishIntro) intro.finishIntro(); else intro.remove();
     }
   }
-  ["skill-detail-overlay", "modal-overlay", "flee-overlay"].forEach(removeBodyLayer);
+  ["skill-detail-overlay", "modal-overlay", "flee-overlay", "skill-limit-overlay"].forEach(removeBodyLayer);
   ["switch-panel", "result-overlay"].forEach(function(key) { var layer = document.getElementById(key); if (layer && layer.closeLayer) layer.closeLayer(true); });
   if (previous === "battle" && id !== "battle") resetBattleVisual();
   gameState.screen = id; app.innerHTML = "";
@@ -4680,6 +4680,37 @@ function getOwnedSkillIds(pet) {
   return (pet.skillIds || []).slice();
 }
 
+function showSkillLimitNotice(trigger) {
+  var app = document.querySelector("#app");
+  if (app.inert) return;
+
+  var overlay = document.createElement("div");
+  overlay.id = "skill-limit-overlay";
+  overlay.className = "modal-overlay show";
+  overlay.innerHTML = '<div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="skill-limit-message">' +
+    '<h3 id="skill-limit-message">最多选择 4 个技能出战！</h3>' +
+    '<div class="form-actions"><button type="button" class="btn btn-primary" id="skill-limit-confirm">确定</button></div></div>';
+  document.body.appendChild(overlay);
+  app.inert = true;
+
+  prepareLayer(overlay, function(restoreFocus) {
+    overlay.remove();
+    app.inert = false;
+    if (restoreFocus && trigger && trigger.isConnected !== false) trigger.focus({ preventScroll: true });
+  });
+  function close() { overlay.closeLayer(); }
+  var confirmButton = overlay.querySelector("#skill-limit-confirm");
+  confirmButton.addEventListener("click", close);
+  overlay.addEventListener("click", function(event) {
+    if (event.target === overlay) close();
+  });
+  overlay.addEventListener("keydown", function(event) {
+    if (event.key === "Tab" || event.key === "Escape") event.preventDefault();
+    if (event.key === "Escape") close();
+  });
+  confirmButton.focus({ preventScroll: true });
+}
+
 function openSkillSwap(pet, keepDraft) {
   swapTargetPetId = pet.id;
   var detail = document.querySelector("#swap-detail");
@@ -4706,10 +4737,14 @@ function openSkillSwap(pet, keepDraft) {
   allSkills.forEach(function(skill) {
     var item = detail.querySelector('[data-skill-id="' + skill.id + '"]');
     var info = item && item.querySelector(".swap-info-btn");
+    var toggle = item && item.querySelector(".swap-toggle");
     if (info) info.addEventListener("click", function(ev) { ev.stopPropagation(); showSkillDetail(skill); });
     function toggleSkill() {
       var idx = swapDraft.ids.indexOf(skill.id);
-      if (idx < 0 && swapDraft.ids.length >= 4) { alert("最多选择 4 个技能出战！"); return; }
+      if (idx < 0 && swapDraft.ids.length >= 4) {
+        showSkillLimitNotice(toggle);
+        return;
+      }
       if (idx >= 0) swapDraft.ids.splice(idx, 1);
       else swapDraft.ids.push(skill.id);
       openSkillSwap(pet, true); // 保留草稿并刷新
@@ -4718,7 +4753,6 @@ function openSkillSwap(pet, keepDraft) {
     }
     if (item) {
       item.addEventListener('click', toggleSkill);
-      var toggle = item.querySelector('.swap-toggle');
       if (toggle) toggle.addEventListener('click', function(ev) { ev.stopPropagation(); toggleSkill(); });
     }
   });
