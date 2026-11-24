@@ -346,5 +346,41 @@ test('R22 清羽：技能进入清念或残脉时同步撤掉原初的两个效�
   }
 });
 
+test('R23 残风临霜：驱逐遵守免疫，并将睡眠失败的三段固伤结算给实际入场者', () => {
+  for (const immune of [true, false]) {
+    const e = env();
+    const p = built(e, 'pet_qy', ['sk_qy_4', 'sk_qy_1']);
+    const a = pet(e, 'enemy');
+    const first = pet(e, 'first');
+    const fainted = pet(e, 'fainted');
+    const last = pet(e, 'last');
+    setup(e, p, a);
+    const ctx = e.api.createBattleContext();
+    e.myMath.random = () => .99;
+    fainted.hp = 0;
+    last.maxHp = last.hp = 2000;
+    last.bloodline = { onEnter() { last.entered = true; } };
+    a.immuneEject = immune;
+    e.api.gameState.aiParty = [a, first, fainted, last];
+    ctx.grantStatusImmunity(last, '防睡眠', Infinity, { statuses: ['sleep'] });
+
+    p.skills[0].onUse(p, a, ctx);
+
+    assert.equal(a.status, 'freeze');
+    assert.equal(first.status, null, '其他候补不受影响');
+    if (immune) {
+      assert.equal(e.api.gameState.aiActive, a);
+      assert.equal(last.hp, 2000);
+      assert.equal(last.entered, undefined);
+    } else {
+      assert.equal(e.api.gameState.aiActive, last, '随机候选排除濒死宠物');
+      assert.equal(last.entered, true, '统一进场钩子');
+      assert.deepEqual(Array.from(last.damageTakenThisTurn), [333, 333, 333]);
+      assert.equal(last.hp, 1001);
+      assert.equal(p.outputThisTurn, 999);
+    }
+  }
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;

@@ -1864,24 +1864,14 @@ const DEFAULT_SKILLS = [
     passiveLabel: "血脉联动",
     desc: "清羽同时携带清翎覆尘时，残风临霜放首格可在上场时进入残脉。缺少任一招或首格判定失败时进入原初血脉状态。冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按本技能剩余PP与速度差删除对方使用次数>6的技能PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
     bloodlineDetail: "血脉联动：清羽同时携带清翎覆尘和残风临霜，且首格为残风临霜时，上场进入残脉状态。\n" + QINGYU_ORIGINAL_BLOODLINE_DETAIL,
-    detail: "① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方，并对下一只上场宠物施加睡眠；睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差，向下取整）点PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
+    detail: "① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方。驱逐成功后，对随机换上的存活宠物施加睡眠，睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差，向下取整）点PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
     onUse: function(u, t, ctx) {
-      var bd = u.bloodlineData || {};
       var spdDiff = Math.abs(u.getStat("spd") - t.getStat("spd"));
-      var side = gameState.playerActive === t ? "player" : "ai";
-      var party = side === "player" ? gameState.playerParty : gameState.aiParty;
-      var eject = function() {
-        var next = party.find(function(p){ return !p.isFainted() && p !== t; });
-        if (!next) return null;
-        if (side === "player") gameState.playerActive = next; else gameState.aiActive = next;
-        callBloodlineEnter(next);
-        ctx.msg("驱逐对方，换上" + next.name + "！");
-        return next;
-      };
       if (ctx.applyStatus(t, "freeze")) {
-        var next = eject();
-        if (next) {
-          if (!ctx.applyStatus(next, "sleep")) { for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333); ctx.msg("睡眠失败：999固伤分3段！"); }
+        var next = forceSwitchPet(t);
+        if (next && !ctx.applyStatus(next, "sleep")) {
+          for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333, u);
+          ctx.msg("睡眠失败：999固伤分3段！");
         }
       } else {
         var frost = u.skills.find(function(s) { return s.id === "sk_qy_4"; });
@@ -1889,7 +1879,7 @@ const DEFAULT_SKILLS = [
         t.skills.forEach(function(s, index) {
           if ((s.useCount || 0) > 6) ctx.deletePP(t, index, cut);
         });
-        if (t.skills.filter(function(s){ return s.pp === 0; }).length >= 2) eject();
+        if (t.skills.filter(function(s){ return s.pp === 0; }).length >= 2) forceSwitchPet(t);
         ctx.msg("冰冻失败：按使用次数删除对方PP！");
       }
       u.spdMod = (u.spdMod || 1) * 0.7;
@@ -2981,6 +2971,7 @@ function forceSwitchPet(pet) {
     addMessage(pet.name + " 被迫换下！"); gameState.aiActive = next; callBloodlineEnter(next); addMessage("对手换上 " + next.name + "！");
   }
   renderBattle(document.querySelector("#app"));
+  return next;
 }
 
 // ---------- TURN TIMER ----------
