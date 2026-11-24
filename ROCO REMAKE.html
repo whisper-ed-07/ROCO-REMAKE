@@ -1862,9 +1862,9 @@ const DEFAULT_SKILLS = [
     } },
   { id: "sk_qy_4", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12, immuneToPP: true,
     passiveLabel: "血脉联动",
-    desc: "清羽同时携带清翎覆尘时，残风临霜放首格可在上场时进入残脉。缺少任一招时进入原初血脉状态。冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按使用次数>6删PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
+    desc: "清羽同时携带清翎覆尘时，残风临霜放首格可在上场时进入残脉。缺少任一招时进入原初血脉状态。冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按本技能剩余PP与速度差删除对方使用次数>6的技能PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
     bloodlineDetail: "血脉联动：清羽同时携带清翎覆尘和残风临霜，且首格为残风临霜时，上场进入残脉状态。\n" + QINGYU_ORIGINAL_BLOODLINE_DETAIL,
-    detail: "① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方，并对下一只上场宠物施加睡眠；睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差）PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
+    detail: "① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方，并对下一只上场宠物施加睡眠；睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差，向下取整）点PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var spdDiff = Math.abs(u.getStat("spd") - t.getStat("spd"));
@@ -1884,7 +1884,11 @@ const DEFAULT_SKILLS = [
           if (!ctx.applyStatus(next, "sleep")) { for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333); ctx.msg("睡眠失败：999固伤分3段！"); }
         }
       } else {
-        t.skills.forEach(function(s) { if ((s.useCount || 0) > 6) { var cut = 1 + s.pp + Math.floor(0.25 * spdDiff); s.pp = Math.max(0, s.pp - cut); } });
+        var frost = u.skills.find(function(s) { return s.id === "sk_qy_4"; });
+        var cut = Math.floor(1 + (frost ? frost.pp : 0) + 0.25 * spdDiff);
+        t.skills.forEach(function(s, index) {
+          if ((s.useCount || 0) > 6) ctx.deletePP(t, index, cut);
+        });
         if (t.skills.filter(function(s){ return s.pp === 0; }).length >= 2) eject();
         ctx.msg("冰冻失败：按使用次数删除对方PP！");
       }

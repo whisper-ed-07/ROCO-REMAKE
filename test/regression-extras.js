@@ -276,5 +276,27 @@ test('R19 清羽：血脉切换期只持续一回合，空过后冰系技能不�
   assert.equal(p.bloodlineData.mode, '残脉', '新切换期的冰系技能仍正常转换');
 });
 
+test('R20 残风临霜：冰冻失败后按自身实扣后 PP 删对手符合条件的技能', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4']);
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  p.bloodline.onEnter(p, ctx);
+  a.spd = p.spd + 10;
+  a.skills = [
+    { ...skill('seventh-use'), pp: 8, useCount: 7 },
+    { ...skill('sixth-use'), pp: 8, useCount: 6 },
+    { ...skill('immune'), pp: 8, useCount: 7, immuneToPP: true },
+    { ...skill('locked'), pp: 8, useCount: 7, ppLocked: true }
+  ];
+  ctx.grantStatusImmunity(a, '防冰冻', Infinity, { statuses: ['freeze'] });
+
+  e.api.executeSkillTurn(p, a, p.skills[1], 'player');
+
+  assert.equal(p.skills[1].pp, 3);
+  assert.deepEqual(a.skills.map(s => s.pp), [2, 8, 8, 8], '仅扣未受保护且用过七次及以上的技能，扣除 floor(1 + 3 + 0.25 × 10)');
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;
