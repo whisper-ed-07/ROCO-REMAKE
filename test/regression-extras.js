@@ -298,5 +298,53 @@ test('R20 残风临霜：冰冻失败后按自身实扣后 PP 删对手符合条
   assert.deepEqual(a.skills.map(s => s.pp), [2, 8, 8, 8], '仅扣未受保护且用过七次及以上的技能，扣除 floor(1 + 3 + 0.25 × 10)');
 });
 
+test('R21 清羽：两招齐备但首格不符，从上场进入原初血脉', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_2', 'sk_qy_1', 'sk_qy_4']);
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  p.bloodline.onEnter(p, ctx);
+  p.hp -= 100;
+  const hp = p.hp;
+  p.bloodlineData.turnCount = 4;
+  p.bloodline.onTurnStart(p, ctx);
+  assert.equal(p.bloodlineData.mode, null, '首格错误不会进入任一形态');
+  assert.equal(p.bloodlineData.switchTurn, false);
+  assert.equal(p.hp, hp, '原初没有清念治疗或切换期治疗');
+  assert.equal(p.getDamageReduction(), 20);
+  assert.equal(e.sandbox.hasStatusImmunity(p, 'freeze'), true);
+});
+
+test('R22 清羽：技能进入清念或残脉时同步撤掉原初的两个效果', () => {
+  for (const [ids, trigger, mode] of [
+    [['sk_qy_5', 'sk_qy_1', 'sk_qy_4'], 'sk_qy_5', '清念'],
+    [['sk_qy_4'], 'sk_qy_4', '残脉']
+  ]) {
+    const e = env();
+    const p = built(e, 'pet_qy', ids);
+    const a = pet(e, 'enemy');
+    setup(e, p, a);
+    const ctx = e.api.createBattleContext();
+    p.bloodline.onEnter(p, ctx);
+    ctx.grantStatusImmunity(p, '独立防控', 3, { statuses: ['sleep'] });
+    assert.equal(p.statusImmunitySources.has('清羽原初血脉'), true);
+    assert.equal(p.passiveDamageReduction, 20);
+
+    e.api.executeSkillTurn(p, a, p.skills.find(skill => skill.id === trigger), 'player');
+
+    assert.equal(p.bloodlineData.mode, mode);
+    assert.equal(p.statusImmunitySources.has('清羽原初血脉'), false);
+    assert.equal(p.passiveDamageReduction, 0);
+    assert.equal(p.statusImmunitySources.has('独立防控'), true);
+    assert.equal(e.sandbox.hasStatusImmunity(p, 'sleep'), true);
+
+    p.bloodline.onEnter(p, ctx);
+    assert.equal(p.bloodlineData.mode, null, '重新上场重新判定首格');
+    assert.equal(p.statusImmunitySources.has('清羽原初血脉'), true);
+    assert.equal(p.passiveDamageReduction, 20);
+  }
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;
