@@ -80,7 +80,7 @@ test('微灵封体的局内详情注明 PP 保护、回复范围和全队封锁'
   assert.match(dialog, /自身携带的每个技能回复[^]*?这次回复也适用于万念俱灰/);
   assert.match(dialog, /解除当前在场双方已有的限伤、减伤、护盾和反弹/);
   assert.match(dialog, /双方队伍的所有宠物都无法再获得这四类效果/);
-  assert.match(dialog, /发动后免疫本回合剩余时间内的威力伤害/);
+  assert.match(dialog, /从发动起至下回合结束，免疫威力伤害/);
   assert.match(dialog, /按施放者当时的已损精力计算[^]*?每次最多 15 点/);
 });
 

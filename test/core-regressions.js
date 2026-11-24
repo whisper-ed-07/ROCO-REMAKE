@@ -203,4 +203,73 @@ test('原文明确为被动使用的极尽降华也触发沉脉', () => {
   e.api.createBattleContext().deletePP(a,0,1); assert.strictEqual(e.api.gameState.pendingJianghua,a);
   turn(e); assert.strictEqual(a.skills[0].qingnianPriorityLoss,1); assert.strictEqual(e.api.gameState.pendingJianghua,null);
 });
+
+function microSealFixture() {
+  const e = env();
+  const p = built(e, 'pet_qingling', ['sk_ql_1']);
+  p.skills.push(skill('idle'));
+  const hits = [];
+  const attack = {
+    ...skill('power', (user, target, ctx) => {
+      hits.push({ target, damage: ctx.doDamage(user, target, 40, 'special', 'fire').damage });
+    }, 5),
+    category: 'special',
+    element: 'fire',
+    power: 40
+  };
+  const a = pet(e, 'enemy', attack);
+  setup(e, p, a);
+  return { e, p, a, attack, hits };
+}
+
+test('微灵封体威力免疫覆盖发动后和整个下回合，包括回合末被动', () => {
+  const { e, p, a, attack, hits } = microSealFixture();
+  const ctx = e.api.createBattleContext();
+  assert.ok(e.sandbox.calcDamage(a, p, attack).damage > 0, '发动前可受威力伤害');
+  turn(e);
+  assert.equal(hits[0].damage, 0, '发动当回合拦截后手威力伤害');
+  assert.equal(e.sandbox.calcDamage(a, p, attack).damage, 0, '传统威力伤害入口也受保护');
+
+  const before = p.hp;
+  ctx.doFixedDamage(p, 20, a);
+  assert.equal(before - p.hp, 20, '固定伤害照常结算');
+
+  const openingHits = [], lateHits = [];
+  ctx.addTurnEffect(a, '开场威力测试', 1, () => {
+    openingHits.push(ctx.doDamage(a, p, 40, 'special', 'fire').damage);
+  });
+  a.skills.push(skill('sk_jydm_1', (u, t, c) => {
+    lateHits.push(c.doDamage(u, t, 40, 'special', 'fire').damage);
+  }));
+  e.api.gameState.pendingJianghua = a;
+  turn(e, 1);
+  assert.deepEqual(openingHits, [0], '下一回合开场');
+  assert.equal(hits[1].damage, 0, '下一回合行动');
+  assert.deepEqual(lateHits, [0], '下一回合末的被动仍在免疫期限内');
+  assert.ok(e.sandbox.calcDamage(a, p, attack).damage > 0, '下回合结算结束即到期');
+  turn(e, 1);
+  assert.ok(hits[2].damage > 0, '第三回合恢复承受威力伤害');
+});
+
+test('微灵封体续用刷新期限，换下后按全局回合到期', () => {
+  const { e, p, a, attack, hits } = microSealFixture();
+  const state = e.api.gameState, bench = pet(e, 'bench');
+  state.playerParty.push(bench);
+  turn(e);
+  turn(e);
+  assert.equal(e.sandbox.calcDamage(a, p, attack).damage, 0, '旧免疫到期时保留续用后的免疫');
+  state.pendingPlayerAction = { kind: 'switch', user: p, incoming: bench };
+  turn(e);
+  assert.equal(hits[2].target, bench);
+  assert.ok(hits[2].damage > 0, '免疫不转给换上来的宠物');
+  assert.ok(e.sandbox.calcDamage(a, p, attack).damage > 0, '场下的清灵也在回合末到期');
+});
+
+test('清除回合效果时移除微灵封体的限时威力免疫', () => {
+  const { e, p, a, attack } = microSealFixture();
+  turn(e);
+  e.sandbox.clearTurnEffects(p);
+  assert.ok(e.sandbox.calcDamage(a, p, attack).damage > 0);
+  assert.equal(e.sandbox.hasStatusImmunity(p, 'freeze'), true, '永久防控仍有效');
+});
 if(failed) { console.error(`${failed} regression(s) failed`); process.exitCode=1; }

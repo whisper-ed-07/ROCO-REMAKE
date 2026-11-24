@@ -1939,8 +1939,8 @@ const DEFAULT_SKILLS = [
   // ============ 清灵（清念灵体） ============
   { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     passiveLabel: "PP保护",
-    desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队的同类效果。永久防控，限时免疫威力伤害。后续6回合向双方赋予微灵印记。",
-    detail: "本技能免疫常规 PP 删除。\n① 净化自身的异常状态和寄生种子，清除七项负面强化，并回复全部精力。自身携带的每个技能回复（3 + 施放前当前精力 ÷ 最大精力）点 PP，向上取整。这次回复也适用于万念俱灰。\n② 解除当前在场双方已有的限伤、减伤、护盾和反弹（含技能效果反弹与伤害反弹）。本局剩余时间内，双方队伍的所有宠物都无法再获得这四类效果。\n③ 本局永久免疫异常状态与负面强化。发动后免疫本回合剩余时间内的威力伤害。\n④ 后续 6 回合内，每回合按施放者当时的已损精力计算微灵印记。双方各获得（5 + 已损精力 ÷ 50）点，向上取整，每次最多 15 点。",
+    desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队的同类效果。永久防控，发动起至下回合结束免疫威力伤害。后续6回合向双方赋予微灵印记。",
+    detail: "本技能免疫常规 PP 删除。\n① 净化自身的异常状态和寄生种子，清除七项负面强化，并回复全部精力。自身携带的每个技能回复（3 + 施放前当前精力 ÷ 最大精力）点 PP，向上取整。这次回复也适用于万念俱灰。\n② 解除当前在场双方已有的限伤、减伤、护盾和反弹（含技能效果反弹与伤害反弹）。本局剩余时间内，双方队伍的所有宠物都无法再获得这四类效果。\n③ 本局永久免疫异常状态与负面强化。从发动起至下回合结束，免疫威力伤害。\n④ 后续 6 回合内，每回合按施放者当时的已损精力计算微灵印记。双方各获得（5 + 已损精力 ÷ 50）点，向上取整，每次最多 15 点。",
     onUse: function(u, t, ctx) {
       ctx.msg(u.name + " 释放了微灵封体！");
       var cap = u.maxHp + (u.maxHpBonus || 0);
@@ -1955,9 +1955,8 @@ const DEFAULT_SKILLS = [
       [u, t].forEach(function(p){ p.shield = 0; p.damageReduction = 0; p.damageReductionTurns = 0; p.damageCap = Infinity; p.damageCapTurns = 0; p.damageCapThreshold = 0; p.immuneBackhand = false; p.reflectBackhand = false; });
       ctx.msg("本局全局屏蔽：限伤/减伤/护盾/反弹效果！");
       ctx.grantStatusImmunity(u, "微灵封体", Infinity, { stats: true });
-      u.immunePowerDamage = true;
-      ctx.addTurnEffect(u, "封体威力免疫", 1, null, function(p){ p.immunePowerDamage = false; });
-      ctx.msg("永久免疫异常与负面强化，本回合剩余时间内免疫威力伤害！");
+      u.powerDamageImmuneThroughTurn = gameState.turnCount + 1;
+      ctx.msg("永久免疫异常与负面强化，威力伤害免疫持续至下回合结束！");
       [u, t].forEach(function(p){
         ctx.addTurnEffect(p, "微灵封体印", 6, function(pp){
           var lost = (u.maxHp + (u.maxHpBonus || 0)) - u.hp;
@@ -2555,6 +2554,7 @@ class BattlePet {
     this.passiveDamageReduction = 0;   // 常驻伤害减免%
     this.damageReduction = 0;          // 伤害减免%
     this.damageReductionTurns = 0;     // 减免剩余回合
+    this.powerDamageImmuneThroughTurn = -1; // 威力伤害免疫最后生效的战斗回合
     this.superEffReduction = 0;        // 克制伤害减免%
     this.fixedDmgHealPct = 0;         // 固伤反转治疗%
     this.statusImmunitySources = new Map();
@@ -2696,7 +2696,7 @@ function createBattleContext() {
       power = getSkillPower(this.sourceSkillOwner === att ? this.sourceSkill : null, power);
       // 极尽降华：全场技能视为光系（覆盖技能自身系别）
       if (gameState.forceSkillElement) el = gameState.forceSkillElement;
-      if (def.immunePowerDamage && power > 0) { this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0; return { damage: 0, effectiveness: 1, isCrit: false }; }
+      if (power > 0 && hasPowerDamageImmunity(def)) { this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0; return { damage: 0, effectiveness: 1, isCrit: false }; }
       var isPhysical = cat === "physical";
       var atkStat = isPhysical ? (opts.atkStageOverride ? att.atk * ((2+opts.atkStageOverride)/2) : att.getStat("atk")) : att.getStat("spatk");
       var defStat = isPhysical ? def.getStat("def") : def.getStat("spdef");
@@ -3103,10 +3103,14 @@ function getWeatherDamageMod(atkEl, defEl) {
   }
 }
 
+function hasPowerDamageImmunity(pet) {
+  return pet.powerDamageImmuneThroughTurn >= gameState.turnCount;
+}
+
 // ---------- LEGACY FUNCTIONS ----------
 function calcDamage(attacker, defender, skill) {
   if (skill.power === 0) return { damage: 0, effectiveness: 1, isCrit: false };
-  if (defender.immunePowerDamage && skill.power > 0) return { damage: 0, effectiveness: 1, isCrit: false };
+  if (skill.power > 0 && hasPowerDamageImmunity(defender)) return { damage: 0, effectiveness: 1, isCrit: false };
   var isPhysical = skill.category === "physical";
   var atkStat = isPhysical ? attacker.getStat("atk") : attacker.getStat("spatk");
   var defStat = isPhysical ? defender.getStat("def") : defender.getStat("spdef");
@@ -3177,6 +3181,7 @@ function tickStatusImmunities(pet) {
 
 function clearTurnEffects(pet) {
   pet.turnEffects = [];
+  pet.powerDamageImmuneThroughTurn = -1;
   for (const [source, lock] of pet.statusImmunitySources || []) {
     if (lock.turnsLeft !== Infinity) revokeStatusImmunity(pet, source);
   }
@@ -3364,6 +3369,10 @@ function submitPlayerAction(action) {
 }
 
 function endTurnCleanup() {
+  // 回合末的被动也已结算，场上和场下的限时威力伤害免疫统一到期。
+  gameState.playerParty.concat(gameState.aiParty).forEach(function(pet) {
+    if (pet.powerDamageImmuneThroughTurn === gameState.turnCount) pet.powerDamageImmuneThroughTurn = -1;
+  });
   gameState.isPlayerTurn = !gameState.battleOver;
   updateBattleUI();
   if (!gameState.battleOver) renderBattleActions();
