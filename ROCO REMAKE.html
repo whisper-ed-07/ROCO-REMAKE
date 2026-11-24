@@ -995,6 +995,7 @@ button { min-height: 40px; }
 .battle-utility-list .action-btn { min-height: 42px; padding: 10px 18px; flex: none; }
 .skill-detail { display: flex; flex-direction: column; overflow: hidden; max-height: 88svh; }
 .skill-detail h3 { flex-shrink: 0; margin-bottom: 8px; }
+.skill-passive-tag { color: var(--gold); background: var(--ui-gold-soft); padding: 1px 4px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
 .skill-detail-meta { color: var(--text2); font-size: 12px; line-height: 1.8; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px; flex-shrink: 0; }
 .skill-detail-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; font-size: 14px; }
 .skill-detail .form-actions { flex-shrink: 0; padding-top: 16px; border-top: 1px solid var(--border); }
@@ -1198,7 +1199,7 @@ function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0
 
 // ---------- DEFAULT SKILLS ----------
 const DEFAULT_SKILLS = [
-  { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；PP被删自动触发；仅特殊效果回复PP。", detail: "① 6回合内全场及场下所有技能视为光系，双方全部宠物回复与输出+100%；对方被明念标记时持续12回合。\n② 自身免疫异常与负面强化，持续6回合。\n③ 血脉觉醒后首次使用：回复全部精力与全体PP，并在之后每回合限伤300。\n④ 本技能PP被删空时，本回合结算末自动被动发动一次。",
+  { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, passiveLabel: "被动发动", desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；本技能PP被删空时回合末被动发动。", detail: "被动发动：极影迪莫携带本技能时，常规删PP将其从有PP删至0，回合末自动发动。原文规定每次上场后3回合免疫删PP，且仅特殊效果可回复本技能PP。这两项限制待实现。\n① 6回合内全场及场下所有技能视为光系，双方全部宠物回复与输出+100%；对方被明念标记时持续12回合。\n② 发动后自身免疫异常与负面强化，持续6回合。\n③ 血脉觉醒后首次使用：回复全部精力与全体PP，并在之后每回合限伤300。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       bd.jianghuaTurns = 6; bd.jianghuaFirst = true;
@@ -1421,8 +1422,9 @@ const DEFAULT_SKILLS = [
       ctx.msg("召唤锁定瞬华环境4回合！光系+15%速度、先手出招回100精力、被抵抗追加30%固伤");
     } },
 { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
-    desc: "不灭之威，创世奇迹。【被动】免疫束缚、恐惧、睡眠、冰冻，本技能当前PP为0时免疫全部异常。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能免疫PP删除和回复效果。",
-    detail: "① 被动：免疫束缚、恐惧、睡眠、冰冻。\n② 主动：3回合内双方速度+10%、自身输出+25%；每回合吸取对方全体2PP回复自身，并令对方PP最少技能额外消耗1PP。\n③ 首回合：回复全部精力；若先手，额外删除对方全体1PP并免疫对方后手技能的伤害部分。\n④ 次回合：强制重置双方强化，回复首格技能全部PP。\n⑤ 末回合：自身精力<30%时回复70%已损精力并清空本技能PP。\n⑥ 本技能免疫删除与回复；PP为0时自身免疫全部异常。",
+    passiveLabel: "携带被动",
+    desc: "不灭之威，创世奇迹。【携带被动】创世神钟携带即免疫束缚、恐惧、睡眠、冰冻。本技能PP为0时免疫八种异常。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能免疫常规删PP。",
+    detail: "① 携带被动：创世神钟携带本技能时，无需出招即免疫束缚、恐惧、睡眠、冰冻。当前PP为0时，额外免疫烧伤、中毒、麻痹、混乱。PP恢复后保留原有四种免疫。\n② 主动：3回合内双方速度+10%、自身输出+25%；每回合吸取对方全体2PP回复自身，并令对方PP最少技能额外消耗1PP。\n③ 首回合：回复全部精力；若先手，额外删除对方全体1PP并免疫对方后手技能的伤害部分。\n④ 次回合：强制重置双方强化，回复首格技能全部PP。\n⑤ 末回合：自身精力<30%时回复70%已损精力并清空本技能PP。\n⑥ 本技能免疫常规删PP。原文规定本技能免疫回复，当前仍可被部分效果回复。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了创世之能！不灭之威，创世奇迹！");
@@ -1650,8 +1652,9 @@ const DEFAULT_SKILLS = [
     }
   },
   { id: "sk_cyjy", name: "重衍纪元", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 1,
-    desc: "纪元重衍，万物复苏。若本回合先手且未受到任何伤害：回复己方全体宠物（含场下）所有技能2PP。否则：将双方全体宠物的PP回退至最近24回合内的最低值，随后自身立即死亡。若自身其他技能有PP为空则无法使用。本技能PP不为0时自身所有输出降低40%。本技能免疫PP删除和回复效果。",
-    detail: "① 本技能PP不为0时，自身输出-40%；免疫删除与回复。\n② 自身其他技能有PP为空时，本技能无效。\n③ 先手：将双方全体宠物PP逆转至最近24回合最低值，自身不会死亡。\n④ 后手：同样逆转PP，随后自身死亡。\n⑤ 后手-7。",
+    passiveLabel: "原文被动",
+    desc: "纪元重衍，万物复苏。若本回合先手且未受到任何伤害：回复己方全体宠物（含场下）所有技能2PP。否则：将双方全体宠物的PP回退至最近24回合内的最低值，随后自身立即死亡。若自身其他技能有PP为空则无法使用。原文携带被动：本技能PP大于0时自身输出降低40%（待实装）。本技能免疫常规删PP。",
+    detail: "① 原文携带被动：本技能PP大于0时，自身输出降低40%。当前版本尚未按携带状态结算。\n本技能免疫常规删PP。原文规定本技能免疫回复，当前仍可被部分效果回复。\n② 自身其他技能有PP为空时，本技能无效。\n③ 先手：将双方全体宠物PP逆转至最近24回合最低值，自身不会死亡。\n④ 后手：同样逆转PP，随后自身死亡。\n⑤ 后手-7。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了重衍纪元！纪元重衍，万物复苏！");
@@ -1696,8 +1699,9 @@ const DEFAULT_SKILLS = [
   },
   // === 清羽新技能 ===
   { id: "sk_qy_1", name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
-    desc: "免疫删PP；低层/无清念：护盾+免疫后手；高层清念：净化回满、清空对方回合效果、12回合免疫；首次令双方技能视为主属系；后续倒置对方治疗。",
-    detail: "① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果（含限时防控），12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：4+2×已损比例的回合内倒置对方治疗，初始比例0.3+已损比例。",
+    passiveLabel: "血脉联动",
+    desc: "清羽同时携带残风临霜时，清翎覆尘放首格可在上场时进入清念。免疫删PP；低层/无清念：护盾+免疫后手；高层清念：净化回满、清空对方回合效果、12回合免疫；首次令双方技能视为主属系；后续倒置对方治疗。",
+    detail: "血脉联动：清羽同时携带清翎覆尘和残风临霜时，首格为清翎覆尘则上场进入清念。缺少任一技能时，通用血脉在开场免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧，并在回合开始获得20%减伤。\n① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果（含限时防控），12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：4+2×已损比例的回合内倒置对方治疗，初始比例0.3+已损比例。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var q = bd.qfzn || 0, inQ = bd.mode === "清念";
@@ -1813,8 +1817,9 @@ const DEFAULT_SKILLS = [
       if (bd.mode === "清念") { var self = u.skills.find(function(s){ return s.id === "sk_qy_3"; }); if (self) { bd.qy3SavedPP = self.pp; self.pp = 0; } }
     } },
   { id: "sk_qy_4", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12, immuneToPP: true,
-    desc: "冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按使用次数>6删PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
-    detail: "① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方，并对下一只上场宠物施加睡眠；睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差）PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
+    passiveLabel: "血脉联动",
+    desc: "清羽同时携带清翎覆尘时，残风临霜放首格可在上场时进入残脉。冰冻对方：成功则驱逐并对下一只睡眠（失败999分3段）；失败则按使用次数>6删PP，空PP≥2驱逐；随后自身减速30%并获得护盾。",
+    detail: "血脉联动：清羽同时携带清翎覆尘和残风临霜时，首格为残风临霜则上场进入残脉。缺少任一技能时，通用血脉在开场免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧，并在回合开始获得20%减伤。\n① 本技能免疫删除PP，只能被清翎覆尘回复。\n② 冰冻成功：驱逐对方，并对下一只上场宠物施加睡眠；睡眠失败则造成999点固伤（分3段）。\n③ 冰冻失败：删除对方使用次数>6的技能（1+本技能剩余PP+0.25×速度差）PP；若对方空PP技能≥2，驱逐对方。\n④ 结算后自身速度-30%，获得（20+0.8×速度差）×（1+已损精力比例×2.5）护盾。\n⑤ 未携带清翎覆尘时，使用后进入残脉。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var spdDiff = Math.abs(u.getStat("spd") - t.getStat("spd"));
@@ -2019,8 +2024,9 @@ const DEFAULT_SKILLS = [
     }
   },
   { id: "sk_ql_4", name: "太虚灵威", element: "ghost", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 9, semiSure: true, ppLocked: true,
-    desc: "半必中。首次使用前PP锁定；未命中仅删对方全体2PP。恐惧失败则删2PP+3回合额外消耗1PP且禁换宠；微灵≥200删对方上次技能6PP，双方空PP≥4追加9999。",
-    detail: "本技能在首次主动使用前处于PP锁定状态：无法被任何效果删除PP；首次主动使用后解除锁定。\n① 未命中：仅删除对方全体技能2PP。\n② 恐惧对方；若恐惧失败：删除对方全体技能2PP，并在3回合内令对方使用技能额外消耗1PP、无法换宠。\n③ 当微灵印记≥200：额外删除对方上次使用技能6PP；此后若双方PP为空的技能数≥4，追加9999点固定伤害。",
+    passiveLabel: "PP保护",
+    desc: "半必中。首次成功发动前免疫常规删PP；未命中仅删对方全体2PP。恐惧失败则删2PP+3回合额外消耗1PP且禁换宠；微灵≥200删对方上次技能6PP，双方空PP≥4追加9999。",
+    detail: "PP保护：首次成功发动前，本技能PP不会被常规删PP效果扣除。发动后解除锁定。\n① 未命中：仅删除对方全体技能2PP。\n② 恐惧对方；若恐惧失败：删除对方全体技能2PP，并在3回合内令对方使用技能额外消耗1PP、无法换宠。\n③ 当微灵印记≥200：额外删除对方上次使用技能6PP；此后若双方PP为空的技能数≥4，追加9999点固定伤害。",
     onUse: function(u, t, ctx) {
       var selfSk = u.skills.find(function(s){ return s.id === "sk_ql_4"; });
       if (selfSk && selfSk.ppLocked) { selfSk.ppLocked = false; ctx.msg("太虚灵威解除PP锁定。"); }
@@ -2538,7 +2544,7 @@ class BattlePet {
       var creationSkill = this.skills.find(skill => skill.id === "sk_cszn");
       if (creationSkill) {
         grantStatusImmunity(this, "创世之能", Infinity, { statuses: ["freeze", "sleep", "fear", "bind"] });
-        grantStatusImmunity(this, "创世之能空PP", Infinity, { active: () => creationSkill.pp === 0 });
+        grantStatusImmunity(this, "创世之能（0 PP）", Infinity, { active: () => creationSkill.pp === 0 });
       }
     }
   }
@@ -3061,6 +3067,7 @@ function grantStatusImmunity(pet, source, turns, options = {}) {
   const previous = sources.get(source);
   const turnsLeft = options.stack && previous ? previous.turnsLeft + turns : turns;
   sources.set(source, {
+    source,
     statuses: options.statuses || ABNORMAL_STATUSES,
     stats: options.stats,
     active: options.active,
@@ -4033,17 +4040,21 @@ function renderStatusBadges(pet) {
   if (pet.bindTurns > 0) h += "<span class=status-badge bind>束缚 " + pet.bindTurns + "回合</span>";
   if (pet.leechSeed) h += "<span class=status-badge poison>寄生</span>";
   const immunityBadges = new Map();
-  for (const lock of activeStatusImmunities(pet)) {
-    const covered = lock.statuses.slice().sort();
-    const key = covered.join(",");
-    const previous = immunityBadges.get(key);
-    if (!previous || lock.turnsLeft > previous.turnsLeft) immunityBadges.set(key, lock);
+  for (const { source, statuses, turnsLeft } of activeStatusImmunities(pet)) {
+    const key = statuses.slice().sort().join(",");
+    const badge = immunityBadges.get(key);
+    if (badge) {
+      badge.sources.push(source);
+      badge.turnsLeft = Math.max(badge.turnsLeft, turnsLeft);
+    } else {
+      immunityBadges.set(key, { sources: [source], statuses, turnsLeft });
+    }
   }
-  for (const { statuses, turnsLeft } of immunityBadges.values()) {
+  for (const { sources, statuses, turnsLeft } of immunityBadges.values()) {
     const label = ABNORMAL_WITHOUT_BIND.every(status => statuses.includes(status)) ? "免疫异常"
       : statuses.length === 6 ? "免疫控制"
       : "免疫" + STATUS_LABELS[statuses[0]] + "等";
-    const tooltip = escapeHtml(statuses.map(status => STATUS_LABELS[status]).join("、"));
+    const tooltip = uiAttr(sources.join("、") + " · " + statuses.map(status => STATUS_LABELS[status]).join("、"));
     h += '<span class="status-badge immune" title="' + tooltip + '">' + label +
       (turnsLeft === Infinity ? "" : " " + turnsLeft + "回合") + "</span>";
   }
@@ -4447,8 +4458,8 @@ function renderBattleActions() { var container = document.querySelector("#battle
     var btn = document.createElement('button');
     btn.className = 'skill-btn' + (skill.pp <= 0 ? ' no-pp' : ''); btn.disabled = skill.pp <= 0;
     btn.style.setProperty('--el',el.color);
-    btn.setAttribute('aria-label', '第' + (idx+1) + '格：使用' + skill.name + '，剩余' + skill.pp + 'PP');
-    btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el.bg + '">' + getSkillIcon(skill) + '</div><div class="skill-btn-name">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + (prio > 8 ? 'fast' : prio < 8 ? 'slow' : 'normal') + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? '威力 ' + Math.round(getSkillPower(skill,skill.power)*100)/100 : '变化') + '</span><span class="skill-pp-info"><span class="' + (skill.pp/skill.maxPp < .3 ? 'pp-empty' : '') + '">' + skill.pp + '</span> / ' + skill.maxPp + ' PP</span></div>';
+    btn.setAttribute('aria-label', '第' + (idx+1) + '格：使用' + skill.name + '，剩余' + skill.pp + 'PP' + (skill.passiveLabel ? '，' + skill.passiveLabel : ''));
+    btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el.bg + '">' + getSkillIcon(skill) + '</div><div class="skill-btn-name">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + (prio > 8 ? 'fast' : prio < 8 ? 'slow' : 'normal') + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? '威力 ' + Math.round(getSkillPower(skill,skill.power)*100)/100 : '变化') + '</span>' + renderSkillPassiveTag(skill) + '<span class="skill-pp-info"><span class="' + (skill.pp/skill.maxPp < .3 ? 'pp-empty' : '') + '">' + skill.pp + '</span> / ' + skill.maxPp + ' PP</span></div>';
     btn.addEventListener('click', function() { btn.classList.add('pressed'); btn.classList.add('selected'); playerUseSkill(idx); });
     var slot = document.createElement('span'); slot.className = 'skill-slot-label'; slot.textContent = '0' + (idx+1); slot.setAttribute('aria-hidden','true');
     var info = document.createElement('button'); info.className = 'skill-info'; info.textContent = 'i';
@@ -4472,6 +4483,9 @@ function renderBattleActions() { var container = document.querySelector("#battle
 function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
 // ---------- SKILL DETAIL (完整机制展示) ----------
+function renderSkillPassiveTag(skill) {
+  return skill.passiveLabel ? '<span class="skill-passive-tag">' + escapeHtml(skill.passiveLabel) + '</span>' : "";
+}
 var CATEGORY_NAMES = { physical: "物理", special: "特殊", status: "变化" };
 function skillMetaText(skill) {
   var el = ELEMENTS[skill.element] || { name: "?" };
@@ -4490,7 +4504,7 @@ function showSkillDetail(skill, trigger) {
   var builtin = DEFAULT_SKILLS.find(function(s) { return s.id === skill.id; });
   var description = skill.detail || skill.desc || '暂无说明';
   if (builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) description = skill.desc + '\n\n' + skill.detail;
-  ov.innerHTML = '<div class="modal skill-detail" role="dialog" aria-modal="true" aria-labelledby="skill-detail-title"><h3 id="skill-detail-title">' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + '</div><div class="skill-detail-body" tabindex="0" aria-label="技能机制正文">' + escapeHtml(description) + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
+  ov.innerHTML = '<div class="modal skill-detail" role="dialog" aria-modal="true" aria-labelledby="skill-detail-title"><h3 id="skill-detail-title">' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + (skill.passiveLabel ? ' · ' + renderSkillPassiveTag(skill) : '') + '</div><div class="skill-detail-body" tabindex="0" aria-label="技能机制正文">' + escapeHtml(description) + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
   document.body.appendChild(ov);
   var version = uiPageVersion;
   prepareLayer(ov, function(restore) {
@@ -4557,7 +4571,7 @@ function openSkillSwap(pet, keepDraft) {
   allSkills.forEach(function(skill) {
     var isEq = equippedIds.includes(skill.id);
     var eqIdx = isEq ? equippedIds.indexOf(skill.id) : -1;
-    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25B6</button></span>' : '') + '<button type="button" class="skill-swap-name swap-toggle" aria-pressed="' + isEq + '" aria-label="' + (isEq ? '卸下' : '装备') + uiAttr(skill.name) + '" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">' + escapeHtml(skill.name) + '</button><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power ? skill.power + '威力' : '变化') + ' · ' + skill.maxPp + 'PP</span><button type="button" class="swap-info-btn" aria-label="查看技能详情">i</button></div>';
+    html += '<div class="skill-swap-item' + (isEq ? " equipped" : "") + '" data-skill-id="' + skill.id + '"><span class="skill-slot">' + (isEq ? (eqIdx + 1) : "\u2B1C") + '</span>' + (isEq ? '<span class="swap-move-group"><button class="swap-move" data-move="left" data-skill="' + skill.id + '"' + (eqIdx === 0 ? ' disabled' : '') + '>\u25C0</button><button class="swap-move" data-move="right" data-skill="' + skill.id + '"' + (eqIdx === equippedIds.length - 1 ? ' disabled' : '') + '>\u25B6</button></span>' : '') + '<button type="button" class="skill-swap-name swap-toggle" aria-pressed="' + isEq + '" aria-label="' + (isEq ? '卸下' : '装备') + uiAttr(skill.name) + '" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">' + escapeHtml(skill.name) + '</button><span class="swap-info">' + (ELEMENTS[skill.element]||{name:'?'}).name + ' · ' + (skill.power ? skill.power + '威力' : '变化') + ' · ' + skill.maxPp + 'PP' + (skill.passiveLabel ? ' · ' + renderSkillPassiveTag(skill) : '') + '</span><button type="button" class="swap-info-btn" aria-label="查看技能详情">i</button></div>';
   });
   html += '</div><div class="swap-help">已装备 <strong>' + equippedIds.length + ' / 4</strong> 个 · ◀ ▶ 调整顺序</div><button class="btn btn-primary" id="swap-save" style="margin-top:12px;width:100%">保存技能配置</button></div>';
   detail.innerHTML = html;
