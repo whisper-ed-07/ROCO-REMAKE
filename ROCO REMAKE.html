@@ -2249,8 +2249,8 @@ const DEFAULT_PETS = [
         var hasQl = pet.skills.some(function(s) { return s.id === "sk_qy_1"; });
         var hasCf = pet.skills.some(function(s) { return s.id === "sk_qy_4"; });
         if (!hasQl || !hasCf) return;
-        if (bd.turnCount > 1 && bd.turnCount % 5 === 0) {
-          bd.switchTurn = true;
+        bd.switchTurn = bd.turnCount % 5 === 0;
+        if (bd.switchTurn) {
           ctx.doHeal(pet, 99);
           ctx.msg("【血脉切换期】回复99HP！使用翼系→清念 / 冰系→残脉");
           return;

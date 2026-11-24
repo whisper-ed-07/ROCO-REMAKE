@@ -250,5 +250,31 @@ test('R18 残脉：识别对方清羽的原初血脉减伤', () => {
   assert.equal(opponent.hp, 260, '目标持有有效常驻减伤时改为治疗');
 });
 
+test('R19 清羽：血脉切换期只持续一回合，空过后冰系技能不迟到切形态', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4']);
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  p.bloodline.onEnter(p, ctx);
+  p.bloodlineData.turnCount = 4;
+  p.hp -= 150;
+  const before = p.hp;
+  p.bloodline.onTurnStart(p, ctx);
+  assert.equal(p.hp - before, 99);
+  assert.equal(p.bloodlineData.switchTurn, true);
+
+  // 空过第 5 回合，再走下一回合的开场步骤和正常出招钩子。
+  p.bloodline.onTurnStart(p, ctx);
+  assert.equal(p.bloodlineData.switchTurn, false);
+  p.bloodline.onSkillUse(p, a, ctx, p.skills[1]);
+  assert.equal(p.bloodlineData.mode, '清念');
+
+  p.bloodlineData.turnCount = 9;
+  p.bloodline.onTurnStart(p, ctx);
+  p.bloodline.onSkillUse(p, a, ctx, p.skills[1]);
+  assert.equal(p.bloodlineData.mode, '残脉', '新切换期的冰系技能仍正常转换');
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;
