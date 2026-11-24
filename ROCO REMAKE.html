@@ -1250,7 +1250,7 @@ const WEATHER_DISPLAY = {
 };
 
 // ---------- DEFAULT SKILLS ----------
-const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
+const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧、寄生，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
 const DEFAULT_SKILLS = [
   { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, passiveLabel: "被动发动", desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；本技能PP被删空时回合末被动发动。", detail: "被动发动：极影迪莫携带本技能时，常规删PP将其从有PP删至0，回合末自动发动。原文规定每次上场后3回合免疫删PP，且仅特殊效果可回复本技能PP。这两项限制待实现。\n① 6回合内全场及场下所有技能视为光系，双方全部宠物回复与输出+100%；对方被明念标记时持续12回合。\n② 发动后自身免疫异常与负面强化，持续6回合。\n③ 血脉觉醒后首次使用：回复全部精力与全体PP，并在之后每回合限伤300。",
     onUse: function(u, t, ctx) {
@@ -1369,7 +1369,7 @@ const DEFAULT_SKILLS = [
       ctx.addTurnEffect(u, "光幕致命闪避", 10, null, function(p){ if (p.dodgeLethalLeft > 0) p.dodgeLethalLeft = 0; });
       ctx.msg("10回合内闪避一次致命伤害" + (m >= 2 ? "（印记≥2回复+50%！）" : "") + "！");
       // (2) 净化 + 5回合免疫异常负面强化 + 速度提升（5+上回合伤害/220）%上限10%
-      u.status = null; u.confuseTurns = 0; u.bindTurns = 0;
+      ctx.cleanseAbnormalStatuses(u);
       STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
       ctx.grantStatusImmunity(u, "极影光幕", 5, { stats: true });
       var spdBoost = Math.min(10, 5 + Math.floor((t.lastDealtDamage || 0) / 220));
@@ -1476,8 +1476,8 @@ const DEFAULT_SKILLS = [
     } },
 { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
     passiveLabel: "携带被动",
-    desc: "不灭之威，创世奇迹。【携带被动】创世神钟携带即免疫束缚、恐惧、睡眠、冰冻。本技能PP为0时免疫八种异常。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能免疫常规删PP。",
-    detail: "① 携带被动：创世神钟携带本技能时，无需出招即免疫束缚、恐惧、睡眠、冰冻。当前PP为0时，额外免疫烧伤、中毒、麻痹、混乱。PP恢复后保留原有四种免疫。\n② 主动：3回合内双方速度+10%、自身输出+25%；每回合吸取对方全体2PP回复自身，并令对方PP最少技能额外消耗1PP。\n③ 首回合：回复全部精力；若先手，额外删除对方全体1PP并免疫对方后手技能的伤害部分。\n④ 次回合：强制重置双方强化，回复首格技能全部PP。\n⑤ 末回合：自身精力<30%时回复70%已损精力并清空本技能PP。\n⑥ 本技能免疫常规删PP。原文规定本技能免疫回复，当前仍可被部分效果回复。",
+    desc: "不灭之威，创世奇迹。【携带被动】创世神钟携带即免疫束缚、恐惧、睡眠、冰冻。本技能PP为0时免疫所有异常状态。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能免疫常规删PP。",
+    detail: "① 携带被动：创世神钟携带本技能时，无需出招即免疫束缚、恐惧、睡眠、冰冻。当前PP为0时，免疫所有异常状态。PP恢复后保留原有四种免疫。\n② 主动：3回合内双方速度+10%、自身输出+25%；每回合吸取对方全体2PP回复自身，并令对方PP最少技能额外消耗1PP。\n③ 首回合：回复全部精力；若先手，额外删除对方全体1PP并免疫对方后手技能的伤害部分。\n④ 次回合：强制重置双方强化，回复首格技能全部PP。\n⑤ 末回合：自身精力<30%时回复70%已损精力并清空本技能PP。\n⑥ 本技能免疫常规删PP。原文规定本技能免疫回复，当前仍可被部分效果回复。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了创世之能！不灭之威，创世奇迹！");
@@ -1687,8 +1687,7 @@ const DEFAULT_SKILLS = [
       // 物防和魔防各提升2级 + 净化 + 反转负面
       ctx.modifyStat(user, "def", 2);
       ctx.modifyStat(user, "spdef", 2);
-      user.status = null;
-      user.confuseTurns = 0;
+      ctx.cleanseAbnormalStatuses(user);
       STAGE_FIELDS.forEach(function(s) {
         if (user[s] < 0) user[s] = Math.abs(user[s]);
       });
@@ -1770,7 +1769,7 @@ const DEFAULT_SKILLS = [
         }, null);
         ctx.msg("清风之念不足：2回合护盾并免疫后手伤害！");
       } else {
-        u.status = null; u.statusTurns = 0; u.confuseTurns = 0; u.bindTurns = 0; u.leechSeed = false;
+        ctx.cleanseAbnormalStatuses(u);
         STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
         ctx.doHeal(u, (u.maxHp + (u.maxHpBonus || 0)) - u.hp);
         u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3)); });
@@ -1945,7 +1944,7 @@ const DEFAULT_SKILLS = [
       ctx.msg(u.name + " 释放了微灵封体！");
       var cap = u.maxHp + (u.maxHpBonus || 0);
       var ratio = u.hp / cap;
-      u.status = null; u.statusTurns = 0; u.confuseTurns = 0; u.bindTurns = 0; u.leechSeed = false;
+      ctx.cleanseAbnormalStatuses(u);
       STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
       ctx.doHeal(u, cap - u.hp);
       var ppHeal = Math.ceil(3 + ratio);
@@ -2333,7 +2332,7 @@ const DEFAULT_PETS = [
           ctx.msg("【清念】3回合内免疫异常与负面强化！");
           // 若技能PP<8：净化自身+回复其他技能1PP
           if (skill.pp < 8) {
-            pet.status = null; pet.confuseTurns = 0; pet.bindTurns = 0;
+            ctx.cleanseAbnormalStatuses(pet);
             STAGE_FIELDS.forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
             pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1" && s.pp < s.maxPp) s.pp++; });
             ctx.msg("【清念】净化自身，其他技能回复1PP！");
@@ -2361,7 +2360,7 @@ const DEFAULT_PETS = [
           ctx.msg("【冰系】2回合免疫异常（可叠加，现剩" + immuneTurns + "回合）！");
           // 若技能PP≤4：净化+回复300精力（间隔<2回合则-30%）
           if (skill.pp <= 4) {
-            pet.status = null; pet.confuseTurns = 0; pet.bindTurns = 0;
+            ctx.cleanseAbnormalStatuses(pet);
             var iceHeal = 300;
             if (pet.lastIceSkillTurn !== undefined && gameState.turnCount - pet.lastIceSkillTurn < 2) iceHeal = Math.floor(iceHeal * 0.7);
             pet.lastIceSkillTurn = gameState.turnCount;
@@ -2753,6 +2752,7 @@ function createBattleContext() {
     grantStatusImmunity: grantStatusImmunity,
     revokeStatusImmunity: revokeStatusImmunity,
     applyStatus: applyEffect,
+    cleanseAbnormalStatuses: cleanseAbnormalStatuses,
     fear: function(target) { return applyEffect(target, "fear"); },
     modifyStat: function(target, stat, stages) {
       if (!Object.hasOwn(STAGE_LABELS, stat) || target.statLocked) return;
@@ -3130,7 +3130,7 @@ function calcDamage(attacker, defender, skill) {
 }
 
 // 防控按宠物与来源登记，由同一处负责刷新、累加和到期。
-const ABNORMAL_WITHOUT_BIND = ["burn", "freeze", "paralyze", "poison", "sleep", "confuse", "fear"];
+const ABNORMAL_WITHOUT_BIND = ["burn", "freeze", "paralyze", "poison", "sleep", "confuse", "fear", "leech_seed"];
 const ABNORMAL_STATUSES = ABNORMAL_WITHOUT_BIND.concat("bind");
 const STATUS_LABELS = { burn: "烧伤", freeze: "冰冻", paralyze: "麻痹", poison: "中毒",
   sleep: "睡眠", fear: "恐惧", confuse: "混乱", bind: "束缚", leech_seed: "寄生" };
@@ -3185,6 +3185,14 @@ function clearTurnEffects(pet) {
   for (const [source, lock] of pet.statusImmunitySources || []) {
     if (lock.turnsLeft !== Infinity) revokeStatusImmunity(pet, source);
   }
+}
+
+function cleanseAbnormalStatuses(pet) {
+  pet.status = null;
+  pet.statusTurns = 0;
+  pet.confuseTurns = 0;
+  pet.bindTurns = 0;
+  pet.leechSeed = false;
 }
 
 function applyEffect(pet, effect, options = {}) {

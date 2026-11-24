@@ -96,4 +96,76 @@ test('已有同种异常保留技能原分支和时长，防控仍优先判定',
   assert.strictEqual(f.p.status, 'sleep');
   assert.strictEqual(f.p.statusTurns, 2);
 });
+
+test('通用净化清除寄生并阻止再次施加', () => {
+  const cases = [
+    ['pet_jydm', ['sk_jydm_3'], 'sk_jydm_3'],
+    ['pet_qingling', ['sk_ql_1'], 'sk_ql_1'],
+    ['pet_bmhs', ['sk_fthy'], 'sk_fthy'],
+    ['pet_qy', ['sk_qy_1', 'sk_qy_4'], 'sk_qy_1']
+  ];
+  for (const [petId, skills, id] of cases) {
+    const f = fixture(petId, skills);
+    if (id === 'sk_qy_1') f.p.bloodlineData = {mode:'清念', qfzn:3, turnCount:0};
+    assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), true, id);
+    assert.equal(f.ctx.applyStatus(f.p, 'burn'), true, id);
+    assert.equal(f.ctx.applyStatus(f.p, 'bind'), true, id);
+    use(f, id);
+    assert.equal(f.p.leechSeed, false, id);
+    assert.equal(f.p.status, null, id);
+    assert.equal(f.p.bindTurns, 0, id);
+    assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), false, id);
+    assert.match(f.e.sandbox.renderStatusBadges(f.p), /免疫异常/);
+  }
+});
+
+test('清念翼系和残脉冰系的条件净化清除寄生', () => {
+  const cases = [
+    ['清念', ['sk_qy_1', 'sk_qy_4', 'sk_qy_2'], 'sk_qy_2', 7],
+    ['残脉', ['sk_qy_4', 'sk_qy_1'], 'sk_qy_4', 4]
+  ];
+  for (const [mode, skills, id, pp] of cases) {
+    const f = fixture('pet_qy', skills);
+    const skill = f.p.skills.find(skill => skill.id === id);
+    assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), true, mode);
+    f.p.bloodlineData = {mode, qfzn:0, turnCount:0, switchTurn:false};
+    skill.pp = pp;
+    f.p.bloodline.onSkillUse(f.p, f.a, f.ctx, skill);
+    assert.equal(f.p.leechSeed, false, mode);
+    assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), false, mode);
+  }
+});
+
+test('通用防控拦截寄生种子，防控到期后可重新施加', () => {
+  const f = fixture('pet_jydm', ['sk_jydm_2']);
+  f.e.myMath.random = () => 0;
+  const seed = () => f.e.sandbox.applyLegacyStatusSkill(f.a, f.p, {name:'寄生种子'});
+  use(f, 'sk_jydm_2');
+  seed();
+  assert.equal(f.p.leechSeed, false);
+  assert.ok(f.e.api.gameState.messages.some(m => m.text.includes('免疫了寄生')));
+  assert.match(f.e.sandbox.renderStatusBadges(f.p), /title="化念作刃 · [^"]*寄生[^"]*">免疫异常 4回合/);
+  tick(f, 4);
+  seed();
+  assert.equal(f.p.leechSeed, true);
+});
+
+test('原初血脉免疫寄生，点名免疫与零 PP 通用免疫按各自条件生效', () => {
+  const original = fixture('pet_qy', ['sk_qy_1']);
+  assert.equal(original.ctx.applyStatus(original.p, 'leech_seed'), false);
+
+  const mark = fixture('pet_jydm', ['sk_jydm_3']);
+  mark.p.bloodlineData = {marks:0, marked:true, markTurns:2, used:{}, jianghuaTurns:0};
+  mark.p.bloodline.onTurnStart(mark.p, mark.ctx);
+  assert.equal(mark.ctx.applyStatus(mark.p, 'leech_seed'), true);
+  assert.equal(mark.ctx.applyStatus(mark.p, 'freeze'), false);
+
+  const creation = fixture('pet_bmhs', ['sk_cszn']);
+  assert.equal(creation.ctx.applyStatus(creation.p, 'leech_seed'), true);
+  creation.p.leechSeed = false;
+  creation.p.skills[0].pp = 0;
+  assert.equal(creation.ctx.applyStatus(creation.p, 'leech_seed'), false);
+  creation.p.skills[0].pp = 1;
+  assert.equal(creation.ctx.applyStatus(creation.p, 'leech_seed'), true);
+});
 if (failed) { console.error(`${failed} regression(s) failed`); process.exitCode=1; }

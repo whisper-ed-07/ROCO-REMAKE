@@ -34,7 +34,7 @@ test('战斗中空 PP 的技能仍标记携带被动，详情可查看免疫条�
   assert.ok(overlay, '点击技能信息打开详情');
   const dialog = overlay.innerHTML;
   assert.match(dialog, /无需出招即免疫束缚、恐惧、睡眠、冰冻/);
-  assert.match(dialog, /当前PP为0时，额外免疫烧伤、中毒、麻痹、混乱/);
+  assert.match(dialog, /当前PP为0时，免疫所有异常状态/);
   assert.match(dialog, /PP恢复后保留原有四种免疫/);
 });
 
@@ -66,7 +66,7 @@ test('清羽两招的血脉联动整段加粗，原初血脉单独起行', () =>
     assert.ok(emphasis, skill.name + '的技能效果正文位于加粗段落之后');
     assert.ok(emphasis[1].includes('首格为' + skill.name));
     assert.ok(emphasis[1].includes('上场进入' + mode + '状态'));
-    assert.match(emphasis[1], /\n进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。/);
+    assert.match(emphasis[1], /\n进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧、寄生，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。/);
   }
 });
 
@@ -98,7 +98,7 @@ test('创世之能的免疫随是否携带和当前 PP 更新，状态提示显�
   const creation = equipped.skills[0];
   creation.pp = 0;
   assert.equal(sandbox.hasStatusImmunity(equipped, 'burn'), true);
-  assert.match(sandbox.renderStatusBadges(equipped), /title="创世之能（0 PP） · [^"]+">免疫异常/);
+  assert.match(sandbox.renderStatusBadges(equipped), /title="创世之能（0 PP） · [^"]*寄生[^"]*">免疫异常/);
   creation.pp = 1;
   assert.equal(sandbox.hasStatusImmunity(equipped, 'burn'), false);
   assert.equal(sandbox.hasStatusImmunity(equipped, 'freeze'), true);
