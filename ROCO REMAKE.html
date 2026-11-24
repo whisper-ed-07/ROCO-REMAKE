@@ -327,7 +327,6 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .status-badge.fear { background: linear-gradient(135deg,#8b0000,#5a0000); color:#fff; }
 .status-badge.bind { background: linear-gradient(135deg,#666,#444); color:#fff; }
 .status-badge.immune { background: linear-gradient(135deg,#3fb950,#2a8f43); color:#fff; }
-.bloodline-tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(226,176,74,0.15); color: var(--gold); margin-left: 6px; font-weight: 600; border: 1px solid rgba(226,176,74,0.3); }
 
 .battle-messages { margin: 4px 16px; background: rgba(10,14,20,0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: var(--radius); padding: 10px 14px; max-height: 260px; min-height: 160px; overflow-y: auto; font-size: 12px; color: var(--text2); line-height: 1.7; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
 .battle-messages .msg:last-child { color: var(--text); font-weight: 600; background: rgba(226,176,74,0.06); border-radius: 4px; padding: 2px 6px; }
@@ -745,7 +744,7 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .stage-pill { background: var(--ui-soft); font-size: 11px; padding: 2px 6px; }
 .stage-pill.up { color: var(--green); background: var(--ui-teal-soft); }
 .stage-pill.down { color: var(--hp-red); }
-.status-badge, .bloodline-tag { margin: 6px 4px 0 0; font-size: 11px; padding: 2px 7px; }
+.status-badge { margin: 6px 4px 0 0; font-size: 11px; padding: 2px 7px; }
 .battle-bottom { display: grid; grid-template-columns: minmax(240px, .82fr) minmax(0, 1.38fr); align-items: stretch; padding: 0; gap: 20px; }
 .battle-log, .battle-panel { min-width: 0; display: flex; flex-direction: column; flex: none; }
 .battle-log::before, .battle-panel::before { margin: 0 0 10px; color: var(--text2); font-size: 12px; letter-spacing: 2px; }
@@ -937,6 +936,32 @@ button { min-height: 40px; }
 .battle-bg { min-height: 100svh; }
 .battle-top { padding-right: 0; }
 .battle-side .pet-info-card { grid-row: auto; grid-column: auto; }
+.battle-bloodline-slot:empty { display: none; }
+.battle-bloodline-chip {
+  display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 3px 8px;
+  max-width: 100%; min-height: 36px; padding: 5px 10px; text-align: left;
+  background: var(--ui-gold-soft); border: 1px solid var(--border); border-inline-start: 3px solid var(--gold);
+  border-radius: 8px; color: var(--gold); line-height: 1.45;
+}
+.battle-bloodline-chip strong { font-size: 15px; overflow-wrap: anywhere; }
+.battle-bloodline-label { font-size: 11px; font-weight: 600; color: var(--text2); }
+.battle-bloodline-trigger { cursor: pointer; }
+.battle-bloodline-trigger[aria-expanded="true"] { border-color: var(--gold); }
+@media (hover: hover) {
+  .battle-bloodline-trigger:hover { border-color: var(--gold); }
+}
+.bloodline-preview {
+  position: fixed; z-index: 90; inset: 12px auto auto 12px;
+  width: min(460px, calc(100vw - 24px)); overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--border); border-block-start: 2px solid var(--gold);
+  border-radius: 12px; background: var(--surface); color: var(--text);
+  box-shadow: 0 12px 32px rgba(0,0,0,.32); padding: 14px 16px;
+}
+.bloodline-preview h3 { margin: 0 0 8px; color: var(--gold); font-size: 15px; }
+.bloodline-preview-body {
+  margin: 0; font: inherit; font-size: 13px; line-height: 1.8;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
 .log-tools { display: flex; gap: 6px; margin-bottom: 10px; }
 .log-tab, .log-copy { min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text2); cursor: pointer; font-size: 11px; }
 .log-tab.active { background: var(--ui-gold-soft); border-color: var(--gold); color: var(--gold); }
@@ -3689,11 +3714,212 @@ function checkFaints() {
   return false;
 }
 
-function endBattle(playerWin) { gameState.battleOver = true; stopTurnTimer(); document.querySelector("#result-overlay").classList.add("show"); document.querySelector("#result-emoji").textContent = playerWin ? "\u{1F3C6}" : "\u{1F494}"; document.querySelector("#result-text").textContent = playerWin ? "你赢了！" : "你输了..."; document.querySelector("#result-text").className = "result-text " + (playerWin ? "win" : "lose"); var act = document.querySelector("#battle-actions"); if (act) act.innerHTML = ""; }
+function endBattle(playerWin) { closeBloodlinePreview(); gameState.battleOver = true; stopTurnTimer(); document.querySelector("#result-overlay").classList.add("show"); document.querySelector("#result-emoji").textContent = playerWin ? "\u{1F3C6}" : "\u{1F494}"; document.querySelector("#result-text").textContent = playerWin ? "你赢了！" : "你输了..."; document.querySelector("#result-text").className = "result-text " + (playerWin ? "win" : "lose"); var act = document.querySelector("#battle-actions"); if (act) act.innerHTML = ""; }
 
 // ---------- BATTLE UI ----------
+// 正文逐字摘自 pets/*.txt 的血脉段落，内嵌以便本地单文件运行。
+const BLOODLINE_ORIGINALS = {
+  pet_qingling: `获得（5*双方阵亡宠物数）%减伤，max=（60-双方存活宠物数）%，每次双方同时使用变化技能或威力技能时，自身获得（双方使用技能先手值）点“微灵”印记，max=（100+双方技能PP为空数*20）（此处max仅代表此项效果所获取的上限，下同）
+①.每次使用威力技能后判定
+⑴若使用技能先手
+删除对方全体技能1PP，追加（30+双方正负面强化数*20+自身8%最大精力值）点固伤
+⑶若使用技能后手
+倒置对方下次治疗（多段治疗取最高），并且删除对方先手使用技能3PP
+②.每次使用变化技能后
+额外回复200点精力值.若使用技能PP≤4，则回复全体技能2PP，额外倒置对方治疗2回合`,
+  pet_jydm: `（1）：携带技能分别使用1次后（若极尽降华PP为空，则分别使用其余技能1次即可触发），标记对方4回合并将自身技能使用次数清零。若标记回合内再次触发，则重新标记且标记回合增加1回合（无上限，每次叠加回合后自身获得一层光明之印）（标记光明之印数量为m）
+（2）：标记回合内，获得（15m+50）点精力上限增幅与15%治疗与输出加成，增加5%速度能力值，并且免疫控制效果以及魔攻与速度类负面强化，每回合恢复全体技能1PP,每次造成伤害都会追加（40+15*双方所有强化数）点固定伤害
+（3）“降华”回合内，携带的技能使用1次即可触发“明念”，（2）的精力上限增幅额外增加100点.处于降华的第1回合时，自身免疫一切伤害与效果（正/负面效果）.期间场上锁定为无天气/环境效果，对强行召唤3次的敌方宠物造成999点固伤`,
+  pet_qy: `每次上场后，都会视首格技能为清翎覆尘/残风临霜进入清念状态/残脉状态，获得相应血脉，此后每隔5回合进入持续1回合的血脉切换期，血脉切换回合内单独回复99点精力，若期间使用翼系/冰系技能即可将血脉切换至清念/残脉
+若判定失败或未携带2技能中的任意1个，则只获得以下效果
+永久免疫异常，获得20%威力伤害减免与固定伤害减免
+以下为血脉具体效果
+清念
+①每回合治疗双方，具体值为：（60+10%最大精力+清风之念层数*40+0.1*双方速度差+清翎覆尘PP损失数*50），每治疗2次后就会获得1层清风之念
+②使用任意技能（包括清翎覆尘）若PP值低于最大值的30%，都会消耗“清风之念”回复满该技能PP.回复PP损耗至20%以下或最大PP值＜4的技能，需消耗所有清风之念”，反之，则消耗（PP损耗数-3）层，最少消耗0层
+③每次使用翼系技能后
+⑴.在3回合内免疫异常状态与负面强化，若使用技能PP＜8，还会净化自身并且回复除清翎覆尘外的所有技能1PP
+⑵.在3回合内降低25%速度，获得30%所有类型伤害减免，持续4回合（仅在清翎覆尘PP=0时可叠加，最多叠加2次）
+⑶.在4回合内每回合回复自身10%最大精力，对敌方治疗，具体值为（0.2*双方已损精力）
+上述数值均向上取整
+残脉
+①每回合对双方造成（0.3*自身上回合所受所有伤害中最高的2段总值+50*自身PP为空技能数）点固定伤害，若对方拥有减/限伤，则只触发：治疗对方，具体值为（0.3*自身上回合所受所有伤害总值+30+50*本回合主被动使用技能次数），若自身精力值＜500且残凤临霜PP≠4，则倒置本次治疗
+②自身每次受到伤害后，若精力值＞200，则在伤害结算完毕后回复30%最大精力，
+②每次使用冰系技能后
+⑴.在2回合内免疫异常状态（可叠加），若使用技能PP值≤4，则净化自身并回复300点精力值，每次使用间隔若小于2回合，则降低30%回复效果
+⑵.删除对方全体技能1PP，若使用技能PP值=1，则额外删除全体技能（3+双方正负面强化等级*2）点PP，此后清除（强制）双方正负面强化`,
+  pet_bmhs: `①每回合在受到第n段伤害后恢复（30-4n）%已损精力值，若有任意一段伤害>自身当前精力值，则在全部伤害结算完毕后保留1点精力并将自身驱逐，同时减少全体技能4PP
+②每次受到固定伤害时，先反转此伤害的30%为治疗，再受到伤害.受到威力伤害时，令其无法暴击且使对方在下回合无法回复PP
+③在②的基础上，若受到克制伤害，则降低40%`
+};
+
+let bloodlinePreview = null;
+let bloodlineHover = null;
+
+function cancelBloodlineHover(trigger) {
+  if (!bloodlineHover || (trigger && bloodlineHover.trigger !== trigger)) return;
+  clearTimeout(bloodlineHover.timer);
+  bloodlineHover = null;
+}
+
+function closeBloodlinePreview(restoreFocus = false) {
+  cancelBloodlineHover();
+  const view = bloodlinePreview;
+  if (!view) return;
+  if (restoreFocus && view.panel.contains(document.activeElement) && view.trigger.isConnected) {
+    view.trigger.focus({ preventScroll: true });
+  }
+  bloodlinePreview = null;
+  clearTimeout(view.dismissTimer);
+  view.trigger.setAttribute("aria-expanded", "false");
+  view.trigger.removeAttribute("aria-controls");
+  view.panel.remove();
+  document.removeEventListener("pointerdown", view.onOutside);
+  document.removeEventListener("keydown", view.onKey);
+  window.removeEventListener("resize", view.place);
+  window.removeEventListener("scroll", view.place);
+}
+
+function dismissBloodlinePreviewSoon(trigger) {
+  const view = bloodlinePreview;
+  if (!view || view.trigger !== trigger || view.pinned) return;
+  clearTimeout(view.dismissTimer);
+  view.dismissTimer = setTimeout(function() {
+    if (bloodlinePreview !== view || view.panel.contains(document.activeElement)) return;
+    if (trigger === document.activeElement && trigger.matches(":focus-visible")) return;
+    closeBloodlinePreview();
+  }, 160);
+}
+
+function showBloodlinePreview(trigger, name, original) {
+  if (!trigger.isConnected || gameState.screen !== "battle") return;
+  if (bloodlinePreview && bloodlinePreview.trigger === trigger) {
+    clearTimeout(bloodlinePreview.dismissTimer);
+    return bloodlinePreview;
+  }
+  closeBloodlinePreview();
+
+  const panel = document.createElement("section");
+  panel.className = "bloodline-preview";
+  panel.id = "battle-bloodline-preview";
+  panel.tabIndex = -1;
+  panel.setAttribute("aria-labelledby", "battle-bloodline-preview-title");
+  const title = document.createElement("h3");
+  title.id = "battle-bloodline-preview-title";
+  title.textContent = name;
+  const body = document.createElement("pre");
+  body.className = "bloodline-preview-body";
+  body.textContent = original;
+  panel.appendChild(title);
+  panel.appendChild(body);
+  document.body.appendChild(panel);
+  trigger.setAttribute("aria-expanded", "true");
+  trigger.setAttribute("aria-controls", panel.id);
+
+  const view = { trigger, panel, pinned: false };
+  bloodlinePreview = view;
+  view.place = function() {
+    const anchor = trigger.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    if (!trigger.isConnected || anchor.bottom <= 0 || anchor.top >= viewportHeight) {
+      closeBloodlinePreview();
+      return;
+    }
+    const gutter = 12, gap = 8;
+    const below = viewportHeight - anchor.bottom - gap - gutter;
+    const above = anchor.top - gap - gutter;
+    const openBelow = below >= 180 || below >= above;
+    const space = openBelow ? below : above;
+    const maxHeight = Math.min(420, space >= 120 ? space : viewportHeight - 2 * gutter);
+    panel.style.maxWidth = viewportWidth - 2 * gutter + "px";
+    panel.style.maxHeight = maxHeight + "px";
+    const left = Math.min(anchor.left, viewportWidth - gutter - panel.offsetWidth);
+    const top = openBelow ? anchor.bottom + gap : anchor.top - gap - panel.offsetHeight;
+    panel.style.left = Math.max(gutter, left) + "px";
+    panel.style.top = Math.max(gutter, Math.min(top, viewportHeight - gutter - panel.offsetHeight)) + "px";
+  };
+  view.onOutside = function(event) {
+    if (!panel.contains(event.target) && !trigger.contains(event.target)) closeBloodlinePreview();
+  };
+  view.onKey = function(event) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeBloodlinePreview(true);
+    }
+  };
+  panel.addEventListener("pointerenter", () => clearTimeout(view.dismissTimer));
+  panel.addEventListener("pointerleave", () => dismissBloodlinePreviewSoon(trigger));
+  panel.addEventListener("focusout", function(event) {
+    if (event.relatedTarget && event.relatedTarget !== trigger && !panel.contains(event.relatedTarget)) closeBloodlinePreview();
+  });
+  document.addEventListener("pointerdown", view.onOutside);
+  document.addEventListener("keydown", view.onKey);
+  window.addEventListener("resize", view.place);
+  window.addEventListener("scroll", view.place, { passive: true });
+  view.place();
+  return bloodlinePreview === view ? view : null;
+}
+
+function syncBattleBloodline(slot, pet) {
+  if (!slot) return;
+  if (bloodlinePreview && slot.contains(bloodlinePreview.trigger)) closeBloodlinePreview();
+  if (bloodlineHover && slot.contains(bloodlineHover.trigger)) cancelBloodlineHover();
+  slot.innerHTML = "";
+  if (!pet.bloodline || !pet.bloodline.name) return;
+
+  const name = pet.bloodline.name;
+  const original = Object.hasOwn(BLOODLINE_ORIGINALS, pet.id) ? BLOODLINE_ORIGINALS[pet.id] : "";
+  const entry = document.createElement(original ? "button" : "span");
+  entry.className = "battle-bloodline-chip";
+  const label = document.createElement("span");
+  label.className = "battle-bloodline-label";
+  label.textContent = "血脉";
+  const value = document.createElement("strong");
+  value.textContent = name;
+  entry.appendChild(label);
+  entry.appendChild(value);
+  slot.appendChild(entry);
+  if (!original) return;
+
+  entry.type = "button";
+  entry.classList.add("battle-bloodline-trigger");
+  entry.setAttribute("aria-expanded", "false");
+  const open = () => showBloodlinePreview(entry, name, original);
+  entry.addEventListener("pointerenter", function(event) {
+    if (event.pointerType !== "mouse") return;
+    if (bloodlinePreview && bloodlinePreview.trigger === entry) {
+      clearTimeout(bloodlinePreview.dismissTimer);
+      return;
+    }
+    cancelBloodlineHover();
+    bloodlineHover = { trigger: entry, timer: setTimeout(function() {
+      bloodlineHover = null;
+      open();
+    }, 280) };
+  });
+  entry.addEventListener("pointerleave", function() {
+    cancelBloodlineHover(entry);
+    dismissBloodlinePreviewSoon(entry);
+  });
+  entry.addEventListener("focus", function() { if (entry.matches(":focus-visible")) open(); });
+  entry.addEventListener("blur", () => dismissBloodlinePreviewSoon(entry));
+  entry.addEventListener("click", function() {
+    cancelBloodlineHover(entry);
+    if (bloodlinePreview && bloodlinePreview.trigger === entry && bloodlinePreview.pinned) {
+      closeBloodlinePreview();
+      return;
+    }
+    const view = open();
+    if (view) {
+      view.pinned = true;
+      view.panel.focus({ preventScroll: true });
+    }
+  });
+}
+
 var battleVisual = { battleId: null, player: null, ai: null, skillScroll: 0 };
-function resetBattleVisual() { clearBattleVisualTasks(); battleVisual = { battleId: null, player: null, ai: null, skillScroll: 0 }; }
+function resetBattleVisual() { closeBloodlinePreview(); clearBattleVisualTasks(); battleVisual = { battleId: null, player: null, ai: null, skillScroll: 0 }; }
 function hpPercent(pet) { return Math.max(0, Math.min(100, (pet.hp / pet.maxHp) * 100)); }
 function setMarkupIfChanged(el, html) { if (el && el.visualMarkup !== html) { el.innerHTML = html; el.visualMarkup = html; } }
 function enterBattleSprite(sprite) {
@@ -3716,6 +3942,7 @@ function syncBattleIdentity(side, pet) {
   if (level) level.textContent = "Lv." + pet.level;
   if (info && el) info.style.borderLeft = "3px solid " + el.color;
   if (element && el) { element.style.background = el.bg; element.style.color = el.color; element.innerHTML = elemIcon(pet.element) + el.name; }
+  if (info) syncBattleBloodline(info.querySelector(".battle-bloodline-slot"), pet);
   if (changed) enterBattleSprite(sprite);
 }
 function updateBattleSide(side, pet) {
@@ -3820,7 +4047,6 @@ function renderStatusBadges(pet) {
     h += '<span class="status-badge immune" title="' + tooltip + '">' + label +
       (turnsLeft === Infinity ? "" : " " + turnsLeft + "回合") + "</span>";
   }
-  if (pet.bloodline) h += "<span class=bloodline-tag>" + pet.bloodline.name + "</span>";
   return h;
 }
 
@@ -4069,6 +4295,7 @@ function displayedPercent(node, fallback) {
   var value = parseFloat(node.style.width); return isFinite(value) ? value : fallback;
 }
 function renderBattle(app) {
+  closeBloodlinePreview();
   var p = gameState.playerActive, a = gameState.aiActive;
   var sameBattle = battleVisual.battleId === gameState.battleId;
   if (!sameBattle) { resetBattleVisual(); battleVisual.battleId = gameState.battleId; }
@@ -4099,6 +4326,7 @@ function renderBattle(app) {
         '<div class="pet-sprite player" id="player-sprite">' + p.emoji + '</div>' +
         '<div class="pet-info-card" id="player-info" style="border-left:3px solid ' + pEl.color + '">' +
           '<div class="pet-info-top"><span class="pet-info-name">' + p.name + '</span><span class="pet-info-lv">Lv.' + p.level + '</span><span class="pet-info-element" style="background:' + pEl.bg + ';color:' + pEl.color + '">' + elemIcon(p.element) + pEl.name + '</span></div>' +
+          '<div class="battle-bloodline-slot"></div>' +
           '<div class="hp-bar-outer"><div class="hp-bar-ghost" style="width:' + pGhost + '%"></div><div class="hp-bar-inner" id="player-hp-bar" style="width:' + pStart + '%"></div></div>' +
           '<div id="player-shield"></div>' +
           '<div class="hp-text" id="player-hp-text">' + p.hp + '/' + p.maxHp + '</div>' +
@@ -4112,6 +4340,7 @@ function renderBattle(app) {
         '<div class="pet-sprite opponent" id="ai-sprite">' + a.emoji + '</div>' +
         '<div class="pet-info-card" id="ai-info" style="border-left:3px solid ' + aEl.color + '">' +
           '<div class="pet-info-top"><span class="pet-info-name">' + a.name + '</span><span class="pet-info-lv">Lv.' + a.level + '</span><span class="pet-info-element" style="background:' + aEl.bg + ';color:' + aEl.color + '">' + elemIcon(a.element) + aEl.name + '</span></div>' +
+          '<div class="battle-bloodline-slot"></div>' +
           '<div class="hp-bar-outer"><div class="hp-bar-ghost" style="width:' + aGhost + '%"></div><div class="hp-bar-inner" id="ai-hp-bar" style="width:' + aStart + '%"></div></div>' +
           '<div id="ai-shield"></div>' +
           '<div class="hp-text" id="ai-hp-text">' + a.hp + '/' + a.maxHp + '</div>' +
@@ -4174,6 +4403,7 @@ function renderBattle(app) {
 
 // ========== 逃跑确认弹窗 ==========
 function showFleeConfirm() {
+  closeBloodlinePreview();
   var old = document.getElementById('flee-overlay');
   if (old && old.layerIsOpen && old.layerIsOpen()) return;
   removeBodyLayer('flee-overlay');
@@ -4252,6 +4482,7 @@ function skillMetaText(skill) {
 }
 function showSkillDetail(skill, trigger) {
   if (!skill) return;
+  closeBloodlinePreview();
   var old = document.getElementById('skill-detail-overlay');
   if (old) { if (old.closeLayer) old.closeLayer(true); else old.remove(); }
   var returnFocus = trigger || document.activeElement;
