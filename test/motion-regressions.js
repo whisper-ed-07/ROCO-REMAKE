@@ -48,6 +48,28 @@ gs.screen = 'battle'; gs.battleId = 1; gs.playerActive = first; gs.aiActive = en
 first.hp = Math.floor(first.maxHp * .7); enemy.hp = Math.floor(enemy.maxHp * .6);
 s.renderBattle(app);
 const get = id => document.querySelector('#' + id), ghost = side => get(side + '-hp-bar').parentNode.querySelector('.hp-bar-ghost');
+
+// 天气和环境共用战斗首行，回合更新后收起已到期的项目。
+const weatherBar = get('battle-weather');
+assert.strictEqual(weatherBar.parentNode.children[0], weatherBar);
+assert.equal(weatherBar.hidden, true);
+const weatherContext = api.createBattleContext();
+weatherContext.setWeather('mist', 2);
+weatherContext.setField('dream', 1);
+s.updateBattleUI();
+assert.equal(weatherBar.hidden, false);
+assert.match(weatherBar.innerHTML, /迷雾<\/span><span class="w-turns">2回合/);
+assert.match(weatherBar.innerHTML, /梦境<\/span><span class="w-turns">1回合/);
+s.tickEnvironments();
+s.updateBattleUI();
+assert.match(weatherBar.innerHTML, /迷雾<\/span><span class="w-turns">1回合/);
+assert.doesNotMatch(weatherBar.innerHTML, /梦境/);
+s.tickEnvironments();
+s.updateBattleUI();
+assert.equal(weatherBar.hidden, true);
+gs.messages = [];
+s.renderBattleLog();
+
 const pct = p => Math.max(0, Math.min(100, p.hp / p.maxHp * 100)) + '%';
 assert.equal(get('player-hp-bar').style.width, pct(first)); assert.equal(ghost('player').style.width, pct(first));
 assert.equal(get('ai-hp-bar').style.width, pct(enemy)); assert.equal(ghost('ai').style.width, pct(enemy));

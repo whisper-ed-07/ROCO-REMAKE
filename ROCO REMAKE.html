@@ -439,20 +439,6 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
   transition:all 0.2s ease;
 }
 @media (hover: hover) { .flee-btn:hover { background:rgba(248,81,73,0.3); transform:scale(1.05); } }
-.battle-weather {
-  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  display:flex; gap:8px; align-items:center;
-  padding:4px 14px; border-radius:14px;
-  background:rgba(10,14,20,0.7); border:1px solid rgba(255,255,255,0.12);
-  white-space:nowrap; z-index:5;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-}
-.w-item { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:10px; }
-.w-item.has-weather { color:#ffcc02; background:rgba(255,204,2,0.14); border:1px solid rgba(255,204,2,0.35); box-shadow:0 0 12px rgba(255,204,2,0.25); }
-.w-item.has-field { color:#b388ff; background:rgba(179,136,255,0.14); border:1px solid rgba(179,136,255,0.35); box-shadow:0 0 12px rgba(179,136,255,0.25); }
-.w-icon { font-size:22px; line-height:1; }
-.w-turns { font-size: 12px; opacity:0.85; }
-.battle-weather { max-width:70%; overflow-x:auto; }
 .battle-row { display:flex; flex-direction:column; flex:1; }
 .battle-side { display:flex; flex-direction:column; align-items:center; gap:8px; }
 .battle-side .pet-sprite { width:110px; height:110px; font-size:54px; }
@@ -692,11 +678,22 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .turn-indicator { margin: 0; padding: 8px 12px; background: var(--ui-gold-soft); border: 1px solid var(--border); border-radius: 9px; font-size: 12px; letter-spacing: .5px; }
 .turn-timer, [data-theme="light"] .turn-timer { flex: 1 1 150px; max-width: 210px; min-width: 0; margin: 0; background: var(--surface); border-color: var(--border); padding: 8px 12px; border-radius: 9px; }
 .turn-timer-bar { min-width: 30px; background: var(--surface2); }
-.battle-weather { position: static; transform: none; max-width: 100%; min-width: 0; flex-wrap: wrap; padding: 0; background: transparent; border: 0; box-shadow: none; white-space: normal; overflow: visible; }
-.w-item { padding: 5px 9px; border-radius: 7px; }
-.w-item.has-weather { color: var(--gold); background: var(--ui-gold-soft); border-color: var(--border); box-shadow: none; }
-.w-item.has-field { color: var(--shield-color); background: var(--ui-soft); border-color: var(--border); box-shadow: none; }
-.w-icon { font-size: 17px; }
+.battle-weather { align-self: center; max-width: 100%; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.battle-weather:not([hidden]) { display: flex; }
+.w-item {
+  --w-color: var(--gold);
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px clamp(10px, 2vw, 17px);
+  border: 1px solid var(--w-color); border-radius: 12px; box-shadow: var(--shadow);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--w-color) 16%, transparent), transparent), var(--surface);
+  color: color-mix(in srgb, var(--w-color) 78%, var(--text));
+  font-size: clamp(16px, 2.3vw, 19px); font-weight: 800; line-height: 1.4; white-space: nowrap;
+}
+.w-item.has-field { --w-color: var(--shield-color); }
+.w-icon { font-size: 1.2em; line-height: 1; }
+.w-turns {
+  padding: 2px 7px; border-radius: 6px; background: var(--surface2); color: var(--text);
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
 .flee-btn { margin-left: auto; padding: 8px 13px; background: transparent; color: var(--hp-red); border-color: var(--border); border-radius: 9px; }
 @media (hover: hover) { .flee-btn:hover { transform: none; background: var(--ui-soft); border-color: var(--hp-red); } }
 .battle-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); gap: 16px; flex: none; align-items: center; padding: 4px 0 10px; }
@@ -812,7 +809,6 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
   .pet-info-name { font-size: 16px; }
   .pet-info-element { padding: 2px 6px; font-size: 11px; }
   .battle-top { gap: 8px; }
-  .battle-weather { order: 4; flex-basis: 100%; }
   .battle-row { grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); gap: 7px; }
   .stage-vs { font-size: 15px; letter-spacing: 0; }
   .mgmt-item { padding: 15px; gap: 12px; }
@@ -4115,15 +4111,15 @@ function updateBattleUI() {
     var wParts = [];
     if (gameState.weather) {
       var wInfo = {"sunny":["\u2600","\u66b4\u6652"],"rainy":["\u{1F327}","\u66b4\u96e8"],"sandstorm":["\u{1F32A}","\u6c99\u66b4"],"hailstorm":["\u2744","\u51b0\u96f9"],"mist":["\u2248","\u8ff7\u96fe"]}[gameState.weather];
-      if (wInfo) wParts.push('<span class="w-item has-weather"><span class="w-icon">' + wInfo[0] + '</span><span>' + wInfo[1] + '</span><span class="w-turns">' + (gameState.weatherTurns || 0) + '\u56de\u5408</span></span>');
+      if (wInfo) wParts.push('<span class="w-item has-weather"><span class="w-icon" aria-hidden="true">' + wInfo[0] + '</span><span>' + wInfo[1] + '</span><span class="w-turns">' + (gameState.weatherTurns || 0) + '\u56de\u5408</span></span>');
     }
     if (gameState.field) {
       var fInfo = {"dream":["\u{1F319}","\u68a6\u5883"],"shunhua":["\u2728","\u77ac\u534e"]}[gameState.field] || null;
       if (!fInfo) fInfo = ["\u2753", "\u672a\u77e5\u73af\u5883"];
-      wParts.push('<span class="w-item has-field"><span class="w-icon">' + fInfo[0] + '</span><span>' + fInfo[1] + '</span><span class="w-turns">' + (gameState.fieldTurns || 0) + '\u56de\u5408</span></span>');
+      wParts.push('<span class="w-item has-field"><span class="w-icon" aria-hidden="true">' + fInfo[0] + '</span><span>' + fInfo[1] + '</span><span class="w-turns">' + (gameState.fieldTurns || 0) + '\u56de\u5408</span></span>');
     }
-    wEl.innerHTML = wParts.join("");
-    wEl.style.display = wParts.length ? "flex" : "none";
+    wEl.hidden = wParts.length === 0;
+    setMarkupIfChanged(wEl, wParts.join(""));
   }
   var pSt = document.querySelector("#player-stages"); if (pSt && p) pSt.innerHTML = renderStages(p);
   var aSt = document.querySelector("#ai-stages"); if (aSt && a) aSt.innerHTML = renderStages(a);
@@ -4457,11 +4453,11 @@ function renderBattle(app) {
   var pEl = ELEMENTS[p.element], aEl = ELEMENTS[a.element];
   var html =
     '<div class="battle-bg screen active">' +
-    // 顶栏：回合指示 + 倒计时 + 天气 + 逃跑
+    '<div class="battle-weather" id="battle-weather" role="status" hidden></div>' +
+    // 顶栏：回合指示 + 倒计时 + 逃跑
     '<div class="battle-top">' +
       '<div class="turn-indicator" id="turn-indicator" style="display:none"></div>' +
       '<div class="turn-timer" id="turn-timer" style="display:none"><span>\u23F3</span><div class="turn-timer-bar"><div class="turn-timer-fill" id="turn-timer-fill" style="width:100%"></div></div><span id="turn-timer-text">20s</span></div>' +
-      '<div class="battle-weather" id="battle-weather" style="display:none"></div>' +
       '<button class="flee-btn" id="flee-btn" title="逃跑">\u{1F3C3} 逃跑</button>' +
     '</div>' +
     // 双宠对置行：玩家左 / 舞台中 / 敌方右
