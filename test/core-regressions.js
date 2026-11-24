@@ -37,17 +37,37 @@ test('E03 跨回合致死保护复位', () => {
   turn(e); assert.strictEqual(p.hp,1); p.status='poison'; turn(e); assert.ok(p.hp>0); assert.strictEqual(e.api.gameState.battleOver,false);
 });
 test('先手施加睡眠使后手本回合不能行动', () => {
-  const e=env(); let actions=0; const p=pet(e,'p',skill('sleep',(u,t,c)=>c.applyStatus(t,'sleep'),15)); const a=pet(e,'a',skill('queued',()=>actions++)); setup(e,p,a); turn(e); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,5);
+  const e=env(); let actions=0; const p=pet(e,'p',skill('sleep',(u,t,c)=>c.applyStatus(t,'sleep'),15)); const a=pet(e,'a',skill('queued',()=>actions++)); setup(e,p,a); turn(e); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,4);
 });
 test('先手施加麻痹后仍需判定后手本回合行动', () => {
-  const e=env(); let actions=0; const p=pet(e,'p',skill('paralyze',(u,t,c)=>c.applyStatus(t,'paralyze'),15)), a=pet(e,'a',skill('queued',()=>actions++)); setup(e,p,a); e.myMath.random=()=>0.1; turn(e); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,5);
+  const e=env(); let actions=0; const p=pet(e,'p',skill('paralyze',(u,t,c)=>c.applyStatus(t,'paralyze'),15)), a=pet(e,'a',skill('queued',()=>actions++)); setup(e,p,a); e.myMath.random=()=>0.1; turn(e); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,4);
 });
 test('麻痹同回合多次检查只抽样一次，下一回合重新抽样', () => {
   const e=env(), p=pet(e,'p'), a=pet(e,'a'); setup(e,p,a); p.status='paralyze'; let n=0; e.myMath.random=()=>{n++; return n===1 ? 0.1 : 0.9;};
   assert.strictEqual(p.canAct(),false); assert.strictEqual(p.canAct(),false); assert.strictEqual(n,1); e.api.gameState.turnCount++; assert.strictEqual(p.canAct(),true); assert.strictEqual(p.canAct(),true); assert.strictEqual(n,2);
 });
-test('R04 出手前被删至零 PP 取消原技能', () => {
-  const e=env(); let count=0; const p=pet(e,'p',skill('queued',()=>count++,8,1)), a=pet(e,'a',skill('cut',(u,t,c)=>c.deletePP(t,0,1),15)); setup(e,p,a); turn(e); assert.strictEqual(count,0); assert.strictEqual(p.skills[0].pp,0);
+test('R04 选招后被删至零 PP 仍执行原技能', () => {
+  const e=env(); let count=0; const p=pet(e,'p',skill('queued',()=>count++,8,1)), a=pet(e,'a',skill('cut',(u,t,c)=>c.deletePP(t,0,1),15)); setup(e,p,a); turn(e); assert.strictEqual(count,1); assert.strictEqual(p.skills[0].pp,0);
+});
+test('玩家选招立即扣 PP，AI 选招及先手行动时双方均已扣费', () => {
+  const e=env(); let observedSelection, observedFast, actions=0;
+  const p=pet(e,'p',skill('queued',()=>actions++,8,2));
+  const a=pet(e,'a',skill('fast',(u,t,c)=>{ observedFast=[t.skills[0].pp,u.skills[0].pp]; c.deletePP(t,0,1); },15,2));
+  Object.defineProperty(a.skills[0],'power',{get(){ observedSelection=p.skills[0].pp; return 0; }});
+  setup(e,p,a); e.api.gameState.isPlayerTurn=true; e.api.playerUseSkill(0);
+  assert.strictEqual(observedSelection,1); assert.deepStrictEqual(observedFast,[1,1]);
+  assert.strictEqual(actions,1); assert.strictEqual(p.skills[0].pp,0); assert.strictEqual(a.skills[0].pp,1);
+});
+test('未命中只扣一次已预留 PP，按选招时倍率收费', () => {
+  const e=env(); let actions=0; const s=skill('miss',()=>actions++,15,5); s.accuracy=1;
+  const p=pet(e,'p',s), a=pet(e,'a'); setup(e,p,a); p.skillPPCostMult=2; e.myMath.random=()=>0.5;
+  e.api.gameState.isPlayerTurn=true; e.api.playerUseSkill(0);
+  assert.strictEqual(actions,0); assert.strictEqual(s.pp,3);
+});
+test('先手控制已选招的后手时 PP 只扣一次', () => {
+  const e=env(); let actions=0; const p=pet(e,'p',skill('sleep',(u,t,c)=>c.applyStatus(t,'sleep'),15));
+  const a=pet(e,'a',skill('queued',()=>actions++,8,2)); setup(e,p,a); e.api.gameState.isPlayerTurn=true;
+  e.api.playerUseSkill(0); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,1);
 });
 test('R05 驱逐后离场宠物不能行动', () => {
   const e=env(); let count=0; const p=built(e,'pet_qy',['sk_qy_1','sk_qy_2','sk_qy_3','sk_qy_4']), a=pet(e,'a',skill('queued',()=>count++)), b=pet(e,'bench'); setup(e,p,a); e.api.gameState.aiParty.push(b); turn(e,3); assert.strictEqual(e.api.gameState.aiActive,b); assert.strictEqual(count,0);
@@ -112,7 +132,7 @@ test('创世神钟受威力伤害后封锁攻击者下一回合血脉与回合�
   p.bloodline={onTurnStart(u) { seen.push(['bloodline',e.sandbox.gainPP(u,u.skills[0],1),u.skills[0].pp]); }};
   ctx.addTurnEffect(p,'测试回复',1,u=>seen.push(['effect',e.sandbox.gainPP(u,u.skills[0],1),u.skills[0].pp]));
   ctx.doDamage(p,a,40,'physical','normal'); assert.strictEqual(p.blockPPRecovery,true);
-  turn(e); assert.deepStrictEqual(seen,[['bloodline',0,2],['effect',0,2]]);
+  turn(e); assert.deepStrictEqual(seen,[['bloodline',0,1],['effect',0,1]]);
 });
 
 // 让持续期在第二个提交回合开场结束：第一回合在窗口前，第二至第五回合为窗口。

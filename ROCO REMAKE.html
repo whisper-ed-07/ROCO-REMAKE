@@ -2642,9 +2642,9 @@ var gameState = {
   screen: "menu", playerParty: [], aiParty: [],
   playerActive: null, aiActive: null,
   messages: [], isPlayerTurn: true,
-  battleOver: false, waitingForSwitch: false, pendingPlayerSkill: null, pendingAISkill: null, turnTimer: null, turnTimeLeft: 0,
+  battleOver: false, waitingForSwitch: false, pendingPlayerSkill: null, pendingAISkill: null, pendingPlayerAction: null, resolvingTurn: false, turnTimer: null, autoSkipTimer: null, turnTimeLeft: 0,
   selectedTeamIds: [], opponentTeamIds: [],
-  turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null, skipPlayerAction: false, logFilter: "all", logCollapsed: {},
+  turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null, logFilter: "all", logCollapsed: {},
   snapshots: [],       // 状态快照历史
   ppHistory: []        // 全局PP历史 [{turn, pets: [{id,pp}]}]
 };
@@ -2941,12 +2941,14 @@ function forceSwitchPet(pet) {
 // ---------- TURN TIMER ----------
 var TURN_TIME_LIMIT = 20;
 function startTurnTimer() {
+  stopTurnTimer();
+  if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return;
+  const battleId = gameState.battleId;
   gameState.turnTimeLeft = TURN_TIME_LIMIT;
   var td = document.querySelector("#turn-timer");
   var fill = document.querySelector("#turn-timer-fill");
   var txt = document.querySelector("#turn-timer-text");
   if (td) td.style.display = "flex";
-  clearInterval(gameState.turnTimer);
   gameState.turnTimer = setInterval(function() {
     gameState.turnTimeLeft--;
     if (fill) {
@@ -2958,23 +2960,20 @@ function startTurnTimer() {
     if (gameState.turnTimeLeft <= 0) {
       clearInterval(gameState.turnTimer);
       if (td) td.style.display = "none";
-      var p = gameState.playerActive;
-      if (p && !p.isFainted() && !gameState.battleOver) {
-        var picked = false;
-        for (var i = 0; i < p.skills.length; i++) {
-          if (p.skills[i].pp > 0) { playerUseSkill(i); picked = true; return; }
-        }
-        if (!picked) {
-          // PP全空且未换宠：默认不使用任何技能（空过回合）
-          gameState.pendingPlayerSkill = null;
-          aiDecideAndResolve();
-        }
-      }
+      if (!canSubmitPlayerAction() || gameState.waitingForSwitch || gameState.battleId !== battleId) return;
+      const player = gameState.playerActive;
+      if (!player || player.isFainted()) return;
+      const skillIdx = player.skills.findIndex(skill => skill.pp > 0);
+      if (skillIdx >= 0) playerUseSkill(skillIdx);
+      else submitPlayerAction(null);
     }
   }, 1000);
 }
 function stopTurnTimer() {
   clearInterval(gameState.turnTimer);
+  clearTimeout(gameState.autoSkipTimer);
+  gameState.turnTimer = null;
+  gameState.autoSkipTimer = null;
   var td = document.querySelector("#turn-timer");
   if (td) td.style.display = "none";
 }
@@ -3279,25 +3278,44 @@ function spawnFloatText(pet, text, type) {
 // ---------- TURN SYSTEM V4: 先手值优先级 ----------
 // 机制：默认先手值=8，先手+x = 8+x，后手-x = 8-x。双方选定技能后比较先手值，高者先动。
 
+function reserveSkillAction(user, skill) {
+  if (!skill || (!skill.__struggle && skill.pp <= 0)) return null;
+  const ppBefore = skill.pp;
+  const requestedCost = skill.__struggle ? 0 : Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
+  const ppCost = Math.min(ppBefore, requestedCost);
+  skill.pp -= ppCost;
+  return { kind: "skill", user, skill, ppBefore, ppAfter: skill.pp, ppCost, requestedCost };
+}
+
+function canSubmitPlayerAction() {
+  return gameState.isPlayerTurn && !gameState.battleOver && !gameState.resolvingTurn;
+}
+
 function playerUseSkill(skillIdx) {
-  if (gameState.battleOver) return;
-  var player = gameState.playerActive;
-  var skill = player.skills[skillIdx];
-  if (!skill || skill.pp <= 0) return;
-  // 状态判定与回合递减统一在 resolveTurn 内处理，避免同一回合扣两次
-  gameState.pendingPlayerSkill = skillIdx; stopTurnTimer();
-  // 禁用按钮
-  var btns = document.querySelectorAll("#battle-actions button");
-  for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+  if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return;
+  const player = gameState.playerActive;
+  if (!player || player.isFainted()) return;
+  const action = reserveSkillAction(player, player.skills[skillIdx]);
+  if (action) submitPlayerAction(action);
+}
+
+function submitPlayerAction(action) {
+  gameState.pendingPlayerAction = action;
+  gameState.pendingPlayerSkill = null;
+  gameState.isPlayerTurn = false;
+  stopTurnTimer();
+  document.querySelectorAll("#battle-actions button").forEach(button => { button.disabled = true; });
   aiDecideAndResolve();
 }
 
 function endTurnCleanup() {
-  gameState.isPlayerTurn = true; updateBattleUI(); renderBattleActions();
+  gameState.isPlayerTurn = !gameState.battleOver;
+  updateBattleUI();
+  if (!gameState.battleOver) renderBattleActions();
 }
 
 function aiDecideAndResolve() {
-  if (gameState.battleOver) return;
+  if (gameState.battleOver || gameState.resolvingTurn) return;
   var ai = gameState.aiActive, player = gameState.playerActive;
   
   // 先选招，行动能力统一在本回合结算内判定，选招阶段不抽取麻痹随机数。
@@ -3327,11 +3345,28 @@ function makeStruggleSkill() {
     category: "physical", priority: 8, __struggle: true, desc: "无技能可用时的拼死一搏" };
 }
 
+function reserveRoundSkill(user, skillIdx) {
+  return reserveSkillAction(user, user.skills[skillIdx]) || reserveSkillAction(user, makeStruggleSkill());
+}
+
 function resolveTurn() {
-  if (gameState.battleOver) return;
+  if (gameState.battleOver || gameState.resolvingTurn) return;
+  gameState.resolvingTurn = true;
+  gameState.isPlayerTurn = false;
+  try {
+    resolveTurnActions();
+  } finally {
+    gameState.resolvingTurn = false;
+    gameState.pendingPlayerAction = null;
+    gameState.pendingPlayerSkill = null;
+    gameState.pendingAISkill = null;
+  }
+  endTurnCleanup();
+}
+
+function resolveTurnActions() {
   var player = gameState.playerActive, ai = gameState.aiActive;
-  var pSkillIdx = gameState.pendingPlayerSkill;
-  var aSkillIdx = gameState.pendingAISkill;
+  const selected = gameState.pendingPlayerAction;
   gameState.turnCount++;
   // 在任何天气、异常或回合效果伤害前复位；场下宠物本回合也可能被换上。
   gameState.playerParty.concat(gameState.aiParty).forEach(function(pet) {
@@ -3339,19 +3374,16 @@ function resolveTurn() {
     pet.immuneBackhand = false; pet.invincible = false;
   });
   [player, ai].forEach(function(pet) { pet.lastDealtDamage = pet.currentDealt || 0; pet.currentDealt = 0; });
-  // 无法行动的一方本回合强制空过；状态回合只在这里推进一次
-  var playerCanAct = player.canAct(), aiCanAct = ai.canAct();
-  if (!playerCanAct) pSkillIdx = -1;
-  if (!aiCanAct) aSkillIdx = -1;
-  var playerSkipped = !!gameState.skipPlayerAction;  // 本回合玩家已用"换宠"占用行动
-  gameState.skipPlayerAction = false;
-  var pSkill = pSkillIdx >= 0 ? player.skills[pSkillIdx] : null;
-  var aSkill = aSkillIdx >= 0 ? ai.skills[aSkillIdx] : null;
-  if (pSkill && pSkill.pp <= 0) pSkill = null;
-  if (aSkill && aSkill.pp <= 0) aSkill = null;
+  // 已经无法出招的一方空过；已支付的行动不依赖之后的剩余 PP。
+  const playerCanAct = selected?.kind === "switch" || player.canAct();
+  const aiCanAct = ai.canAct();
+  const pAction = playerCanAct ? (selected || reserveRoundSkill(player, gameState.pendingPlayerSkill)) : null;
+  const aAction = aiCanAct ? reserveRoundSkill(ai, gameState.pendingAISkill) : null;
+  const pSkill = pAction?.skill;
+  const aSkill = aAction?.skill;
 
   // 玩家无法行动：推进状态（睡眠/冰冻/恐惧/麻痹回合递减），本回合不出招
-  if (!pSkill && !playerCanAct) {
+  if (!playerCanAct) {
     if (player.status === "sleep") {
       player.statusTurns--;
       if (player.statusTurns <= 0) { player.status = null; addMessage(player.name + " 醒过来了！"); }
@@ -3368,7 +3400,7 @@ function resolveTurn() {
     }
   }
   // AI无法行动：推进状态，本回合不出招
-  if (!aSkill && !aiCanAct) {
+  if (!aiCanAct) {
     if (ai.status === "sleep") {
       ai.statusTurns--;
       if (ai.statusTurns <= 0) { ai.status = null; addMessage(ai.name + " 醒过来了！"); }
@@ -3384,13 +3416,9 @@ function resolveTurn() {
       addMessage(ai.name + " 因麻痹无法行动！");
     }
   }
-  // 有行动能力却没有可用技能（PP 耗尽）→ 挣扎，避免整局无法推进
-  if (!pSkill && !playerSkipped && playerCanAct) pSkill = makeStruggleSkill();
-  if (!aSkill && aiCanAct) aSkill = makeStruggleSkill();
   // 双方空过也走完整回合管线，持续效果和计时均正常推进。
-  
-  var pPrio = pSkill ? ((player.priorityOverride !== null && player.priorityOverride !== undefined) ? player.priorityOverride : (pSkill.priority || 8)) : 0;
-  var aPrio = aSkill ? ((ai.priorityOverride !== null && ai.priorityOverride !== undefined) ? ai.priorityOverride : (aSkill.priority || 8)) : 0;
+  var pPrio = pAction?.kind === "switch" ? 8 : pSkill ? (player.priorityOverride ?? (pSkill.priority || 8)) : 0;
+  var aPrio = aSkill ? (ai.priorityOverride ?? (aSkill.priority || 8)) : 0;
   // 迷雾天气：幽灵系技能先手值+1
   if (gameState.weather === "mist") {
     if (pSkill && pSkill.element === "ghost") pPrio += 1;
@@ -3442,23 +3470,24 @@ function resolveTurn() {
   }
   var dreamActive = gameState.field === "dream";
   var playerFirst;
-  if (!pSkill) playerFirst = false;           // 玩家无技能：AI先动
-  else if (!aSkill) playerFirst = true;       // AI无技能：玩家先动
+  if (!pAction) playerFirst = false;
+  else if (!aAction) playerFirst = true;
   else playerFirst = dreamActive
     ? ((pPrio < aPrio) || (pPrio === aPrio && pSpdEff <= aSpdEff))
     : ((pPrio > aPrio) || (pPrio === aPrio && pSpdEff >= aSpdEff));
   gameState.pendingFirstMove = playerFirst ? "player" : "ai";
   
-  if (playerFirst) {
-    addMessage(player.name + " 先手！（先手" + fmtPriority(pPrio) + " vs " + fmtPriority(aPrio) + (dreamActive?"，梦境反转！":"") + "）");
-    if (pSkill) runSkillTurn(player, ai, pSkill, "player");
-    if (!ai.isFainted() && !player.isFainted() && aSkill) runSkillTurn(ai, player, aSkill, "ai");
-  } else {
-    addMessage(ai.name + " 先手！（先手" + fmtPriority(aPrio) + " vs " + fmtPriority(pPrio) + (dreamActive?"，梦境反转！":"") + "）");
-    if (aSkill) runSkillTurn(ai, player, aSkill, "ai");
-    if (!player.isFainted() && !ai.isFainted() && pSkill) runSkillTurn(player, ai, pSkill, "player");
-  }
-  
+  const firstSide = gameState.pendingFirstMove;
+  const secondSide = playerFirst ? "ai" : "player";
+  const firstPet = playerFirst ? player : ai, secondPet = playerFirst ? ai : player;
+  const firstAction = playerFirst ? pAction : aAction, secondAction = playerFirst ? aAction : pAction;
+  const firstPrio = playerFirst ? pPrio : aPrio, secondPrio = playerFirst ? aPrio : pPrio;
+  addMessage(firstPet.name + " 先手！（先手" + fmtPriority(firstPrio) + " vs " + fmtPriority(secondPrio) + (dreamActive ? "，梦境反转！" : "") + "）");
+  const firstIncoming = runTurnAction(firstAction, secondPet, firstSide);
+  // 主动换宠已完成时，后出手的对手以新上场宠物为目标。
+  const secondIncoming = !player.isFainted() && !ai.isFainted()
+    ? runTurnAction(secondAction, firstIncoming || firstPet, secondSide) : null;
+
   // 后处理
   postDamageProcessing();
   updateBattleUI();
@@ -3472,12 +3501,15 @@ function resolveTurn() {
     if (pjSk && pjOpp) { applyQingnianSuppression(pj, pjSk); pjSk.onUse(pj, pjOpp, createBattleContext()); addMessage("【极尽降华】PP 被删除，被动发动！"); }
   }
   createBattleContext().saveSnapshot();
-  [player, ai].forEach(function(p){ if (p) { p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0; p.lastTakenSegments = (p.damageTakenThisTurn || []).slice(); p.lastTakenTotal = (p.damageTakenThisTurn || []).reduce(function(a,b){ return a + b; }, 0); p.damageTakenThisTurn = []; p.skillsUsedThisTurn = 0; } });
-  
-  gameState.pendingPlayerSkill = null;
-  gameState.pendingAISkill = null;
-  
-  endTurnCleanup();
+  const participants = new Set([player, ai]);
+  if (firstIncoming) participants.add(firstIncoming);
+  if (secondIncoming) participants.add(secondIncoming);
+  participants.forEach(function(p) {
+    p.lastTurnOutput = p.outputThisTurn || 0; p.outputThisTurn = 0;
+    p.lastTakenSegments = p.damageTakenThisTurn.slice();
+    p.lastTakenTotal = p.damageTakenThisTurn.reduce((sum, damage) => sum + damage, 0);
+    p.damageTakenThisTurn = []; p.skillsUsedThisTurn = 0;
+  });
 }
 
 function fmtPriority(p) {
@@ -3486,20 +3518,27 @@ function fmtPriority(p) {
   return "±0";
 }
 
-// 包一层：确保技能内产生的日志带上“我方/敌方”，异常路径也会复位
-function runSkillTurn(user, target, skill, who) {
+function runTurnAction(action, target, who) {
+  if (!action) return null;
   gameState.currentActingSide = who;
-  try { executeSkillTurn(user, target, skill, who); }
-  finally { gameState.currentActingSide = null; }
+  try {
+    if (action.kind === "switch") return executeSwitchAction(action, who);
+    executeSkillTurn(action.user, target, action.skill, who, action);
+    return null;
+  } finally {
+    gameState.currentActingSide = null;
+  }
 }
 
-function executeSkillTurn(user, target, skill, who) {
+function executeSkillTurn(user, target, skill, who, action) {
   if (user.isFainted() || target.isFainted()) return;
-  // R04/R05：执行前复查——已离场、技能 PP 已被删空、或已陷入控制，取消本次行动
+  // 执行前复查在场与控制。选招时已经支付的 PP 不再复查或重扣。
   if (user !== gameState.playerActive && user !== gameState.aiActive) { addMessage(user.name + " 已离场，行动取消！"); return; }
   if (target !== gameState.playerActive && target !== gameState.aiActive) { addMessage(target.name + " 已不在场上，本次行动取消！"); return; }
-  if (!skill.__struggle && skill.pp <= 0) { addMessage(user.name + " 的" + skill.name + "已无PP，行动取消！"); return; }
   if (!user.canAct()) { addMessage(user.name + " 无法行动！"); return; }
+  action = action || reserveSkillAction(user, skill);
+  if (!action) { addMessage(user.name + " 的" + skill.name + "已无PP，行动取消！"); return; }
+  const ppChange = skill.__struggle ? "" : "（PP " + action.ppBefore + "→" + action.ppAfter + (action.requestedCost > 1 ? " ×" + action.requestedCost : "") + "）";
   var isPlayer = who === "player";
   // 迷雾天气：主动行动结算前 80% 概率令自身混乱
   if (gameState.weather === "mist" && !hasStatusImmunity(user, "confuse") && Math.random() < 0.8) {
@@ -3508,7 +3547,7 @@ function executeSkillTurn(user, target, skill, who) {
   var lastEff = 1, lastDmgVal = 0;
   var ctx = createBattleContext();
   ctx.sourceSkill = skill; ctx.sourceSkillOwner = user;
-  var ppCostOnMiss = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
+  ctx.skillPPCost = action.ppCost;
   
   // 轻风散魂：下回合闪避非必中技能（一次性）
   if (target.dodgeNextTurnNonSure && !skill.semiSure && skill.category !== "status") {
@@ -3521,26 +3560,20 @@ function executeSkillTurn(user, target, skill, who) {
   if (skill.semiSure) {
     if (target.sureDodge) {
       applyQingnianSuppression(user, skill);
-      var missBefore = skill.pp;
-      skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
-      addMessage(target.name + " 必定闪避了 " + user.name + " 的 " + skill.name + "！（PP " + missBefore + "→" + skill.pp + "）");
+      addMessage(target.name + " 必定闪避了 " + user.name + " 的 " + skill.name + "！" + ppChange);
       if (skill.onMiss) skill.onMiss(user, target, ctx);
       return;
     }
   } else if (skill.accuracy < 100 && Math.random() * 100 > skill.accuracy) {
     applyQingnianSuppression(user, skill);
-    var missBefore = skill.pp;
-    skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
-    addMessage(user.name + " 的 " + skill.name + " 没有命中！（PP " + missBefore + "→" + skill.pp + "）");
+    addMessage(user.name + " 的 " + skill.name + " 没有命中！" + ppChange);
     return;
   }
   // 化念作刃先手闪避：target 有标志、本技能非必中、user 为后手 → 闪避
   var userIsBackhand = gameState.pendingFirstMove !== (isPlayer ? "player" : "ai");
   if (!skill.semiSure && target.dodgeNextNonSure && skill.accuracy < 100 && userIsBackhand) {
     applyQingnianSuppression(user, skill);
-    var dodgeBefore = skill.pp;
-    skill.pp = Math.max(0, skill.pp - ppCostOnMiss);
-    addMessage(target.name + " 闪避了后手非必中技能！视物攻+2！（PP " + dodgeBefore + "→" + skill.pp + "）");
+    addMessage(target.name + " 闪避了后手非必中技能！视物攻+2！" + ppChange);
     target.atkStage = Math.min(6, target.atkStage + 2);
     target.dodgeNextNonSure = false;
     updateBattleUI(); checkFaints(); return;
@@ -3562,25 +3595,18 @@ function executeSkillTurn(user, target, skill, who) {
       var selfDmg = Math.floor(((2 * user.level / 5 + 2) * 40 * (user.getStat("atk") / user.getStat("def"))) / 50 + 2);
       user.takeDamage(selfDmg);
       addMessage(user.name + " 攻击了自己，受到 " + selfDmg + " 点伤害！");
-      user.confuseTurns--; var cfBefore = skill.pp; skill.pp--;
-      addMessage(user.name + " 混乱自伤！（PP " + cfBefore + "→" + skill.pp + "）");
+      user.confuseTurns--;
+      addMessage(user.name + " 混乱自伤！" + ppChange);
       updateBattleUI(); checkFaints(); return;
     }
   }
   
-  // PP消耗倍率（化念作刃/极影光幕效果；extraPPCost 为极影光幕连续技惩罚）
   user.skillsUsedThisTurn = (user.skillsUsedThisTurn || 0) + 1;
   skill.useCount = (skill.useCount || 0) + 1;
-  var ppCost = Math.max(1, Math.round((user.skillPPCostMult || 1) + (skill.extraPPCost || 0)));
-  var ppBeforeUse = skill.pp;
-  if (skill.__struggle) {
-    addMessage(user.name + " 已无技能可用，只能拼命挣扎！");
-  } else {
-    skill.pp = Math.max(0, skill.pp - ppCost);
-    addMessage(user.name + " 使用了 " + skill.name + "（PP " + ppBeforeUse + "→" + skill.pp + (ppCost > 1 ? " ×" + ppCost : "") + "）！");
-  }
-  ctx.skillPPCost = skill.__struggle ? 0 : ppBeforeUse - skill.pp;
+  if (skill.__struggle) addMessage(user.name + " 已无技能可用，只能拼命挣扎！");
+  else addMessage(user.name + " 使用了 " + skill.name + ppChange + "！");
   applyQingnianSuppression(user, skill);
+
   // 对方连续技能计数（极影光幕）
   if (user.oppConsecutive) {
     if (user.lastUsedSkillId === skill.id) { user.oppConsecutive[skill.id] = (user.oppConsecutive[skill.id] || 0) + 1; }
@@ -3712,23 +3738,35 @@ function callBloodlineEnter(pet) {
   if (pet && pet.bloodline && pet.bloodline.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
 }
 
+function canSwitchPet(user) {
+  if (user.bindTurns > 0) { addMessage(user.name + " 被束缚了，无法换宠！"); return false; }
+  if (user.switchLocked) { addMessage(user.name + " 无法换宠！"); return false; }
+  return true;
+}
+
 function playerSwitch(petIdx) {
-  var newPet = gameState.playerParty[petIdx];
-  if (newPet === gameState.playerActive || newPet.isFainted()) return;
-  if (gameState.playerActive.bindTurns > 0) { addMessage(gameState.playerActive.name + " 被束缚了，无法换宠！"); return; }
-  if (gameState.playerActive.switchLocked) { addMessage(gameState.playerActive.name + " 无法换宠！"); return; }
-  addMessage("回来吧，" + gameState.playerActive.name + "！"); addMessage("上吧，" + newPet.name + "！");
-  if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
-  gameState.playerActive = newPet; callBloodlineEnter(newPet); gameState.waitingForSwitch = false; gameState.skipPlayerAction = true;
-  gameState.switchPending = true;
-  var sp = document.querySelector("#switch-panel"); if (sp) sp.classList.remove("show");
-  renderBattle(document.querySelector("#app")); gameState.isPlayerTurn = false;
-  var swBattleId = gameState.battleId || 0;
-  setTimeout(function() {
-    if (gameState.battleOver || (gameState.battleId || 0) !== swBattleId) return;
-    gameState.switchPending = false;
-    aiDecideAndResolve();
-  }, 800);
+  if (!canSubmitPlayerAction()) return;
+  const user = gameState.playerActive, incoming = gameState.playerParty[petIdx];
+  if (!user || user.isFainted() || !incoming || incoming === user || incoming.isFainted() || !canSwitchPet(user)) return;
+  gameState.waitingForSwitch = false;
+  const panel = document.querySelector("#switch-panel");
+  if (panel?.closeLayer) panel.closeLayer(true);
+  else if (panel) panel.classList.remove("show");
+  submitPlayerAction({ kind: "switch", user, incoming });
+}
+
+function executeSwitchAction(action, who) {
+  const { user, incoming } = action;
+  const activeKey = who === "player" ? "playerActive" : "aiActive";
+  if (gameState[activeKey] !== user || user.isFainted() || incoming.isFainted() || !canSwitchPet(user)) return null;
+  addMessage(who === "player" ? "回来吧，" + user.name + "！" : "对手收回了 " + user.name + "！");
+  user.qlSealMark = false;
+  gameState[activeKey] = incoming;
+  incoming.lastDealtDamage = incoming.currentDealt || 0; incoming.currentDealt = 0;
+  callBloodlineEnter(incoming);
+  addMessage(who === "player" ? "上吧，" + incoming.name + "！" : "对手换上了 " + incoming.name + "！");
+  updateBattleUI();
+  return incoming;
 }
 
 function checkFaints() {
@@ -4328,12 +4366,13 @@ function toggleOpponentSelection(petId) { var idx = gameState.opponentTeamIds.in
 function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = gameState.opponentTeamIds.map(function(id) { return allPets.find(function(p) { return p.id === id; }); }).filter(Boolean); if (aiPets.length < 1) return; gameState.aiParty = aiPets.map(function(p) { return new BattlePet(p); }); gameState.aiActive = gameState.aiParty[0]; callBloodlineEnter(gameState.aiActive); callBloodlineEnter(gameState.playerActive); gameState.messages = []; gameState.turnCount = 0; gameState.snapshots = []; gameState.ppHistory = []; gameState.battleOver = false; gameState.waitingForSwitch = false;
   // 新战斗必须清空上一局残留的天气/环境/全局封锁与待结算指令
   gameState.battleId = (gameState.battleId || 0) + 1;
-  gameState.switchPending = false;
+  gameState.pendingPlayerAction = null;
+  gameState.resolvingTurn = false;
   gameState.weather = null; gameState.weatherTurns = 0;
   gameState.field = null; gameState.fieldTurns = 0;
   gameState.banEffects = null;
   gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; gameState.pendingFirstMove = null;
-  gameState.skipPlayerAction = false; gameState.isPlayerTurn = true;
+  gameState.isPlayerTurn = true;
   // R07：清理上一局残留的降华全局状态与延迟效果
   gameState.forceSkillElement = null; gameState.forceSkillElementTurns = 0;
   gameState.jianghuaBuff = null; gameState.pendingJianghua = null;
@@ -4456,7 +4495,6 @@ function renderBattle(app) {
   document.querySelector("#result-close").addEventListener("click", function() { var layer = document.querySelector("#result-overlay"); if (!layer.layerIsOpen()) return; layer.querySelectorAll("button").forEach(function(button) { button.disabled = true; }); layer.closeLayer(); var act = document.querySelector("#battle-actions"); if (act) act.innerHTML = "<div style=text-align:center;padding:16px;color:var(--text2);font-size:13px>战斗已结束，可滚动上方日志回顾战况</div>"; });
   document.querySelector("#switch-cancel").addEventListener("click", function() { if (!gameState.waitingForSwitch) return; gameState.waitingForSwitch = false; var panel = document.querySelector("#switch-panel"); panel.querySelectorAll("button").forEach(function(button) { button.disabled = true; }); panel.closeLayer(); startTurnTimer(); });
   document.querySelector("#flee-btn").addEventListener("click", showFleeConfirm);
-  gameState.isPlayerTurn = true;
 }
 
 // ========== 逃跑确认弹窗 ==========
@@ -4474,22 +4512,21 @@ function showFleeConfirm() {
   prepareLayer(ov, function(restore) { ov.remove(); if (restore && version === uiPageVersion && trigger && trigger.isConnected !== false && trigger.focus) trigger.focus(); });
   function cancel() { if (!ov.layerIsOpen()) return; ov.querySelector("#flee-confirm").disabled = true; ov.closeLayer(); }
   ov.querySelector("#flee-cancel").addEventListener("click", cancel);
-  ov.querySelector("#flee-confirm").addEventListener("click", function() { if (!ov.layerIsOpen()) return; ov.closeLayer(true); gameState.battleOver = true; gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; stopTurnTimer(); showScreen("menu"); });
+  ov.querySelector("#flee-confirm").addEventListener("click", function() { if (!ov.layerIsOpen()) return; ov.closeLayer(true); gameState.battleOver = true; gameState.pendingPlayerAction = null; gameState.pendingPlayerSkill = null; gameState.pendingAISkill = null; stopTurnTimer(); showScreen("menu"); });
   ov.addEventListener("click", function(e) { if (e.target === ov) cancel(); });
 }
 
-function renderBattleActions() { var container = document.querySelector("#battle-actions"); if (!container) return; var oldList = container.querySelector(".battle-skill-list"); if (oldList) battleVisual.skillScroll = oldList.scrollLeft; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
-  if (gameState.switchPending) { container.innerHTML = "<div style=\"text-align:center;padding:20px;color:var(--text2);font-size:14px\">换宠中…</div>"; return; }
+function renderBattleActions() { if (!canSubmitPlayerAction()) return; var container = document.querySelector("#battle-actions"); if (!container) return; var oldList = container.querySelector(".battle-skill-list"); if (oldList) battleVisual.skillScroll = oldList.scrollLeft; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
   // 检查是否被控制（仅异常状态自动跳过；PP归零改为等待读秒）
   var allPPEmpty = player.skills.every(function(s){return s.pp<=0;});
   if (["sleep", "freeze", "fear"].indexOf(player.status) >= 0 && !allPPEmpty) {
     var reason = (player.status==="sleep"?"正在睡觉":player.status==="freeze"?"被冰冻":player.status==="fear"?"被恐惧":player.status==="paralyze"?"麻痹无法行动":"无法行动");
     document.querySelector("#battle-actions").innerHTML = "<div style=text-align:center;padding:20px;color:var(--text2);font-size:14px>"+player.name+reason+"<br>自动跳过...</div>";
     stopTurnTimer();
-    var autoBattleId = gameState.battleId || 0;
-    setTimeout(function(){
-      if (gameState.battleOver || (gameState.battleId || 0) !== autoBattleId) return;
-      gameState.pendingPlayerSkill = null; aiDecideAndResolve();
+    const battleId = gameState.battleId;
+    gameState.autoSkipTimer = setTimeout(function() {
+      if (!canSubmitPlayerAction() || gameState.battleId !== battleId || gameState.playerActive !== player) return;
+      submitPlayerAction(null);
     }, 800);
     return;
   }
@@ -4516,7 +4553,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
   });
   if (allPPEmpty) {
     var struggle = document.createElement('button'); struggle.className = 'action-btn struggle-btn'; struggle.textContent = '挣扎';
-    struggle.addEventListener('click', function() { gameState.pendingPlayerSkill = null; stopTurnTimer(); aiDecideAndResolve(); });
+    struggle.addEventListener('click', function() { if (canSubmitPlayerAction() && !gameState.waitingForSwitch) submitPlayerAction(null); });
     utilities.appendChild(struggle);
   }
   var swBtn = document.createElement('button'); swBtn.className = 'action-btn';
@@ -4527,7 +4564,7 @@ function renderBattleActions() { var container = document.querySelector("#battle
   skillList.scrollLeft = battleVisual.skillScroll || 0;
 }
 
-function showSwitchPanel() { var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
+function showSwitchPanel() { if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return; var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
 // ---------- SKILL DETAIL (完整机制展示) ----------
 function renderSkillPassiveTag(skill) {
