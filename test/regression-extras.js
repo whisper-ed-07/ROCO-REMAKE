@@ -382,5 +382,68 @@ test('R23 残风临霜：驱逐遵守免疫，并将睡眠失败的三段固伤�
   }
 });
 
+test('R24 清翎覆尘：初次保留原分支，后续按清念及天气环境确定倒置', () => {
+  for (const [weather, field, mode, ratio, turns] of [
+    ['rainy', null, '清念', 0.7, 7],
+    [null, 'dream', '清念', 0.7, 7],
+    [null, null, '清念', 0.8, 5],
+    ['gale', null, '残脉', 0.8, 5],
+    ['gale', null, null, 0.8, 5]
+  ]) {
+    const e = env(), p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4']), a = pet(e, 'enemy');
+    setup(e, p, a);
+    const ctx = e.api.createBattleContext();
+    p.bloodline.onEnter(p, ctx);
+    if (mode) e.sandbox.enterQingyuMode(p, mode);
+    else p.bloodlineData.mode = null;
+    p.maxHp = 1000;
+    p.hp = 500;
+    if (weather) ctx.setWeather(weather, 1);
+    if (field) ctx.setField(field, 1);
+
+    e.api.executeSkillTurn(p, a, p.skills[0], 'player');
+    assert.equal(a.healInvertPct, mode === '清念' ? 1 : 0);
+    assert.equal(a.healInvertTurns, mode === '清念' ? 2 : 0);
+
+    e.api.executeSkillTurn(p, a, p.skills[0], 'player');
+    assert.equal(a.healInvertPct, ratio);
+    assert.equal(a.healInvertTurns, turns);
+    e.sandbox.tickEnvironments();
+    assert.equal(e.api.gameState.weather, null);
+    assert.equal(e.api.gameState.field, null);
+    assert.equal(a.healInvertPct, ratio, '天气或环境结束后沿用施放时锁定的比例');
+    assert.equal(a.healInvertTurns, turns - 1);
+    if (ratio === 0.7) {
+      a.hp = 300;
+      assert.equal(a.heal(100), -40, '原本100点治疗，70点倒置且剩余30点照常回复');
+    }
+    for (let i = 1; i < turns; i++) e.sandbox.tickEnvironments();
+    a.hp = 300;
+    assert.equal(a.heal(100), 100, '倒置到期后恢复普通治疗');
+  }
+});
+
+test('R25 清翎覆尘：疾风优先，使用次数包含本次，比例为零或负时照常治疗', () => {
+  const e = env(), p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4']), a = pet(e, 'enemy');
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  p.bloodline.onEnter(p, ctx);
+  assert.equal(ctx.setWeather('gale', 10), true);
+  ctx.setField('dream', 10);
+  assert.ok(e.api.gameState.messages.some(msg => msg.text.includes('天气变更为疾风')));
+
+  const qingling = p.skills[0];
+  for (const [index, expected] of [1, 1, 0.8, 0.6, 0.4, 0.2, 0, -0.2].entries()) {
+    qingling.pp = qingling.maxPp;
+    e.api.executeSkillTurn(p, a, qingling, 'player');
+    assert.equal(qingling.useCount, index + 1);
+    assert.equal(a.healInvertPct, expected);
+    assert.equal(a.healInvertTurns, index === 0 ? 2 : 4);
+    a.hp = 300;
+    if (index <= 1) assert.equal(a.heal(100), -100, '前两次应精确倒置全部治疗');
+    if (expected <= 0) assert.equal(a.heal(100), 100);
+  }
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;

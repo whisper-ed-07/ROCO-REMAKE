@@ -67,6 +67,12 @@ assert.doesNotMatch(weatherBar.innerHTML, /梦境/);
 s.tickEnvironments();
 s.updateBattleUI();
 assert.equal(weatherBar.hidden, true);
+weatherContext.setWeather('gale', 1);
+s.updateBattleUI();
+assert.match(weatherBar.innerHTML, /疾风<\/span><span class="w-turns">1回合/);
+s.tickEnvironments();
+s.updateBattleUI();
+assert.equal(weatherBar.hidden, true);
 gs.messages = [];
 s.renderBattleLog();
 

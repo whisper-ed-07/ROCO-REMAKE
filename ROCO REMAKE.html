@@ -1239,6 +1239,16 @@ function getSkillIcon(skill) { return getElementEmoji(skill ? skill.element : ''
 function getEffectiveness(atkEl, defEl) { return TYPE_CHART[atkEl]?.[defEl] ?? 1; }
 function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0.5 && val > 0) return "效果不佳..."; if (val === 0) return "没有效果！"; return ""; }
 
+const GALE_WEATHER = "gale";
+const WEATHER_DISPLAY = {
+  sunny: ["☀", "暴晒"],
+  rainy: ["🌧", "暴雨"],
+  sandstorm: ["🌪", "沙暴"],
+  hailstorm: ["❄", "冰雹"],
+  mist: ["≈", "迷雾"],
+  [GALE_WEATHER]: ["💨", "疾风"]
+};
+
 // ---------- DEFAULT SKILLS ----------
 const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
 const DEFAULT_SKILLS = [
@@ -1743,9 +1753,9 @@ const DEFAULT_SKILLS = [
   // === 清羽新技能 ===
   { id: "sk_qy_1", name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     passiveLabel: "血脉联动",
-    desc: "清羽同时携带残风临霜时，清翎覆尘放首格可在上场时进入清念。缺少任一招或首格判定失败时进入原初血脉状态。免疫删PP；低层/无清念：护盾+免疫后手；高层清念：净化回满、清空对方回合效果、12回合免疫；首次令双方技能视为主属系；后续倒置对方治疗。",
+    desc: "清羽同时携带残风临霜时，清翎覆尘放首格可在上场时进入清念。缺少任一招或首格判定失败时进入原初血脉状态。免疫删PP；低层/无清念：护盾+免疫后手；高层清念：净化回满、清空对方回合效果、12回合免疫；首次令双方技能视为主属系；后续倒置对方治疗，清念状态下依天气或环境锁定比例和时长。",
     bloodlineDetail: "血脉联动：清羽同时携带清翎覆尘和残风临霜，且首格为清翎覆尘时，上场进入清念状态。\n" + QINGYU_ORIGINAL_BLOODLINE_DETAIL,
-    detail: "① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果（含限时防控），12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：4+2×已损比例的回合内倒置对方治疗，初始比例0.3+已损比例。",
+    detail: "① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果（含限时防控），12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：倒置对方治疗，比例为0.3+已损精力比例，持续（4+2×已损精力比例）回合，四舍五入。\n⑥ 后续使用且处于清念：场上有非疾风天气或环境时，倒置比例锁定为0.7，持续7回合。处于疾风天气时，倒置比例为（1.4−0.2×本技能使用次数，含本次），持续4回合。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var q = bd.qfzn || 0, inQ = bd.mode === "清念";
@@ -1780,8 +1790,16 @@ const DEFAULT_SKILLS = [
         var cap2 = u.maxHp + (u.maxHpBonus || 0);
         var lostRatio = Math.min(1, 1 - u.hp / cap2);
         var turns = Math.round(4 + 2 * lostRatio);
-        ctx.invertHealing(t, 0.3 + lostRatio, turns);
-        ctx.msg("后续使用：倒置对方治疗" + turns + "回合！");
+        var ratio = 0.3 + lostRatio;
+        if (inQ && gameState.weather === GALE_WEATHER) {
+          var uses = ctx.sourceSkill?.useCount ?? ((u.skillUseCounts?.sk_qy_1 || 0) + 1);
+          ratio = (7 - uses) / 5; // 1.4 - 0.2 × 使用次数，避免第二次的 1.0 出现浮点尾差。
+          turns = 4;
+        } else if (inQ && (gameState.weather || gameState.field)) {
+          ratio = 0.7;
+          turns = 7;
+        }
+        ctx.invertHealing(t, ratio, turns);
       }
     } },
   { id: "sk_qy_2", name: "轻风散魂", element: "flying", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 11, immuneToPP: true,
@@ -2844,7 +2862,7 @@ function createBattleContext() {
     setDamageCap: function(pet, threshold, cap, turns) { pet.damageCapThreshold = threshold; pet.damageCap = cap; pet.damageCapTurns = turns; },
     setDamageReduction: function(pet, pct) { pet.damageReduction = pct; pet.damageReductionTurns = 1; },
     setCritPrevention: function(pet) { pet.preventCritNext = true; },
-    setWeather: function(type, turns) { if (gameState.field) { addMessage("环境在场，天气无法降临！"); return false; } var wmap = {"sunny":"暴晒","rainy":"暴雨","sandstorm":"沙暴","hailstorm":"冰雹","mist":"迷雾"}; gameState.weather = type; gameState.weatherTurns = turns; addMessage("天气变更为" + (wmap[type]||type) + "！持续"+turns+"回合"); return true; },
+    setWeather: function(type, turns) { if (gameState.field) { addMessage("环境在场，天气无法降临！"); return false; } gameState.weather = type; gameState.weatherTurns = turns; addMessage("天气变更为" + (WEATHER_DISPLAY[type]?.[1] || type) + "！持续"+turns+"回合"); return true; },
     setField: function(type, turns) { gameState.field = type; gameState.fieldTurns = turns; addMessage("环境变更为" + ({"dream":"梦境","shunhua":"瞬华"}[type]||type) + "！持续"+turns+"回合"); },
     addCritBonus: function(target, amount, turns) { target.critRateBonus = (target.critRateBonus || 0) + amount; var self = this; setTimeout(function() { target.critRateBonus = Math.max(0, (target.critRateBonus || 0) - amount); }, turns * 1000 || 2000); },
     invertHealing: function(target, pct, turns) { target.healInvertPct = pct; target.healInvertTurns = turns; addMessage(target.name + "的治疗被倒置"+Math.round(pct*100)+"%持续"+turns+"回合！"); },
@@ -4123,7 +4141,7 @@ function updateBattleUI() {
   if (wEl) {
     var wParts = [];
     if (gameState.weather) {
-      var wInfo = {"sunny":["\u2600","\u66b4\u6652"],"rainy":["\u{1F327}","\u66b4\u96e8"],"sandstorm":["\u{1F32A}","\u6c99\u66b4"],"hailstorm":["\u2744","\u51b0\u96f9"],"mist":["\u2248","\u8ff7\u96fe"]}[gameState.weather];
+      var wInfo = WEATHER_DISPLAY[gameState.weather];
       if (wInfo) wParts.push('<span class="w-item has-weather"><span class="w-icon" aria-hidden="true">' + wInfo[0] + '</span><span>' + wInfo[1] + '</span><span class="w-turns">' + (gameState.weatherTurns || 0) + '\u56de\u5408</span></span>');
     }
     if (gameState.field) {
