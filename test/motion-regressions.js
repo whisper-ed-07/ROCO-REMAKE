@@ -98,4 +98,22 @@ assert(!get('player-sprite').classList.contains('pet-enter')); assert.equal(docu
 const listeners = new Set(); let removed = false; s.window = { matchMedia: () => ({ matches: false, addEventListener: (t, fn) => { listeners.add(fn); }, removeEventListener: (t, fn) => { listeners.delete(fn); removed = true; } }) };
 s.spawnFloatText(first, 4, 'dmg'); assert(get('player-sprite').classList.contains('hit')); for (const listener of [...listeners]) listener({ matches: true }); assert(removed); assert(!get('player-sprite').classList.contains('hit')); assert.equal(get('player-sprite').children.length, 0); assert.equal(listeners.size, 0);
 s.window.matchMedia = () => ({ matches: true }); s.spawnFloatText(first, 3, 'dmg'); assert.equal(get('player-sprite').children.length, 0);
+// 双方同宠，通过真实技能结算驱动血脉显示，保持各自按钮身份。
+s.window = s;
+const qyData = api.DEFAULT_PETS.find(p => p.id === 'pet_qy');
+const qyPlayer = new api.BattlePet({ ...qyData, skillIds: ['sk_qy_1', 'sk_qy_2', 'sk_qy_4', 'sk_qy_5'] });
+const qyEnemy = new api.BattlePet({ ...qyData, skillIds: ['sk_qy_1', 'sk_qy_2', 'sk_qy_4', 'sk_qy_5'] });
+gs.playerActive = qyPlayer; gs.aiActive = qyEnemy; gs.playerParty = [qyPlayer]; gs.aiParty = [qyEnemy];
+const qyCtx = api.createBattleContext(); qyPlayer.bloodline.onEnter(qyPlayer, qyCtx); qyEnemy.bloodline.onEnter(qyEnemy, qyCtx);
+gs.pendingFirstMove = 'player'; s.renderBattle(app);
+const qyChip = side => get(side + '-info').querySelector('.battle-bloodline-trigger');
+const playerChip = qyChip('player'), enemyChip = qyChip('ai');
+assert.equal(playerChip.dataset.mode, '清念'); assert.equal(enemyChip.dataset.mode, '清念');
+qyPlayer.bloodlineData.qfzn = 5;
+api.executeSkillTurn(qyPlayer, qyEnemy, qyPlayer.skills.find(skill => skill.id === 'sk_qy_2'), 'player');
+assert.strictEqual(qyChip('player'), playerChip); assert.equal(playerChip.dataset.mode, '残脉');
+assert.strictEqual(qyChip('ai'), enemyChip); assert.equal(enemyChip.dataset.mode, '清念');
+api.executeSkillTurn(qyPlayer, qyEnemy, qyPlayer.skills.find(skill => skill.id === 'sk_qy_5'), 'player');
+assert.strictEqual(qyChip('player'), playerChip); assert.equal(playerChip.dataset.mode, '清念');
+assert.strictEqual(qyChip('ai'), enemyChip); assert.equal(enemyChip.dataset.mode, '清念');
 console.log('motion regressions passed');

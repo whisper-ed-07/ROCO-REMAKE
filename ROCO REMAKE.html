@@ -944,6 +944,23 @@ button { min-height: 40px; }
   border-radius: 8px; color: var(--gold); line-height: 1.45;
 }
 .battle-bloodline-chip strong { font-size: 15px; overflow-wrap: anywhere; }
+.qingyu-bloodline-form {
+  position: relative; isolation: isolate; display: inline-block; padding: 0 3px;
+  color: var(--text2); transition: color var(--motion-hp) ease;
+}
+.qingyu-bloodline-form::before {
+  content: ""; position: absolute; z-index: -1; inset: 0; border-radius: 4px;
+  background: linear-gradient(120deg, var(--form-tint), transparent);
+  opacity: 0; transition: opacity var(--motion-hp) ease;
+}
+.qingyu-bloodline-form[data-form="清念"] { --form-color: #85caff; --form-tint: rgba(80,166,251,.30); }
+.qingyu-bloodline-form[data-form="残脉"] { --form-color: #ff929f; --form-tint: rgba(238,94,112,.30); }
+[data-theme="light"] .qingyu-bloodline-form[data-form="清念"] { --form-color: #145999; --form-tint: rgba(75,150,226,.25); }
+[data-theme="light"] .qingyu-bloodline-form[data-form="残脉"] { --form-color: #9e293e; --form-tint: rgba(224,98,116,.25); }
+.battle-bloodline-chip[data-mode="清念"] [data-form="清念"],
+.battle-bloodline-chip[data-mode="残脉"] [data-form="残脉"] { color: var(--form-color); }
+.battle-bloodline-chip[data-mode="清念"] [data-form="清念"]::before,
+.battle-bloodline-chip[data-mode="残脉"] [data-form="残脉"]::before { opacity: 1; }
 .battle-bloodline-label { font-size: 11px; font-weight: 600; color: var(--text2); }
 .battle-bloodline-trigger { cursor: pointer; }
 .battle-bloodline-trigger[aria-expanded="true"] { border-color: var(--gold); }
@@ -2254,6 +2271,7 @@ const DEFAULT_PETS = [
         var bd = pet.bloodlineData = pet.bloodlineData || {};
         bd.mode = (pet.skills[0] && pet.skills[0].id === "sk_qy_1") ? "清念"
                 : (pet.skills[0] && pet.skills[0].id === "sk_qy_4") ? "残脉" : "清念";
+        bd.modeEntered = true;
         bd.turnCount = 0; bd.qfzn = 0; bd.healCount = 0; bd.switchTurn = false;
         if (ctx) ctx.msg("【清羽】以首格技能进入" + (bd.mode === "清念" ? "清念" : "残脉") + "状态！");
       },
@@ -2844,6 +2862,7 @@ function enterQingyuMode(pet, mode) {
   var bd = pet.bloodlineData || (pet.bloodlineData = {});
   var previous = bd.mode;
   bd.mode = mode;
+  bd.modeEntered = true;
   if (previous === "残脉" && mode === "清念" && bd.qy3SavedPP !== undefined) {
     var skill = pet.skills.find(function(s) { return s.id === "sk_qy_3"; });
     if (skill) skill.pp = Math.min(skill.maxPp, bd.qy3SavedPP);
@@ -3869,8 +3888,22 @@ function showBloodlinePreview(trigger, name, original) {
   return bloodlinePreview === view ? view : null;
 }
 
+function syncQingyuBloodlineMode(entry, pet) {
+  // 回合初始化的默认值可能只用于通用被动，明确入态后才高亮。
+  const mode = pet.bloodlineData?.modeEntered ? pet.bloodlineData.mode : "";
+  if (entry.dataset.mode === mode) return;
+  entry.dataset.mode = mode;
+  entry.setAttribute("aria-label", mode ? "血脉 清念/残脉，当前" + mode : "血脉 清念/残脉");
+}
+
 function syncBattleBloodline(slot, pet) {
   if (!slot) return;
+  if (slot.bloodlinePet === pet) {
+    if (slot.qingyuBloodline) syncQingyuBloodlineMode(slot.qingyuBloodline, pet);
+    return;
+  }
+  slot.bloodlinePet = pet;
+  slot.qingyuBloodline = null;
   if (bloodlinePreview && slot.contains(bloodlinePreview.trigger)) closeBloodlinePreview();
   if (bloodlineHover && slot.contains(bloodlineHover.trigger)) cancelBloodlineHover();
   slot.innerHTML = "";
@@ -3884,7 +3917,21 @@ function syncBattleBloodline(slot, pet) {
   label.className = "battle-bloodline-label";
   label.textContent = "血脉";
   const value = document.createElement("strong");
-  value.textContent = name;
+  if (pet.id === "pet_qy" && name === "清念/残脉") {
+    for (const part of ["清念", "/", "残脉"]) {
+      const fragment = document.createElement("span");
+      fragment.textContent = part;
+      if (part !== "/") {
+        fragment.className = "qingyu-bloodline-form";
+        fragment.dataset.form = part;
+      }
+      value.appendChild(fragment);
+    }
+    slot.qingyuBloodline = entry;
+    syncQingyuBloodlineMode(entry, pet);
+  } else {
+    value.textContent = name;
+  }
   entry.appendChild(label);
   entry.appendChild(value);
   slot.appendChild(entry);
@@ -3938,7 +3985,9 @@ function enterBattleSprite(sprite) {
 }
 function syncBattleIdentity(side, pet) {
   var sprite = document.querySelector("#" + side + "-sprite"), info = document.querySelector("#" + side + "-info");
-  if (!sprite || sprite.visualPet === pet) return;
+  if (!sprite) return;
+  if (info) syncBattleBloodline(info.querySelector(".battle-bloodline-slot"), pet);
+  if (sprite.visualPet === pet) return;
   var changed = sprite.visualPet !== undefined;
   if (sprite.finishHit) sprite.finishHit();
   if (sprite.finishEnter) sprite.finishEnter();
@@ -3950,7 +3999,6 @@ function syncBattleIdentity(side, pet) {
   if (level) level.textContent = "Lv." + pet.level;
   if (info && el) info.style.borderLeft = "3px solid " + el.color;
   if (element && el) { element.style.background = el.bg; element.style.color = el.color; element.innerHTML = elemIcon(pet.element) + el.name; }
-  if (info) syncBattleBloodline(info.querySelector(".battle-bloodline-slot"), pet);
   if (changed) enterBattleSprite(sprite);
 }
 function updateBattleSide(side, pet) {

@@ -122,6 +122,52 @@ key('Escape');
 assert.strictEqual(preview(), null);
 assert.strictEqual(document.activeElement, button, '退出正文后回到血脉按钮');
 
+// 实际战斗实例：首格决定初态，形态刷新不能重建入口或关闭正文。
+const modeSlot = new Element(); document.body.appendChild(modeSlot);
+const makeQingyu = ids => new api.BattlePet({ ...pet('pet_qy'), skillIds: ids });
+const modeButton = () => modeSlot.querySelector('.battle-bloodline-trigger');
+const ctx = { msg() {}, playerActive: null, aiActive: null };
+for (const [first, expected] of [['sk_qy_1', '清念'], ['sk_qy_4', '残脉']]) {
+  const other = first === 'sk_qy_1' ? 'sk_qy_4' : 'sk_qy_1';
+  const fighter = makeQingyu([first, other]);
+  fighter.bloodline.onEnter(fighter, ctx);
+  s.syncBattleBloodline(modeSlot, fighter);
+  const chip = modeButton();
+  assert.strictEqual(chip.dataset.mode, expected, '双核心上场应显示实际初态');
+  assert.strictEqual(chip.getAttribute('aria-label'), '血脉 清念/残脉，当前' + expected);
+  assert.strictEqual(chip.querySelectorAll('.qingyu-bloodline-form').map(n => n.dataset.form).join('/'), '清念/残脉');
+  chip.click();
+  const opened = preview();
+  assert(opened);
+  fighter.bloodlineData.turnCount = 4;
+  fighter.bloodline.onTurnStart(fighter, { ...ctx, doHeal() {} });
+  assert.strictEqual(fighter.bloodlineData.switchTurn, true);
+  s.syncBattleBloodline(modeSlot, fighter);
+  assert.strictEqual(chip.dataset.mode, expected, '切换期开始后仍显示当前形态');
+  const next = expected === '清念' ? '残脉' : '清念';
+  s.enterQingyuMode(fighter, next);
+  s.syncBattleBloodline(modeSlot, fighter);
+  assert.strictEqual(modeButton(), chip, '形态变化应保留同一按钮');
+  assert.strictEqual(preview(), opened, '形态变化应保留已打开的正文');
+  assert.strictEqual(chip.dataset.mode, next);
+  assert.strictEqual(chip.getAttribute('aria-label'), '血脉 清念/残脉，当前' + next);
+  s.closeBloodlinePreview();
+}
+const incomplete = makeQingyu(['sk_qy_4']);
+incomplete.bloodline.onEnter(incomplete, ctx);
+s.syncBattleBloodline(modeSlot, incomplete);
+const neutralChip = modeButton();
+assert.strictEqual(neutralChip.dataset.mode, '', '缺少核心技能时上场保持中性');
+incomplete.bloodline.onTurnStart(incomplete, ctx);
+assert.strictEqual(incomplete.bloodlineData.mode, '清念', '回合初始化写入内部默认值');
+s.syncBattleBloodline(modeSlot, incomplete);
+assert.strictEqual(neutralChip.dataset.mode, '', '内部默认值不代表实际入态');
+assert.strictEqual(neutralChip.getAttribute('aria-label'), '血脉 清念/残脉');
+s.enterQingyuMode(incomplete, '残脉');
+s.syncBattleBloodline(modeSlot, incomplete);
+assert.strictEqual(modeButton(), neutralChip);
+assert.strictEqual(neutralChip.dataset.mode, '残脉', '明确入态后显示形态');
+
 for (const id of ['result-overlay', 'result-emoji', 'result-text']) {
   const node = new Element();
   node.id = id;
