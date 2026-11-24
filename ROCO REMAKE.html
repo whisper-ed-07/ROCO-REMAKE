@@ -6,9 +6,6 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20170%20110%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22a%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220.5%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23ffe9a8%22%2F%3E%3Cstop%20offset%3D%2250%25%22%20stop-color%3D%22%23e2b04a%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23b8841a%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220.5%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23d9b45c%22%2F%3E%3Cstop%20offset%3D%2250%25%22%20stop-color%3D%22%23a8801f%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%236d5210%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20fill%3D%22none%22%20stroke-width%3D%2212%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M22%2C14%20V86%20M22%2C14%20H54%20A20%2C20%200%200%201%2054%2C54%20H22%20M48%2C54%20L76%2C86%22%20stroke%3D%22url(%23b)%22%20transform%3D%22translate(52%2C20)%20rotate(-13%2038%2042)%22%2F%3E%3Cpath%20d%3D%22M22%2C14%20V86%20M22%2C14%20H54%20A20%2C20%200%200%201%2054%2C54%20H22%20M48%2C54%20L76%2C86%22%20stroke%3D%22url(%23a)%22%20transform%3D%22translate(24%2C0)%20rotate(11%2038%2042)%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
 <title>ROCO REMAKE — 洛克王国：对战重置版</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Orbitron:wght@700;900&family=Noto+Serif+SC:wght@700;900&display=swap');
-
 :root {
   --bg: #0d1117; --surface: #1a1f2e; --surface2: #252b3a;
   --text: #f0e6d3; --text2: #a09880; --accent: #f0725a;
@@ -38,25 +35,6 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 @media (hover: hover) { .settings-btn:hover { transform: scale(1.1) rotate(45deg); border-color: var(--gold); } }
-/* 设置二级页面：统一尺寸规格（中英文 UI 一致） */
-.settings-scroll { max-height: calc(100vh - 130px); overflow-y: auto; padding: 12px 16px 24px; }
-.settings-section { margin-bottom: 12px; }
-.settings-section-title { font-size: 13px; font-weight: 800; color: var(--gold); margin-bottom: 10px; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; padding-left: 4px; }
-.font-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.font-option {
-  min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; padding: 6px 4px; background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
-  color: var(--text); cursor: pointer; transition: all 0.15s ease; overflow: hidden;
-}
-@media (hover: hover) { .font-option:hover { background: rgba(226,176,74,0.12); border-color: rgba(226,176,74,0.4); transform: scale(1.04); } }
-.font-option.active { border-color: var(--gold); color: var(--gold); background: rgba(226,176,74,0.1); box-shadow: 0 0 12px rgba(226,176,74,0.2); }
-.font-option .font-demo { display: block; height: 28px; line-height: 28px; max-width: 100%; white-space: nowrap; overflow: hidden; }
-.font-option[data-lang="cn"] .font-demo { font-size: 18px; }
-.font-option[data-lang="en"] .font-demo { font-size: 14px; }
-.font-option .font-name { font-size: 12px; color: var(--text2); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.theme-option { font-size: 14px; letter-spacing: 1px; color: var(--text); font-weight: 700; }
-
 /* ===== 流动特效 ===== */
 @keyframes flowGradient {
   0% { background-position: 0% 50%; }
@@ -789,13 +767,6 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .stat-grid { gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .form-actions { padding-top: 8px; gap: 12px; }
 .form-actions .btn { min-width: 0; }
-.settings-scroll { max-height: none; overflow: visible; padding: 0; }
-.settings-section { margin-bottom: 28px; }
-.settings-section-title { color: var(--text2); border-color: var(--border); padding: 0 0 12px; margin-bottom: 16px; }
-.font-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.font-option { min-height: 76px; background: var(--surface); border-color: var(--border); }
-@media (hover: hover) { .font-option:hover { transform: translateY(-2px); background: var(--ui-gold-soft); } }
-.font-option.active { background: var(--ui-gold-soft); color: var(--gold); border-color: var(--gold); box-shadow: none; }
 .result-overlay { padding: 28px; background: var(--ui-overlay); }
 .result-text { font-size: clamp(26px, 5vw, 38px); }
 .result-text.win, .result-text.lose { text-shadow: none; }
@@ -884,10 +855,11 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
   .modal-overlay { padding: 12px; }
   .modal, [data-theme="light"] .modal { padding: 20px; max-height: calc(100svh - 24px); }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .font-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: .01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important; }
+html[data-reduced-motion="true"], html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before, html[data-reduced-motion="true"] *::after {
+  animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important;
+  transition-duration: .01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important;
 }
 
 .swap-enter { animation: petEnter var(--motion-panel) var(--ease-enter); }
@@ -1076,7 +1048,63 @@ body:has(#intro-screen) .settings-btn { visibility: hidden; }
 .swap-move { min-width: 36px; min-height: 36px; }
 .intro-hint { font-size: 12px; letter-spacing: 0.24em; }
 
-body:has(#swap-save) .settings-btn { visibility: hidden; }
+body:has(#swap-save, .settings-screen, .modal-overlay) .settings-btn { visibility: hidden; }
+.settings-btn { bottom: max(16px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); }
+.mode-switch, .setting-choices {
+  display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--border);
+  border-radius: 11px; background: var(--bg); min-width: 0;
+}
+.mode-switch { margin-bottom: 15px; }
+.mode-switch button, .setting-choices button {
+  min-width: 0; min-height: 38px; padding: 6px 14px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--text2); cursor: pointer; font-size: 13px; line-height: 1.4;
+  transition: background-color var(--motion-state), color var(--motion-state), border-color var(--motion-state);
+}
+.mode-switch button[aria-pressed="true"], .setting-choices button[aria-pressed="true"] {
+  border-color: var(--border); background: var(--surface2); color: var(--text); font-weight: 700;
+}
+.mode-switch button[aria-pressed="true"] { color: var(--gold); }
+.mode-switch svg { width: 13px; height: 13px; margin-left: 5px; vertical-align: -1px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+@media (hover: hover) {
+  .mode-switch button:hover, .setting-choices button:hover { color: var(--text); background: var(--ui-soft); }
+}
+.menu-buttons #btn-battle:disabled { opacity: 1; background: var(--surface2); border-color: var(--border); color: var(--text2); }
+#btn-battle:disabled .menu-action-arrow { visibility: hidden; }
+
+.settings-screen { max-width: 960px; margin-inline: auto; }
+.settings-screen .screen-header { padding-right: 0; }
+.settings-reset { margin-left: auto; padding: 5px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text2); font-size: 13px; cursor: pointer; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.settings-group { min-width: 0; padding: clamp(16px, 2.5vw, 26px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.settings-group h2 { margin-bottom: 8px; color: var(--gold); font-size: 16px; line-height: 1.6; letter-spacing: 1px; }
+.setting-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 12px 0; }
+.setting-row + .setting-row { border-top: 1px solid var(--border); }
+.setting-row:last-child { padding-bottom: 0; }
+.setting-label, .font-field label { font-size: 14px; color: var(--text); }
+.motion-note { display: none; margin-top: 5px; color: var(--text2); font-size: 12px; }
+[data-reduced-motion="true"] .motion-note { display: block; }
+.font-settings { grid-column: 1 / -1; }
+.font-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 1.15fr); gap: 18px; align-items: center; }
+.font-field { display: grid; gap: 6px; }
+.font-field select { width: 100%; min-width: 0; min-height: 42px; padding: 6px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.font-preview { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 76px; padding: 6px; border: 1px solid var(--border); background: var(--ui-gold-soft); border-radius: 10px; }
+.font-preview strong { font: 700 22px/1.45 var(--font-game-cn); }
+.font-preview span { color: var(--gold); font: 700 13px/1.5 var(--font-game-en), sans-serif; letter-spacing: 1.6px; }
+.settings-feedback { color: var(--text2); font-size: 13px; }
+.settings-feedback:not(:empty) { margin-top: 14px; }
+[data-log-size="expanded"] .battle-log .battle-messages { height: 32vh; max-height: 32vh; min-height: 155px; }
+[data-log-text="large"] .battle-log .battle-messages { font-size: 15px; }
+[data-log-text="large"] .msg-side, [data-log-text="large"] .battle-log .tag { font-size: 13px; }
+@media (max-width: 700px) {
+  .settings-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .font-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .font-preview { grid-column: 1 / -1; }
+  .mode-switch button, .setting-choices button { min-height: 42px; }
+  [data-log-size="expanded"] .battle-log .battle-messages { height: 28vh; max-height: 28vh; min-height: 130px; }
+}
+@media (max-width: 380px) {
+  .setting-choices button { padding-inline: 9px; }
+}
 </style>
 </head>
 <body>
@@ -1085,7 +1113,6 @@ body:has(#swap-save) .settings-btn { visibility: hidden; }
 <script>
 
 
-(function(){if(!localStorage.getItem('roco_v5')){localStorage.setItem('roco_v5','1');}})();
 window.onerror = function(msg, url, line, col, err) {
   document.body.innerHTML = "<div style='color:lime;background:#111;padding:20px;font-family:monospace;font-size:14px;white-space:pre-wrap'><h2 style='color:red'>JS ERROR</h2><b>Line " + line + ":" + col + "</b><br>" + msg + "<br><br><pre>" + (err&&err.stack||"") + "</pre></div>";
   return false;
@@ -3268,6 +3295,7 @@ function spawnFloatText(pet, text, type) {
     var finishHit = sprite.finishHit;
     battleVisualTask(sprite, motionDuration("--motion-panel", 180), finishHit);
   }
+  if (preferences.floatNumbers === "off") return;
   var colors = { dmg:"#ff4757", heal:"#2ed573", shield:"#4dc9f6" };
   var el = document.createElement("div");
   el.className = "float-text"; el.textContent = (type === "dmg" ? "-" : "+") + text;
@@ -4149,7 +4177,7 @@ function renderStatusBadges(pet) {
 // ---------- SCREENS ----------
 var uiPageVersion = 0;
 function prefersReducedMotion() {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return preferences.motion === "reduce" || matchesSystemPreference("(prefers-reduced-motion: reduce)");
 }
 function motionDuration(name, fallback) {
   if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return fallback;
@@ -4225,7 +4253,8 @@ function removeBodyLayer(id) {
   if (el) { if (el.closeLayer) el.closeLayer(true); else el.remove(); }
 }
 function focusScreen(app) {
-  var target = app.querySelector(".screen-title") || app.querySelector("button");
+  var battle = app.querySelector("#btn-battle");
+  var target = app.querySelector(".screen-title") || (battle && !battle.disabled && battle) || app.querySelector("button");
   if (target && target.focus) { if (target.classList.contains("screen-title")) target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
 }
 function showScreen(id) {
@@ -4299,26 +4328,44 @@ function uiIcon(name) {
   };
   return '<svg viewBox="0 0 24 24" aria-hidden="true">' + paths[name] + '</svg>';
 }
-function pageHeader(title, backId) {
-  return '<div class="screen-header"><button class="back-btn" id="' + backId + '" aria-label="返回上一页">←</button><span class="screen-title">' + title + '</span></div>';
+function pageHeader(title, backId, actions) {
+  return '<div class="screen-header"><button class="back-btn" id="' + backId + '" aria-label="返回上一页">←</button><span class="screen-title">' + title + '</span>' + (actions || '') + '</div>';
 }
 function petChoiceCard(pet, attr, selected) {
   var el = ELEMENTS[pet.element] || { name: "?", color: "#888" };
   return '<button type="button" class="pet-card' + (selected ? ' selected' : '') + '" ' + attr + '="' + uiAttr(pet.id) + '"' +
     (selected !== undefined ? ' aria-pressed="' + !!selected + '"' : '') + '><span class="pet-card-check" aria-hidden="true">✓</span><span class="pet-card-emoji" aria-hidden="true">' + escapeHtml(pet.emoji) + '</span><span class="pet-card-name">' + escapeHtml(pet.name) + '</span><span class="pet-card-element" style="color:' + el.color + '">' + elemIcon(pet.element) + el.name + '系</span></button>';
 }
+var menuMode = "solo";
 function renderMenu(app) {
   app.innerHTML = '<div class="menu-screen-bg" aria-hidden="true"><div class="aurora-band b1"></div><div class="aurora-band b2"></div><div class="aurora-band b3"></div></div>' +
     '<main class="screen active menu-shell">' +
       '<div class="menu-topline"><span class="menu-brand-mini">ROCO REMAKE</span></div>' +
       '<header class="menu-header"><div class="menu-logo">' + logoMarkSvg('Menu') + '</div><h1 class="menu-title-cn">洛克王国<span>对战重置版</span></h1></header>' +
-      '<nav class="menu-actions-area" aria-label="主菜单"><div class="menu-buttons">' +
+      '<nav class="menu-actions-area" aria-label="主菜单"><div class="mode-switch" role="group" aria-label="对战模式">' +
+        '<button type="button" id="mode-solo">单机模式</button>' +
+        '<button type="button" id="mode-online" aria-label="联机模式，暂未开放">联机模式<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg></button></div><div class="menu-buttons">' +
         '<button class="btn btn-primary" id="btn-battle"><span class="menu-action-copy"><span class="menu-action-title">开始对战</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
         '<button class="btn btn-secondary" id="btn-swap"><span class="menu-action-copy"><span class="menu-action-title">局外技能更换</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
         '<button class="btn btn-secondary" id="btn-pets"><span class="menu-action-copy"><span class="menu-action-title">宠物管理</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
       '</div></nav><div class="menu-footer" aria-hidden="true"></div>' +
     '</main>';
-  document.querySelector('#btn-battle').addEventListener('click', function() { gameState.selectedTeamIds = []; showScreen('team'); });
+  var solo = app.querySelector('#mode-solo'), online = app.querySelector('#mode-online'), battle = app.querySelector('#btn-battle');
+  function selectMode(mode) {
+    menuMode = mode;
+    var local = mode === "solo";
+    solo.setAttribute("aria-pressed", String(local));
+    online.setAttribute("aria-pressed", String(!local));
+    battle.disabled = !local;
+    battle.querySelector(".menu-action-title").textContent = local ? "开始对战" : "联机暂未开放";
+  }
+  selectMode(menuMode);
+  solo.addEventListener("click", function() { selectMode("solo"); });
+  online.addEventListener("click", function() { selectMode("online"); });
+  battle.addEventListener('click', function() {
+    if (menuMode !== "solo") return;
+    gameState.selectedTeamIds = []; showScreen('team');
+  });
   document.querySelector('#btn-swap').addEventListener('click', function() { showScreen('skillswap'); });
   document.querySelector('#btn-pets').addEventListener('click', function() { showScreen('pets'); });
 }
@@ -4796,21 +4843,19 @@ function closeModal() {
 }
 
 // ---------- INIT ----------
-// Auto-clear old cache (remove after first load)
-// R01：不再删除旧存档，只记录版本标记
-if (!localStorage.getItem("pbg_v4_loaded")) localStorage.setItem("pbg_v4_loaded", "1");
-// ========== 设置面板（字体切换） ==========
+// ---------- 偏好设置 ----------
 var FONT_OPTIONS_CN = [
   { id: 'default', name: '思源宋体', fam: 'Noto Serif SC', url: "family=Noto+Serif+SC:wght@700;900" },
   { id: 'kuaiLe', name: '黄油体', fam: 'ZCOOL QingKe HuangYou', url: "family=ZCOOL+QingKe+HuangYou" },
   { id: 'maShan', name: '毛笔体', fam: 'Ma Shan Zheng', url: "family=Ma+Shan+Zheng" },
-  { id: 'wenKai', name: '文楷体', fam: 'LXGW WenKai', url: "family=LXGW+WenKai:wght@700" },
+  { id: 'wenKai', name: '文楷体', fam: 'LXGW WenKai TC', url: "family=LXGW+WenKai+TC:wght@700" },
   { id: 'longCang', name: '瘦金体', fam: 'Long Cang', url: "family=Long+Cang" },
   { id: 'zcoolKuaiLe', name: '快乐体', fam: 'ZCOOL KuaiLe', url: "family=ZCOOL+KuaiLe" },
   { id: 'zhiMang', name: '行书体', fam: 'Zhi Mang Xing', url: "family=Zhi+Mang+Xing" },
   { id: 'liuJian', name: '狂草体', fam: 'Liu Jian Mao Cao', url: "family=Liu+Jian+Mao+Cao" },
   { id: 'xiaoWei', name: '小薇体', fam: 'ZCOOL XiaoWei', url: "family=ZCOOL+XiaoWei" },
-  { id: 'notoSans', name: '黑体', fam: 'Noto Sans SC', url: "family=Noto+Sans+SC:wght@900" }
+  { id: 'notoSans', name: '黑体', fam: 'Noto Sans SC', url: "family=Noto+Sans+SC:wght@900" },
+  { id: 'system', name: '系统字体', fam: 'Microsoft YaHei' }
 ];
 var FONT_OPTIONS_EN = [
   { id: 'cinzel', name: 'Cinzel', fam: 'Cinzel', url: "family=Cinzel:wght@700;900" },
@@ -4822,108 +4867,169 @@ var FONT_OPTIONS_EN = [
   { id: 'spectral', name: 'Spectral', fam: 'Spectral', url: "family=Spectral:wght@700;800" },
   { id: 'teko', name: 'Teko', fam: 'Teko', url: "family=Teko:wght@600;700" },
   { id: 'audiowide', name: 'Audiowide', fam: 'Audiowide', url: "family=Audiowide" },
-  { id: 'unifraktur', name: 'UnifrakturCook', fam: 'UnifrakturCook', url: "family=UnifrakturCook:wght@700" }
+  { id: 'unifraktur', name: 'UnifrakturCook', fam: 'UnifrakturCook', url: "family=UnifrakturCook:wght@700" },
+  { id: 'system', name: '系统字体', fam: 'Arial' }
 ];
-var currentFontCN = localStorage.getItem('roco_font_cn') || 'default';
-var currentFontEN = localStorage.getItem('roco_font_en') || 'cinzel';
+function fontChoices(options) {
+  return Object.fromEntries(options.map(function(font) { return [font.id, font.name]; }));
+}
+var settingFields = {
+  theme: { label: "主题", key: "roco_theme", initial: "dark", choices: { dark: "暗色", light: "亮色", system: "跟随系统" } },
+  motion: { label: "动态效果", key: "roco_motion", initial: "system", choices: { system: "跟随系统", reduce: "减少动效" } },
+  cn: { label: "中文字体", key: "roco_font_cn", initial: "default", choices: fontChoices(FONT_OPTIONS_CN) },
+  en: { label: "英文字体", key: "roco_font_en", initial: "cinzel", choices: fontChoices(FONT_OPTIONS_EN) },
+  logSize: { label: "日志高度", key: "roco_log_size", initial: "standard", choices: { standard: "标准", expanded: "加高" } },
+  logText: { label: "日志字号", key: "roco_log_text", initial: "standard", choices: { standard: "标准", large: "大字" } },
+  floatNumbers: { label: "战斗数值飘字", key: "roco_float_numbers", initial: "on", choices: { on: "显示", off: "隐藏" } }
+};
+var preferences = {};
+Object.entries(settingFields).forEach(function(entry) {
+  var field = entry[1], value;
+  try { value = localStorage.getItem(field.key); } catch (_) {}
+  preferences[entry[0]] = Object.hasOwn(field.choices, value) ? value : field.initial;
+});
 
-function loadFont(lang, fontId) {
-  var options = lang === 'cn' ? FONT_OPTIONS_CN : FONT_OPTIONS_EN;
-  var opt = options.find(function(f){return f.id===fontId;});
-  if (!opt) return;
-  var varName = lang === 'cn' ? '--title-font-cn' : '--title-font-en';
-  var titleSel = lang === 'cn' ? '.menu-title-cn' : '.menu-title-en';
-  if (!document.getElementById('font-' + lang + '-' + fontId)) {
-    var link = document.createElement('link');
-    link.id = 'font-' + lang + '-' + fontId;
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?' + opt.url + '&display=swap';
+function matchesSystemPreference(query) {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
+}
+function applyTheme() {
+  var choice = preferences.theme;
+  var light = choice === "light" || (choice === "system" && matchesSystemPreference("(prefers-color-scheme: light)"));
+  document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+}
+function applyMotion() {
+  document.documentElement.setAttribute("data-motion", preferences.motion);
+  document.documentElement.setAttribute("data-reduced-motion", String(prefersReducedMotion()));
+}
+function applyFont(lang) {
+  var options = lang === "cn" ? FONT_OPTIONS_CN : FONT_OPTIONS_EN;
+  var font = options.find(function(item) { return item.id === preferences[lang]; });
+  var cssId = "font-" + lang + "-" + font.id;
+  if (font.url && !document.getElementById(cssId)) {
+    var link = document.createElement("link");
+    link.id = cssId; link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?" + font.url + "&display=swap";
     document.head.appendChild(link);
   }
-  document.documentElement.style.setProperty(varName, "'" + opt.fam + "', " + (lang==='cn'?"'Microsoft YaHei', serif":"sans-serif"));
-  var globalVar = lang === 'cn' ? '--font-game-cn' : '--font-game-en';
-  // 英文字体串里不能带 generic 家族：generic 会截断回退链，导致中文字体永远轮不到
-  var chain = lang === 'cn' ? ("'" + opt.fam + "', 'Microsoft YaHei', serif") : ("'" + opt.fam + "'");
-  document.documentElement.style.setProperty(globalVar, chain);
-  if (lang === 'cn') { currentFontCN = fontId; localStorage.setItem('roco_font_cn', fontId); }
-  else { currentFontEN = fontId; localStorage.setItem('roco_font_en', fontId); }
-  var t = document.querySelector(titleSel);
-  if (t) t.style.fontFamily = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-  refreshFontMenus();
+  var family = "'" + font.fam + "'";
+  if (lang === "cn") family += font.id === "system" ? ", 'PingFang SC', sans-serif" : ", 'Microsoft YaHei', serif";
+  var style = document.documentElement.style;
+  style.setProperty("--font-game-" + lang, family);
+  style.setProperty("--title-font-" + lang, family);
+}
+function applyPreference(name) {
+  switch (name) {
+    case "theme": applyTheme(); break;
+    case "motion": applyMotion(); break;
+    case "cn": case "en": applyFont(name); break;
+    case "logSize": document.documentElement.setAttribute("data-log-size", preferences.logSize); break;
+    case "logText": document.documentElement.setAttribute("data-log-text", preferences.logText); break;
+  }
+}
+function setPreference(name, value) {
+  var field = settingFields[name];
+  if (!Object.hasOwn(field.choices, value)) return false;
+  preferences[name] = value;
+  applyPreference(name);
+  try { localStorage.setItem(field.key, value); return true; } catch (_) { return false; }
 }
 
-function refreshFontMenus() {
-  document.querySelectorAll('.font-option').forEach(function(o){
-    var lang = o.getAttribute('data-lang');
-    var cur = lang === 'cn' ? currentFontCN : currentFontEN;
-    o.classList.toggle('active', o.getAttribute('data-font') === cur);
+function choiceRow(name) {
+  var field = settingFields[name], id = "setting-" + name;
+  var buttons = Object.entries(field.choices).map(function(option) {
+    return '<button type="button" data-setting="' + name + '" data-value="' + option[0] + '" aria-pressed="' + (preferences[name] === option[0]) + '">' + option[1] + '</button>';
   });
+  return '<div class="setting-row"><span class="setting-label" id="' + id + '">' + field.label + '</span><div class="setting-choices" role="group" aria-labelledby="' + id + '">' + buttons.join("") + '</div></div>';
 }
-
-// 设置区块注册表：以后新增设置项只需 push 一项
-var SETTING_SECTIONS = [
-  { id: "theme", title: "外观主题" },
-  { id: "font-cn", title: "中文字体" },
-  { id: "font-en", title: "英文字体" }
-];
-
-function buildFontSectionHtml(lang, title, options, current) {
-  var h = '<div class="settings-section" data-section="' + lang + '"><div class="settings-section-title">' + title + '</div><div class="font-grid">';
-  options.forEach(function(f){
-    h += '<button class="font-option' + (f.id === current ? ' active' : '') + '" data-font="' + f.id + '" data-lang="' + lang + '"><span class="font-demo" style="font-family:\'' + f.fam + '\',sans-serif">' + (lang==='cn'?'洛克王国':'ROCO REMAKE') + '</span><span class="font-name">' + f.name + '</span></button>';
+function fontField(lang) {
+  var field = settingFields[lang];
+  var options = Object.entries(field.choices).map(function(option) {
+    return '<option value="' + option[0] + '"' + (preferences[lang] === option[0] ? ' selected' : '') + '>' + option[1] + '</option>';
   });
-  h += '</div></div>';
-  return h;
+  return '<div class="font-field"><label for="font-' + lang + '">' + field.label + '</label><select id="font-' + lang + '">' + options.join("") + '</select></div>';
 }
 
+var settingsOrigin = "menu", settingsScrollY = 0;
 function renderSettings(app) {
-  var html = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="settings-back">\u2190</button><span class="screen-title">设置</span></div><div class="settings-scroll">';
-  // 主题区块
-  html += '<div class="settings-section" data-section="theme"><div class="settings-section-title">外观主题</div><div class="font-grid">';
-  [["dark", "\u{1F319} 暗色"], ["light", "\u2600\uFE0F 亮色"]].forEach(function(tp){
-    html += '<button class="font-option theme-option' + (applyTheme() === tp[0] ? ' active' : '') + '" data-tp="' + tp[0] + '">' + tp[1] + '</button>';
-  });
-  html += '</div></div>';
-  // 字体区块
-  html += buildFontSectionHtml('cn', '中文字体', FONT_OPTIONS_CN, currentFontCN);
-  html += buildFontSectionHtml('en', '英文字体', FONT_OPTIONS_EN, currentFontEN);
-  html += '</div></div>';
-  app.innerHTML = html;
-  document.querySelector("#settings-back").addEventListener("click", function() { showScreen("menu"); });
-  document.querySelectorAll('.font-option[data-tp]').forEach(function(tb){
-    tb.addEventListener('click', function(){
-      var tp = tb.getAttribute('data-tp');
-      document.documentElement.setAttribute('data-theme', tp);
-      localStorage.setItem('roco_theme', tp);
-      document.querySelectorAll('.font-option[data-tp]').forEach(function(o){ o.classList.remove('active'); });
-      tb.classList.add('active');
+  var resetButton = '<button type="button" class="settings-reset" id="settings-reset">恢复默认设置</button>';
+  app.innerHTML = '<main class="screen active settings-screen">' + pageHeader("设置", "settings-back", resetButton) +
+    '<div class="settings-grid"><section class="settings-group"><h2>界面外观</h2>' + choiceRow("theme") + choiceRow("motion") + '</section>' +
+    '<section class="settings-group"><h2>战斗显示</h2>' + choiceRow("logSize") + choiceRow("logText") + choiceRow("floatNumbers") + '<p class="motion-note">减少动效时自动隐藏飘字</p></section>' +
+    '<section class="settings-group font-settings"><h2>字体</h2><div class="font-fields">' + fontField("cn") + fontField("en") +
+    '<div class="font-preview" role="img" aria-label="中英文字体预览"><strong>洛克王国</strong><span>ROCO REMAKE</span></div></div></section></div>' +
+    '<p role="status" class="settings-feedback"></p></main>';
+  var choices = app.querySelectorAll("[data-setting]");
+  var reset = app.querySelector("#settings-reset");
+  var status = app.querySelector(".settings-feedback");
+  function refresh() {
+    choices.forEach(function(btn) {
+      btn.setAttribute("aria-pressed", String(preferences[btn.getAttribute("data-setting")] === btn.getAttribute("data-value")));
+    });
+    ["cn", "en"].forEach(function(lang) { app.querySelector("#font-" + lang).value = preferences[lang]; });
+    reset.disabled = Object.keys(settingFields).every(function(name) { return preferences[name] === settingFields[name].initial; });
+  }
+  function leave() {
+    showScreen(settingsOrigin);
+    var entry = document.getElementById("settings-btn");
+    if (entry) entry.focus({ preventScroll: true });
+    if (window.scrollTo) window.scrollTo({ top: settingsScrollY, behavior: "instant" });
+  }
+  function report(saved, message) {
+    status.textContent = saved ? message : "当前浏览器无法保存偏好，设置仅在本次打开期间生效。";
+    refresh();
+  }
+  choices.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      report(setPreference(btn.getAttribute("data-setting"), btn.getAttribute("data-value")), "");
     });
   });
-  document.querySelectorAll('.font-option[data-font]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      loadFont(btn.getAttribute('data-lang'), btn.getAttribute('data-font'));
-    });
+  ["cn", "en"].forEach(function(lang) {
+    var select = app.querySelector("#font-" + lang);
+    select.addEventListener("change", function() { report(setPreference(lang, select.value), ""); });
   });
+  reset.addEventListener("click", function() {
+    var saved = true;
+    Object.keys(settingFields).forEach(function(name) {
+      if (!setPreference(name, settingFields[name].initial)) saved = false;
+    });
+    report(saved, "已恢复默认设置");
+    app.querySelector("#settings-back").focus({ preventScroll: true });
+  });
+  app.querySelector("#settings-back").addEventListener("click", leave);
+  app.querySelector(".settings-screen").addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); leave(); }
+  });
+  refresh();
 }
-
-function applyTheme() { var t = localStorage.getItem("roco_theme"); if (t !== "dark" && t !== "light") t = "dark"; document.documentElement.setAttribute("data-theme", t); return t; }
-
-function initFontSwitcher() {
-  loadFont('cn', currentFontCN);
-  loadFont('en', currentFontEN);
-  var btn = document.createElement('button');
-  btn.className = 'settings-btn';
-  btn.id = 'settings-btn';
-  btn.innerHTML = '\u2699\uFE0F';
-  btn.title = '设置';
+function initSettings() {
+  // 保留历史版本标记。禁用本地存储时，界面偏好仍可在本次游戏内使用。
+  try {
+    ["roco_v5", "pbg_v4_loaded"].forEach(function(key) {
+      if (!localStorage.getItem(key)) localStorage.setItem(key, "1");
+    });
+  } catch (_) {}
+  Object.keys(settingFields).forEach(applyPreference);
+  if (window.matchMedia) {
+    [["(prefers-color-scheme: light)", applyTheme], ["(prefers-reduced-motion: reduce)", applyMotion]].forEach(function(pair) {
+      var media = window.matchMedia(pair[0]);
+      if (media.addEventListener) media.addEventListener("change", pair[1]);
+      else if (media.addListener) media.addListener(pair[1]);
+    });
+  }
+  var btn = document.createElement("button");
+  btn.className = "settings-btn"; btn.id = "settings-btn"; btn.type = "button";
+  btn.textContent = "⚙"; btn.title = "设置"; btn.setAttribute("aria-label", "设置");
   document.body.appendChild(btn);
-  btn.addEventListener('click', function(e){
-    e.stopPropagation();
+  btn.addEventListener("click", function() {
+    if (!["menu", "team", "opponent", "pets", "skillswap"].includes(gameState.screen) ||
+        document.querySelector("#intro-screen, #swap-save, .modal-overlay")) return;
+    settingsOrigin = gameState.screen; settingsScrollY = window.scrollY || 0;
     showScreen("settings");
+    if (window.scrollTo) window.scrollTo({ top: 0, behavior: "instant" });
   });
 }
 
-function init() { try { applyTheme(); initFontSwitcher(); showScreen("intro"); } catch(e) { document.body.innerHTML = "<div style='color:lime;background:#111;padding:20px;font-family:monospace;font-size:14px'><h2 style='color:red'>INIT ERROR</h2><pre>"+e.stack+"</pre></div>"; } }
+function init() { try { initSettings(); showScreen("intro"); } catch(e) { document.body.innerHTML = "<div style='color:lime;background:#111;padding:20px;font-family:monospace;font-size:14px'><h2 style='color:red'>INIT ERROR</h2><pre>"+e.stack+"</pre></div>"; } }
 init();
 
 

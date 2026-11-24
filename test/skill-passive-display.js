@@ -30,7 +30,9 @@ test('战斗中空 PP 的技能仍标记携带被动，详情可查看免疫条�
   assert.equal(battleCards[2].children[0].innerHTML.includes('skill-passive-tag'), false);
 
   infoButton.click();
-  const dialog = doc.body.children[0].innerHTML;
+  const overlay = doc.body.children.find(child => child.id === 'skill-detail-overlay');
+  assert.ok(overlay, '点击技能信息打开详情');
+  const dialog = overlay.innerHTML;
   assert.match(dialog, /无需出招即免疫束缚、恐惧、睡眠、冰冻/);
   assert.match(dialog, /当前PP为0时，额外免疫烧伤、中毒、麻痹、混乱/);
   assert.match(dialog, /PP恢复后保留原有四种免疫/);

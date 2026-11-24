@@ -1,0 +1,371 @@
+// Node 22+ 与本机 Chromium。可用 ROCO_CHROMIUM 指定可执行文件。
+const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const http = require('node:http');
+const os = require('node:os');
+const path = require('node:path');
+const { setTimeout: delay } = require('node:timers/promises');
+
+const html = fs.readFileSync(path.join(__dirname, '..', 'ROCO REMAKE.html'));
+const browser = [
+  process.env.ROCO_CHROMIUM,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  '/usr/bin/chromium', '/usr/bin/google-chrome'
+].find(candidate => candidate && fs.existsSync(candidate));
+
+async function until(read, description) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const value = await read();
+    if (value) return value;
+    await delay(50);
+  }
+  throw new Error('等待超时：' + description);
+}
+
+async function connect(endpoint) {
+  const socket = new WebSocket(endpoint);
+  await new Promise((resolve, reject) => {
+    socket.addEventListener('open', resolve, { once: true });
+    socket.addEventListener('error', reject, { once: true });
+  });
+  let sequence = 0;
+  const pending = new Map();
+  socket.addEventListener('message', event => {
+    const { id, result, error } = JSON.parse(event.data);
+    const callback = pending.get(id);
+    if (callback) {
+      pending.delete(id);
+      callback(error, result);
+    }
+  });
+  return {
+    close: () => socket.close(),
+    send(method, params = {}) {
+      const id = ++sequence;
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error('Chromium 命令超时：' + method));
+        }, 6000);
+        pending.set(id, (error, result) => {
+          clearTimeout(timeout);
+          if (error) reject(new Error(error.message));
+          else resolve(result);
+        });
+        socket.send(JSON.stringify({ id, method, params }));
+      });
+    }
+  };
+}
+
+// 断言在真实游戏 DOM 上执行，操作使用游戏绑定的原生控件事件。
+function pageSetup() {
+  const get = selector => {
+    const node = document.querySelector(selector);
+    if (!node) throw new Error('找不到 ' + selector);
+    return node;
+  };
+  const eq = (actual, expected, message) => {
+    if (actual !== expected) throw new Error(message + '：实际 ' + actual + '，预期 ' + expected);
+  };
+  const click = selector => get(selector).click();
+  const root = name => document.documentElement.getAttribute('data-' + name);
+  const choice = (name, value) => '[data-setting="' + name + '"][data-value="' + value + '"]';
+  const selected = (name, value) => eq(get(choice(name, value)).getAttribute('aria-pressed'), 'true', name + ' 当前选项');
+  const font = (selector, value) => {
+    const control = get(selector);
+    control.value = value;
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  const layout = () => {
+    const viewport = document.documentElement.clientWidth;
+    eq(document.documentElement.scrollWidth, viewport, '页面横向尺寸');
+    for (const node of document.querySelectorAll('.settings-scroll, #app button, #app select')) {
+      const box = node.getBoundingClientRect();
+      eq(box.left >= -1 && box.right <= viewport + 1, true, '控件位于视口内 ' + (node.id || node.className));
+    }
+  };
+  const enterBattle = () => {
+    click('#btn-battle');
+    click('[data-pet-id]');
+    click('#btn-ready');
+    click('[data-opp-id]');
+    click('#opp-ready');
+  };
+  const logMetrics = () => {
+    const log = get('#battle-messages');
+    return [log.getBoundingClientRect().height, parseFloat(getComputedStyle(log).fontSize)];
+  };
+  Object.assign(window, { get, eq, click, root, choice, selected, font, layout, enterBattle, logMetrics });
+}
+
+async function test(browserConnection, origin) {
+  const { send } = browserConnection;
+  const evaluate = async expression => {
+    const response = await send('Runtime.evaluate', { expression, returnByValue: true });
+    const error = response.exceptionDetails;
+    if (error) throw new Error(error.exception?.description || error.text);
+    return response.result.value;
+  };
+  const inspect = callback => evaluate('(' + callback.toString() + ')()');
+  const media = (color, motion = 'no-preference') => send('Emulation.setEmulatedMedia', {
+    features: [
+      { name: 'prefers-color-scheme', value: color },
+      { name: 'prefers-reduced-motion', value: motion }
+    ]
+  });
+  const size = width => send('Emulation.setDeviceMetricsOverride', {
+    width, height: 800, deviceScaleFactor: 1, mobile: false
+  });
+  const open = async (suffix, selector) => {
+    const url = origin + suffix;
+    await send('Page.navigate', { url });
+    await until(() => evaluate('location.href === ' + JSON.stringify(url) +
+      ' && !!document.querySelector(' + JSON.stringify(selector) + ')'), suffix + ' ' + selector);
+    await inspect(pageSetup);
+  };
+
+  await size(1280);
+  await media('light');
+  await open('/seed', 'body');
+  await inspect(() => {
+    localStorage.setItem('roco_theme', 'light');
+    localStorage.setItem('roco_font_cn', 'maShan');
+    localStorage.setItem('roco_font_en', 'orbitron');
+    localStorage.setItem('pbg_pet_loadouts', '{}');
+    localStorage.setItem('pbg_custom_pets', '[ ]');
+    localStorage.setItem('pbg_custom_skills', '[  ]');
+    localStorage.setItem('test-unrelated', 'preserved');
+  });
+  await open('/game?legacy', '#intro-screen');
+  await inspect(() => {
+    eq(root('theme'), 'light', '旧主题在启动时生效');
+    click('#intro-screen');
+    eq(get('.menu-title-cn').style.fontFamily.includes('Ma Shan Zheng') ||
+      getComputedStyle(get('.menu-title-cn')).fontFamily.includes('Ma Shan Zheng'), true, '旧中文字体应用到标题');
+    click('#mode-online');
+    eq(get('#btn-battle').disabled, true, '联机不可进入对战');
+    eq(/未开放/.test(get('#app').textContent), true, '联机占位说明');
+    click('#btn-battle');
+    get('#mode-solo');
+    click('#mode-solo');
+    eq(get('#btn-battle').disabled, false, '切回单机可进入对战');
+    click('#btn-battle');
+    const pet = get('[data-pet-id]');
+    const selector = '[data-pet-id="' + pet.getAttribute('data-pet-id') + '"]';
+    pet.click();
+    click('#settings-btn');
+    layout();
+    selected('theme', 'light');
+    eq(get('#font-cn').value, 'maShan', '旧中文字体');
+    eq(get('#font-en').value, 'orbitron', '旧英文字体');
+    click('#settings-back');
+    eq(get(selector).getAttribute('aria-pressed'), 'true', '返回时保留我方宠物选择');
+    click('#btn-ready');
+    const opponent = get('[data-opp-id]');
+    const opponentSelector = '[data-opp-id="' + opponent.getAttribute('data-opp-id') + '"]';
+    opponent.click();
+    click('#settings-btn');
+    click('#settings-back');
+    eq(get(opponentSelector).getAttribute('aria-pressed'), 'true', '返回时保留对手宠物选择');
+    click('#opp-back');
+    click('#team-back');
+    click('#btn-pets');
+    click('#tab-skills');
+    click('#settings-btn');
+    click('#settings-back');
+    eq(get('#tab-skills').classList.contains('active'), true, '返回时保留技能管理标签');
+    click('#mgmt-back');
+    click('#settings-btn');
+    click(choice('theme', 'dark'));
+    eq(root('theme'), 'dark', '手动主题立即生效');
+    click(choice('theme', 'system'));
+    eq(root('theme'), 'light', '跟随当前系统主题');
+
+    const duration = () => parseFloat(getComputedStyle(get('.settings-screen')).animationDuration);
+    const normal = duration();
+    eq(normal > 0.1, true, '未减少动态时保留正常入场动画');
+    eq(prefersReducedMotion(), false, '系统正常动态效果');
+    click(choice('motion', 'reduce'));
+    eq(prefersReducedMotion(), true, '手动减少动态效果');
+    eq(duration() < normal / 100, true, '手动减少立即缩短实际 CSS 动画');
+    click(choice('motion', 'system'));
+    eq(prefersReducedMotion(), false, '跟随系统恢复正常动态效果');
+    eq(duration(), normal, '跟随系统恢复实际 CSS 动画时长');
+  });
+
+  await media('dark', 'reduce');
+  await until(() => inspect(() => root('theme') === 'dark'), '系统主题变化');
+  await size(360);
+  await inspect(() => {
+    eq(matchMedia('(prefers-reduced-motion: reduce)').matches, true, '系统减少动态效果');
+    eq(prefersReducedMotion(), true, '系统减少动态偏好生效');
+    layout();
+    click(choice('motion', 'reduce'));
+    click(choice('logSize', 'expanded'));
+    click(choice('logText', 'large'));
+    click(choice('floatNumbers', 'off'));
+    font('#font-cn', 'notoSans');
+    selected('theme', 'system');
+    font('#font-en', 'teko');
+    selected('theme', 'system');
+    eq(get(choice('theme', 'dark')).getAttribute('aria-pressed'), 'false', '系统暗色不高亮手动暗色');
+    eq(root('motion'), 'reduce', '减少动态设定立即生效');
+    eq(root('log-size'), 'expanded', '日志高度设定立即生效');
+    eq(root('log-text'), 'large', '日志字号设定立即生效');
+    const expected = {
+      roco_theme: 'system', roco_motion: 'reduce', roco_log_size: 'expanded',
+      roco_log_text: 'large', roco_float_numbers: 'off', roco_font_cn: 'notoSans', roco_font_en: 'teko'
+    };
+    for (const [key, value] of Object.entries(expected)) eq(localStorage.getItem(key), value, key);
+    click('#settings-back');
+    click('#mode-online');
+    layout();
+  });
+
+  // 同一来源重新加载，确认应用读取持久化偏好，且模式重新从单机开始。
+  await media('light');
+  await open('/game?reload', '#intro-screen');
+  await inspect(() => {
+    eq(root('theme'), 'light', '重载使用当前系统主题');
+    click('#intro-screen');
+    eq(get('#btn-battle').disabled, false, '重载默认单机');
+    layout();
+    click('#settings-btn');
+    for (const [key, value] of Object.entries({
+      theme: 'system', motion: 'reduce', logSize: 'expanded', logText: 'large', floatNumbers: 'off'
+    })) selected(key, value);
+    eq(get('#font-cn').value, 'notoSans', '重载保留中文字体');
+    eq(get('#font-en').value, 'teko', '重载保留英文字体');
+    click('#settings-reset');
+    for (const [key, value] of Object.entries({
+      theme: 'dark', motion: 'system', logSize: 'standard', logText: 'standard', floatNumbers: 'on'
+    })) selected(key, value);
+    eq(get('#font-cn').value, 'default', '重置恢复默认中文字体');
+    eq(get('#font-en').value, 'cinzel', '重置恢复默认英文字体');
+    eq(localStorage.getItem('pbg_pet_loadouts'), '{}', '重置保留宠物配置');
+    eq(localStorage.getItem('pbg_custom_pets'), '[ ]', '重置保留旧自定义宠物存档');
+    eq(localStorage.getItem('pbg_custom_skills'), '[  ]', '重置保留旧自定义技能存档');
+    eq(localStorage.getItem('test-unrelated'), 'preserved', '重置保留其他本地数据');
+    for (const key of [
+      'roco_theme', 'roco_motion', 'roco_log_size', 'roco_log_text',
+      'roco_float_numbers', 'roco_font_cn', 'roco_font_en'
+    ]) localStorage.setItem(key, 'invalid-test-value');
+  });
+
+  await open('/game?invalid', '#intro-screen');
+  await inspect(() => click('#intro-screen'));
+  await until(() => inspect(() => !document.querySelector('#intro-screen')), '启动页淡出');
+  await inspect(() => {
+    click('#settings-btn');
+    for (const [key, value] of Object.entries({
+      theme: 'dark', motion: 'system', logSize: 'standard', logText: 'standard', floatNumbers: 'on'
+    })) selected(key, value);
+    eq(get('#font-cn').value, 'default', '非法中文字体回退');
+    eq(get('#font-en').value, 'cinzel', '非法英文字体回退');
+    eq(root('theme'), 'dark', '非法主题回退');
+  });
+
+  await size(1280);
+  const standard = await inspect(() => {
+    click('#settings-back');
+    enterBattle();
+    spawnFloatText(gameState.playerActive, 42, 'dmg');
+    eq(get('#player-sprite .float-text').textContent, '-42', '默认显示伤害飘字');
+    return logMetrics();
+  });
+  const adjusted = await inspect(() => {
+    showFleeConfirm();
+    click('#flee-confirm');
+    click('#settings-btn');
+    click(choice('logSize', 'expanded'));
+    click(choice('logText', 'large'));
+    click(choice('floatNumbers', 'off'));
+    click('#settings-back');
+    enterBattle();
+    spawnFloatText(gameState.playerActive, 42, 'dmg');
+    eq(document.querySelector('.float-text'), null, '关闭后不生成飘字');
+    return logMetrics();
+  });
+  assert.ok(adjusted[0] > standard[0], '扩大日志使实际区域变高');
+  assert.ok(adjusted[1] > standard[1], '大号日志使实际文字变大');
+
+  await inspect(() => localStorage.setItem('roco_theme', 'light'));
+  await send('Page.enable');
+  await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: '(' + function () {
+      function denyStorage() {
+        throw new DOMException('Test storage denial', 'SecurityError');
+      }
+      Storage.prototype.getItem = denyStorage;
+      Storage.prototype.setItem = denyStorage;
+    }.toString() + ')();'
+  });
+  await open('/game?storage-denied', '#intro-screen');
+  await inspect(() => {
+    eq(root('theme'), 'dark', '存储拒绝读取时启动使用默认偏好');
+    click('#intro-screen');
+  });
+  await until(() => inspect(() => !document.querySelector('#intro-screen')), '存储受限时启动页淡出');
+  await inspect(() => {
+    click('#settings-btn');
+    click(choice('theme', 'light'));
+    selected('theme', 'light');
+    eq(root('theme'), 'light', '存储拒绝写入时仍能切换主题');
+    eq(/仅在本次打开期间生效/.test(get('.settings-feedback').textContent), true, '明确告知偏好仅本次有效');
+    click('#settings-back');
+    eq(get('#btn-battle').disabled, false, '存储受限时仍可进入单机');
+  });
+}
+
+async function main() {
+  assert.ok(browser, '找不到 Chromium，请设置 ROCO_CHROMIUM');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'roco-settings-'));
+  const server = http.createServer((request, response) => {
+    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    // 保持测试只访问本机。字体仍可验证实际 CSS 字体链。
+    response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
+    response.end(request.url.startsWith('/game') ? html : '<!doctype html><title>ROCO 测试</title><body></body>');
+  });
+  let processHandle;
+  let connection;
+  try {
+    await new Promise((resolve, reject) => {
+      server.on('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    processHandle = spawn(browser, [
+      '--headless', '--disable-gpu', '--disable-background-networking', '--no-first-run',
+      '--remote-debugging-port=0', '--user-data-dir=' + directory, 'about:blank'
+    ], { stdio: 'ignore', windowsHide: true });
+    let launchError;
+    processHandle.on('error', error => { launchError = error; });
+    const portFile = path.join(directory, 'DevToolsActivePort');
+    const port = await until(() => {
+      if (launchError) throw launchError;
+      if (processHandle.exitCode !== null) throw new Error('Chromium 提前退出：' + processHandle.exitCode);
+      return fs.existsSync(portFile) && fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0];
+    }, 'Chromium 调试端口');
+    const pages = await fetch('http://127.0.0.1:' + port + '/json/list').then(response => response.json());
+    connection = await connect(pages.find(page => page.type === 'page').webSocketDebuggerUrl);
+    await test(connection, 'http://127.0.0.1:' + server.address().port);
+    console.log('settings and menu interactions passed');
+  } finally {
+    connection?.close();
+    if (processHandle?.pid && processHandle.exitCode === null) {
+      const exited = new Promise(resolve => processHandle.once('exit', resolve));
+      processHandle.kill();
+      await exited;
+    }
+    server.closeAllConnections();
+    server.close();
+    fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}
+
+main().catch(error => {
+  console.error(error.stack);
+  process.exitCode = 1;
+});
