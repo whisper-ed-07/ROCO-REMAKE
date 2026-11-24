@@ -132,7 +132,7 @@ test('R14 炽光失败：按格位清空对方同格技能PP', () => {
   const e = env(), p = built(e, 'pet_jydm', ['sk_jydm_2', 'sk_jydm_3', 'sk_jydm_4', 'sk_jydm_5']), a = pet(e, 'a');
   a.skills = [skill('target-slot-0'), skill('target-slot-1'), skill('target-slot-2'), skill('target-other-id')];
   a.maxHp = a.hp = 100000;
-  a.statusImmunities = ['burn']; // 确保烧伤失败，进入失败分支
+  e.api.createBattleContext().grantStatusImmunity(a, '测试防烧伤', Infinity, { statuses: ['burn'] });
   setup(e, p, a);
   const burn = p.skills[3];
   assert.strictEqual(burn.id, 'sk_jydm_5', '炽光若焰位于第 4 格');

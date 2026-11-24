@@ -17,7 +17,10 @@ function setup(left='pet_qy',ls=qskills,right='pet_jydm',rs=jskills){const e=loa
  const {u,c}=setup('pet_jydm',jskills,'pet_qy',qskills);u.skills.forEach(s=>s.pp--);u.bloodline.onTurnStart(u,c);const ppMissingMarked=u.bloodlineData.marked;u.skills.forEach(s=>u.skillUseCounts[s.id]=1);u.bloodline.onTurnStart(u,c);const first={marks:u.bloodlineData.marks,counts:{...u.skillUseCounts}};u.bloodline.onTurnStart(u,c);output.checks.R13={equipped:u.skills.map(s=>s.id),ppMissingAloneMarked:ppMissingMarked,afterAllUsed:first,afterNoFurtherUse:{marks:u.bloodlineData.marks,counts:{...u.skillUseCounts}},ppMissingPass:!ppMissingMarked,repeatRequiresNewUsePass:u.bloodlineData.marks===first.marks};
 }
 {
- const {u,t,c}=setup('pet_jydm',jskills,'pet_qy',qskills);t.statusImmunities.push('burn');const before=t.skills[3].pp;u.skills.find(s=>s.id==='sk_jydm_5').onUse(u,t,c);output.checks.R14={slot:4,targetSkill:t.skills[3].id,before,after:t.skills[3].pp,pass:t.skills[3].pp===0};
+ const {u,t,c}=setup('pet_jydm',jskills,'pet_qy',qskills);
+ if(c.grantStatusImmunity) c.grantStatusImmunity(t,'测试防烧伤',Infinity,{statuses:['burn']});
+ else t.statusImmunities.push('burn'); // 兼容归档基线
+ const before=t.skills[3].pp;u.skills.find(s=>s.id==='sk_jydm_5').onUse(u,t,c);output.checks.R14={slot:4,targetSkill:t.skills[3].id,before,after:t.skills[3].pp,pass:t.skills[3].pp===0};
 }
 {
  const {u,t,c}=setup();u.bloodlineData.mode='残脉';u.hp=400;c.doFixedDamage(u,50,t);const afterHit=u.hp;u.bloodline.onTurnStart(u,c);const afterStart=u.hp;u.hp=250;c.doFixedDamage(u,50,t);output.checks.R16={maxHp:u.maxHp,after50DamageFrom400:afterHit,afterNoDamageTurnStart:afterStart,after50DamageFrom250:u.hp,pass:afterHit===531&&afterStart===531&&u.hp===200};

@@ -1194,11 +1194,7 @@ const DEFAULT_SKILLS = [
       }
       ctx.msg("全场及场下技能视为光系（" + dur + "回合），回复与输出+100%！");
       // 免疫异常与负面强化
-      u.statusImmunities = u.statusImmunities || [];
-      var jdhImms = ["sleep","freeze","paralyze","fear","burn","poison","confuse","bind"];
-      jdhImms.forEach(function(s){ if (u.statusImmunities.indexOf(s) < 0) u.statusImmunities.push(s); });
-      u.statImmunity = true;
-      ctx.addTurnEffect(u, "极尽降华免疫", 6, null, function(p){ p.statImmunity = false; p.statusImmunities = p.statusImmunities.filter(function(s){ return jdhImms.indexOf(s) < 0; }); });
+      ctx.grantStatusImmunity(u, "极尽降华", 6, { stats: true });
       // (2) 血脉觉醒且首次使用：回满+全体PP+限伤300
       if (bd.marked && !bd.jianghuaUsed) {
         bd.jianghuaUsed = true;
@@ -1210,7 +1206,7 @@ const DEFAULT_SKILLS = [
       }
       // (3) 仅能特殊效果回复PP（immuneToPP 已排除普通回复，标记）
       u.skills.forEach(function(s){ if (s.id === "sk_jydm_1") s.pp = 0; }); // 使用后PP=0，仅特殊效果回复
-    } },{ id: "sk_jydm_2", name: "化念作刃", element: "fighting", power: 90, pp: 9, maxPp: 9, accuracy: 100, category: "physical", priority: 11, desc: "以意念为引，作不朽之刃。90威力武系物理。4回合持续：回被删PP技能1PP+30%最大精力+免疫异常驱逐。首回合先手闪避后手非必中（失败倒置强化+删2PP）/后手删先手技3PP+对方PP消耗加速。印记分支：追加固伤/删PP/999斩杀。", detail: "先手：本次伤害按自身物攻+2结算，并尝试闪避对方后手非必中技能；闪避失败则倒置双方强化并删除对方全体2PP。\n后手：删除对方本回合先手使用技能3PP，4回合内对方PP消耗翻倍。\n对方被明念标记时：追加（0.4×对方上回合输出×对方强化数）固伤，并永久免疫驱逐；m<4额外删对方全体1PP（暴击再+1）；m≥4追加999固伤、清除印记并回满第一格PP。\n4回合内每回合回复被删技能1PP与30%精力、免疫异常。",
+    } },{ id: "sk_jydm_2", name: "化念作刃", element: "fighting", power: 90, pp: 9, maxPp: 9, accuracy: 100, category: "physical", priority: 11, desc: "以意念为引，作不朽之刃。90威力武系物理。使用起4回合免疫异常，持续回复被删PP技能1PP与30%最大精力。首回合先手闪避后手非必中（失败倒置强化+删2PP）/后手删先手技3PP+对方PP消耗加速。印记分支：追加固伤/删PP/999斩杀。", detail: "先手：本次伤害按自身物攻+2结算，并尝试闪避对方后手非必中技能；闪避失败则倒置双方强化并删除对方全体2PP。\n后手：删除对方本回合先手使用技能3PP，4回合内对方PP消耗翻倍。\n对方被明念标记时：追加（0.4×对方上回合输出×对方强化数）固伤，并永久免疫驱逐；m<4额外删对方全体1PP（暴击再+1）；m≥4追加999固伤、清除印记并回满第一格PP。\n4回合内每回合回复被删技能1PP与30%精力；异常免疫从使用当回合起生效，持续4回合。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var m = bd.marks || 0;
@@ -1251,18 +1247,17 @@ const DEFAULT_SKILLS = [
           // 同步移除明念加成（对应 mark-end 清理）
           var adds = bd.markAdds || 0;
           u.healMod = Math.max(0, (u.healMod || 1) - 0.15 * adds); u.dmgMod = Math.max(0, (u.dmgMod || 1) - 0.15 * adds);
-          u.spdMod = (u.spdMod || 1) / Math.pow(1.05, adds); u.statImmunity = false; u.maxHpBonus = 0; u.mingNianDmg = 0; bd.markAdds = 0;
-          if (u.mingNianImmune) { u.statusImmunities = u.statusImmunities.filter(function(s){ return u.mingNianImmune.indexOf(s) < 0; }); u.mingNianImmune = null; }
+          u.spdMod = (u.spdMod || 1) / Math.pow(1.05, adds); u.maxHpBonus = 0; u.mingNianDmg = 0; bd.markAdds = 0;
+          ctx.revokeStatusImmunity(u, "明念");
           if (u.skills[0]) u.skills[0].pp = u.skills[0].maxPp;
         }
       }
       // 4回合持续效果
+      ctx.grantStatusImmunity(u, "化念作刃", 4, { statuses: ABNORMAL_WITHOUT_BIND });
       ctx.addTurnEffect(u, "化念作刃持续", 4, function(p) {
         var victim = p.lastPPDeletedSkill;
         if (victim) victim.pp = Math.min(victim.maxPp, victim.pp + 1);
         ctx.doHeal(p, Math.floor(p.maxHp * 0.3));
-        p.statusImmunities = p.statusImmunities || [];
-        ["sleep","freeze","paralyze","fear","burn","poison","confuse"].forEach(function(s){ if (p.statusImmunities.indexOf(s) < 0) p.statusImmunities.push(s); });
         ctx.msg("【化念作刃】回复被删技能1PP+30%HP！");
       }, null);
       // 次回合及再下一回合：减对方强化30%效果+回第2格1PP+60固伤+PP消耗加倍
@@ -1297,11 +1292,7 @@ const DEFAULT_SKILLS = [
       // (2) 净化 + 5回合免疫异常负面强化 + 速度提升（5+上回合伤害/220）%上限10%
       u.status = null; u.confuseTurns = 0; u.bindTurns = 0;
       ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
-      u.statusImmunities = u.statusImmunities || [];
-      var gmImms = ["sleep","freeze","paralyze","fear","burn","poison","confuse","bind"];
-      gmImms.forEach(function(s){ if (u.statusImmunities.indexOf(s) < 0) u.statusImmunities.push(s); });
-      u.statImmunity = true;
-      ctx.addTurnEffect(u, "光幕免疫", 5, null, function(p){ p.statImmunity = false; p.statusImmunities = p.statusImmunities.filter(function(s){ return gmImms.indexOf(s) < 0; }); });
+      ctx.grantStatusImmunity(u, "极影光幕", 5, { stats: true });
       var spdBoost = Math.min(10, 5 + Math.floor((t.lastDealtDamage || 0) / 220));
       u.spdMod = (u.spdMod || 1) * (1 + spdBoost / 100);
       ctx.addTurnEffect(u, "光幕速度", 5, null, function(p){ p.spdMod = (p.spdMod || 1) / (1 + spdBoost / 100); });
@@ -1336,8 +1327,8 @@ const DEFAULT_SKILLS = [
       var r = ctx.doDamage(u, t, power, "physical", "ice");
       ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness) + (r.isCrit ? " 命中要害！" : ""));
       // 冰冻效果
-      ctx.applyStatus(t, "freeze");
-      if (t.status === "freeze") {
+      var froze = ctx.applyStatus(t, "freeze");
+      if (froze) {
         ctx.deletePP(t, -1, 1);
         t.healReducePct = 50;
         ctx.addTurnEffect(t, "治疗降半", 2, null, function(p){ p.healReducePct = 0; });
@@ -1370,7 +1361,7 @@ const DEFAULT_SKILLS = [
         ctx.msg("后手：召唤梦境3回合！");
       }
       // m≥4：冰冻后回全体4PP
-      if (m >= 4 && t.status === "freeze") {
+      if (m >= 4 && froze) {
         u.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 4); });
         ctx.msg("印记≥4：冰冻后回全体4PP！");
       }
@@ -1381,8 +1372,7 @@ const DEFAULT_SKILLS = [
       var r = ctx.doDamage(u, t, power, "special", "fire");
       ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness) + (r.isCrit ? " 命中要害！" : ""));
       // 烧伤效果
-      ctx.applyStatus(t, "burn");
-      if (t.status === "burn") {
+      if (ctx.applyStatus(t, "burn")) {
         var segs = 2 + Math.floor(Math.random() * 3); // 2~4段
         for (var i = 0; i < segs; i++) {
           ctx.doFixedDamage(t, 70 + Math.floor(Math.random() * 31));
@@ -1406,7 +1396,7 @@ const DEFAULT_SKILLS = [
       ctx.msg("召唤锁定瞬华环境4回合！光系+15%速度、先手出招回100精力、被抵抗追加30%固伤");
     } },
 { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
-    desc: "不灭之威，创世奇迹。【被动】始终免疫睡眠、冰冻、恐惧。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能PP耗尽后获得永久全异常免疫。本技能免疫PP删除和回复效果。",
+    desc: "不灭之威，创世奇迹。【被动】免疫束缚、恐惧、睡眠、冰冻，本技能当前PP为0时免疫全部异常。【主动】释放后3回合内：双方速度提升10%，自身输出提升25%；每回合吸取对方全体2PP回复自身；对方PP最少的技能额外消耗1PP。第1回合回复全部精力值并无视对方后手效果；第2回合强制重置双方所有强化并回复首格技能全部PP；第3回合若自身HP低于30%则回复70%已损精力。本技能免疫PP删除和回复效果。",
     detail: "① 被动：免疫束缚、恐惧、睡眠、冰冻。\n② 主动：3回合内双方速度+10%、自身输出+25%；每回合吸取对方全体2PP回复自身，并令对方PP最少技能额外消耗1PP。\n③ 首回合：回复全部精力；若先手，额外删除对方全体1PP并免疫对方后手技能的伤害部分。\n④ 次回合：强制重置双方强化，回复首格技能全部PP。\n⑤ 末回合：自身精力<30%时回复70%已损精力并清空本技能PP。\n⑥ 本技能免疫删除与回复；PP为0时自身免疫全部异常。",
     immuneToPP: true,
     onUse: function(user, target, ctx) {
@@ -1460,13 +1450,6 @@ const DEFAULT_SKILLS = [
           pet.spdMod = Math.max(0, (pet.spdMod || 1) - 0.1);
           if (target) target.spdMod = Math.max(0, (target.spdMod || 1) - 0.1);
           pet.dmgMod = Math.max(0, (pet.dmgMod || 1) - 0.25);
-          // PP变为0后免疫异常
-          var skill = pet.skills.find(function(s) { return s.id === "sk_cszn"; });
-          if (skill && skill.pp === 0) {
-            pet.statusImmunities = pet.statusImmunities || [];
-            pet.statusImmunities.push("freeze","sleep","paralyze","burn","poison","confuse","fear");
-            ctx.msg("创世之能PP耗尽，" + pet.name + " 获得了永久异常免疫！");
-          }
         }
       );
     }
@@ -1608,11 +1591,9 @@ const DEFAULT_SKILLS = [
         // 2回合限伤: >15%最大HP的伤害减少至80
         ctx.setDamageCap(user, Math.floor(user.maxHp * 0.15), 80, 2);
         // 4回合免疫异常
-        var fthyImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear"];
-        user.statusImmunities = user.statusImmunities || [];
-        fthyImms.forEach(function(s){if(user.statusImmunities.indexOf(s)<0)user.statusImmunities.push(s)});
+        ctx.grantStatusImmunity(user, "覆体魂衣", 4, { statuses: ABNORMAL_WITHOUT_BIND });
         user.__fthyStageSum = 0;
-        ctx.addTurnEffect(user, "覆体免疫", 4, function(p) {
+        ctx.addTurnEffect(user, "覆体失强", 4, function(p) {
           var sum = 0;
           ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ sum += Math.abs(p[k] || 0); });
           if (p.__fthyStageSum !== undefined && sum < p.__fthyStageSum) {
@@ -1621,7 +1602,7 @@ const DEFAULT_SKILLS = [
             if (opp && lost > 0) { ctx.doFixedDamage(opp, lost * 80, p); ctx.msg("【覆体魂衣】强化消失" + lost + "级，对敌造成" + (lost * 80) + "固伤！"); }
           }
           p.__fthyStageSum = sum;
-        }, function(p){ p.statusImmunities = p.statusImmunities.filter(function(s){ return fthyImms.indexOf(s) < 0; }); });
+        }, null);
       }
       // 提升2级双抗 + 净化 + 反转负面
       ctx.modifyStat(user, "def", 2);
@@ -1691,7 +1672,7 @@ const DEFAULT_SKILLS = [
   // === 清羽新技能 ===
   { id: "sk_qy_1", name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     desc: "免疫删PP；低层/无清念：护盾+免疫后手；高层清念：净化回满、清空对方回合效果、12回合免疫；首次令双方技能视为主属系；后续倒置对方治疗。",
-    detail: "① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果，12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：4+2×已损比例的回合内倒置对方治疗，初始比例0.3+已损比例。",
+    detail: "① 本技能免疫删除PP与额外损失PP，只能被轻风散魂回复。\n② 清风之念<3或无清念：2回合内每回合获得（200+0.4×已损精力）护盾，并免疫后手伤害。\n③ ≥3层且清念：净化自身、回复全部精力、其他技能回复30%PP、清空对方全部回合效果（含限时防控），12回合免疫异常与负面强化。\n④ 首次使用：双方全部技能视为自身主属系，持续（2+技能数×2）回合；清念额外倒置对方2回合治疗，残脉则反弹对方后手效果。\n⑤ 后续使用：4+2×已损比例的回合内倒置对方治疗，初始比例0.3+已损比例。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var q = bd.qfzn || 0, inQ = bd.mode === "清念";
@@ -1710,12 +1691,8 @@ const DEFAULT_SKILLS = [
         ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
         ctx.doHeal(u, (u.maxHp + (u.maxHpBonus || 0)) - u.hp);
         u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3)); });
-        t.turnEffects = [];
-        var imms0 = ["burn","freeze","paralyze","poison","sleep","confuse","fear","bind"];
-        u.statusImmunities = u.statusImmunities || [];
-        imms0.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
-        u.statImmunity = true;
-        ctx.addTurnEffect(u, "清翎免疫", 12, null, function(p) { p.statImmunity = false; p.statusImmunities = p.statusImmunities.filter(function(x){ return imms0.indexOf(x) < 0; }); });
+        clearTurnEffects(t);
+        ctx.grantStatusImmunity(u, "清翎覆尘", 12, { stats: true });
         ctx.msg("清念：净化回满，其他技能+30%PP，清除对方回合效果，12回合免疫！");
       }
       if (!bd.qyFirstUse) {
@@ -1772,8 +1749,8 @@ const DEFAULT_SKILLS = [
       }
     } },
   { id: "sk_qy_3", name: "残念余梦", element: "ice", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 7,
-    desc: "清天气/环境并召唤梦境，返还伤害与负面状态；先手删PP，后手沉睡锁换宠。清念下记录出招扣费后的PP并清零，经历残脉再入清念时恢复一次。",
-    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 返还上次所受伤害（等量固伤），并把自身当前的负面状态退回给对方。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡，自身换宠锁定直到对方苏醒；睡眠失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用：记录本次出招扣费后的剩余PP，再清零。必须先进入残脉、再进入清念，才恢复记录的PP一次；重复进入原清念不能恢复。",
+    desc: "清天气/环境并召唤梦境，返还伤害与负面状态（受对方防控）；先手删PP，后手沉睡锁换宠。清念下记录出招扣费后的PP并清零，经历残脉再入清念时恢复一次。",
+    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 返还上次所受伤害（等量固伤），并把自身当前的负面状态退回给对方，异常施加受对方防控判定。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡，自身换宠锁定直到对方苏醒；睡眠失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用：记录本次出招扣费后的剩余PP，再清零。必须先进入残脉、再进入清念，才恢复记录的PP一次；重复进入原清念不能恢复。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
@@ -1785,8 +1762,7 @@ const DEFAULT_SKILLS = [
       if (u.status && ["burn","freeze","paralyze","poison","sleep","fear","bind","confuse"].indexOf(u.status) >= 0) {
         var st = u.status, stTurns = u.statusTurns;
         u.status = null; u.statusTurns = 0;
-        t.status = st; t.statusTurns = stTurns;
-        ctx.msg("将负面状态退回给对方！");
+        ctx.applyStatus(t, st, { turns: stTurns, replace: true, message: "将负面状态退回给对方！" });
       }
       var cf = u.skills.find(function(s){ return s.id === "sk_qy_4"; });
       var lostCf = cf ? cf.maxPp - cf.pp : 0;
@@ -1798,8 +1774,7 @@ const DEFAULT_SKILLS = [
       if (extra > 0) { ctx.doFixedDamage(t, extra, u); ctx.msg("追加" + extra + "点固伤！"); }
       if (isFirst) { ctx.deletePP(t, -1, 3); ctx.msg("先手：额外删除对方全体3PP！"); }
       else {
-        ctx.applyStatus(t, "sleep");
-        if (t.status === "sleep") {
+        if (ctx.applyStatus(t, "sleep")) {
           u.switchLocked = true;
           ctx.addTurnEffect(u, "残念锁足", 99, function(p){ if (!t || t.status !== "sleep") p.switchLocked = false; }, function(p){ p.switchLocked = false; });
           ctx.msg("后手：对方沉睡，自身换宠锁定！");
@@ -1828,12 +1803,10 @@ const DEFAULT_SKILLS = [
         ctx.msg("驱逐对方，换上" + next.name + "！");
         return next;
       };
-      ctx.applyStatus(t, "freeze");
-      if (t.status === "freeze") {
+      if (ctx.applyStatus(t, "freeze")) {
         var next = eject();
         if (next) {
-          ctx.applyStatus(next, "sleep");
-          if (next.status !== "sleep") { for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333); ctx.msg("睡眠失败：999固伤分3段！"); }
+          if (!ctx.applyStatus(next, "sleep")) { for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333); ctx.msg("睡眠失败：999固伤分3段！"); }
         }
       } else {
         t.skills.forEach(function(s) { if ((s.useCount || 0) > 6) { var cut = 1 + s.pp + Math.floor(0.25 * spdDiff); s.pp = Math.max(0, s.pp - cut); } });
@@ -1893,10 +1866,7 @@ const DEFAULT_SKILLS = [
       gameState.banEffects = { shield: true, dmgReduction: true, damageCap: true, reflect: true };
       [u, t].forEach(function(p){ p.shield = 0; p.damageReduction = 0; p.damageReductionTurns = 0; p.damageCap = Infinity; p.damageCapTurns = 0; p.damageCapThreshold = 0; p.immuneBackhand = false; p.reflectBackhand = false; });
       ctx.msg("本局全局屏蔽：限伤/减伤/护盾/反弹效果！");
-      u.statImmunity = true;
-      var qlImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear","bind"];
-      u.statusImmunities = u.statusImmunities || [];
-      qlImms.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
+      ctx.grantStatusImmunity(u, "微灵封体", Infinity, { stats: true });
       u.immunePowerDamage = true;
       ctx.addTurnEffect(u, "封体威力免疫", 1, null, function(p){ p.immunePowerDamage = false; });
       ctx.msg("永久免疫异常与负面强化，1回合免疫威力伤害！");
@@ -1934,10 +1904,7 @@ const DEFAULT_SKILLS = [
       if (firstZero) ctx.msg("首格PP=0：必定暴击且伤害不低于30%最大精力！");
       ctx.msg("造成 " + dealt + " 点伤害！" + getEffLabel(res.effectiveness) + (res.isCrit ? " 命中要害！" : ""));
       ctx.doHeal(u, 150);
-      var wjImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear"];
-      u.statusImmunities = u.statusImmunities || [];
-      wjImms.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
-      ctx.addTurnEffect(u, "万念免疫", 6, null, function(p){ p.statusImmunities = p.statusImmunities.filter(function(x){ return wjImms.indexOf(x) < 0; }); });
+      ctx.grantStatusImmunity(u, "万念俱灰", 6, { statuses: ABNORMAL_WITHOUT_BIND });
       ctx.msg("回复150精力，6回合内免疫异常状态！");
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
       if (isFirst) {
@@ -1965,7 +1932,6 @@ const DEFAULT_SKILLS = [
       var power = Math.min(150, Math.floor(70 + wjPower * 0.2));
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
       var currentOpp = function(p){ return gameState.playerActive === p ? gameState.aiActive : gameState.playerActive; };
-      var flImms = ["burn","freeze","paralyze","poison","sleep","confuse","fear"];
       var perTurn = function(owner) {
         owner.bloodlineData = owner.bloodlineData || {};
         owner.bloodlineData.microLing = (owner.bloodlineData.microLing || 0) + 10;
@@ -1983,9 +1949,7 @@ const DEFAULT_SKILLS = [
         ctx.msg("封灵千噬发动！造成 " + r.damage + " 点伤害。");
         perTurn(owner);
       };
-      u.statusImmunities = u.statusImmunities || [];
-      flImms.forEach(function(x){ if (u.statusImmunities.indexOf(x) < 0) u.statusImmunities.push(x); });
-      ctx.addTurnEffect(u, "封灵噬免疫", 3, null, function(p){ p.statusImmunities = p.statusImmunities.filter(function(x){ return flImms.indexOf(x) < 0; }); });
+      ctx.grantStatusImmunity(u, "封灵千噬", 3, { statuses: ABNORMAL_WITHOUT_BIND });
       t.skillPPCostMult = 2;
       ctx.addTurnEffect(t, "封灵噬PP", 3, null, function(p){ p.skillPPCostMult = 1; });
       strike(u);
@@ -2036,8 +2000,7 @@ const DEFAULT_SKILLS = [
       var selfSk = u.skills.find(function(s){ return s.id === "sk_ql_4"; });
       if (selfSk && selfSk.ppLocked) { selfSk.ppLocked = false; ctx.msg("太虚灵威解除PP锁定。"); }
       ctx.msg(u.name + " 释放了太虚灵威！");
-      ctx.applyStatus(t, "fear");
-      if (t.status !== "fear") {
+      if (!ctx.applyStatus(t, "fear")) {
         ctx.deletePP(t, -1, 2);
         t.skillPPCostMult = 2;
         t.switchLocked = true;
@@ -2147,13 +2110,10 @@ const DEFAULT_PETS = [
           bd.markTurns--;
           var m = bd.marks;
           pet.maxHpBonus = 15 * m + 50;                 // (15m+50)精力上限增幅
-          pet.statusImmunities = pet.statusImmunities || [];
-          if (!pet.mingNianImmune) {
-            // 免疫控制：睡眠/冰冻/恐惧/麻痹/混乱/束缚
-            pet.mingNianImmune = ["sleep","freeze","paralyze","fear","confuse","bind"];
-            pet.mingNianImmune.forEach(function(s){ if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); });
-          }
-          pet.statImmunityKeys = ["spatk","spd"];        // 只免疫魔攻/速度类负面强化
+          ctx.grantStatusImmunity(pet, "明念", Infinity, {
+            statuses: ["sleep", "freeze", "paralyze", "fear", "confuse", "bind"],
+            stats: ["spatk", "spd"]
+          });
           // 明念标记增益：每回合恢复全体技能1PP
           pet.skills.forEach(function(s){ gainPP(pet, s, 1); });
           var stages = 0;
@@ -2164,8 +2124,8 @@ const DEFAULT_PETS = [
             bd.marked = false; pet.maxHpBonus = 0; pet.mingNianDmg = 0;
             var adds = bd.markAdds || 0;
             pet.healMod = Math.max(0, (pet.healMod || 1) - 0.15 * adds); pet.dmgMod = Math.max(0, (pet.dmgMod || 1) - 0.15 * adds);
-            pet.spdMod = (pet.spdMod || 1) / Math.pow(1.05, adds); pet.statImmunity = false; pet.statImmunityKeys = null; bd.markAdds = 0;
-            if (pet.mingNianImmune) { pet.statusImmunities = pet.statusImmunities.filter(function(s){ return pet.mingNianImmune.indexOf(s) < 0; }); pet.mingNianImmune = null; }
+            pet.spdMod = (pet.spdMod || 1) / Math.pow(1.05, adds); bd.markAdds = 0;
+            ctx.revokeStatusImmunity(pet, "明念");
             ctx.msg("【明念】标记结束，增益消失！");
           }
         }
@@ -2213,8 +2173,6 @@ const DEFAULT_PETS = [
         var hasQl = pet.skills.some(function(s) { return s.id === "sk_qy_1"; });
         var hasCf = pet.skills.some(function(s) { return s.id === "sk_qy_4"; });
         if (!hasQl || !hasCf) {
-          pet.statusImmunities = pet.statusImmunities || [];
-          ["freeze","sleep","paralyze","burn","poison","confuse","fear"].forEach(function(s) { if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); });
           pet.damageReduction = Math.max(pet.damageReduction || 0, 20);
           ctx.msg("【清羽通用被动】免疫异常+20%减伤");
           return;
@@ -2291,14 +2249,8 @@ const DEFAULT_PETS = [
         // 翼系技能触发血脉效果（仅清念态）
         if (skill.element === "flying" && bd.mode === "清念") {
           // (1) 3回合免疫异常与负面强化
-          if (!pet.qingNianImmune) pet.qingNianImmune = [];
-          var imms = ["freeze","sleep","paralyze","burn","poison","fear","bind","confuse"];
-          imms.forEach(function(s) { if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); });
-          pet.qingNianImmune = imms;
-          ctx.addTurnEffect(pet, "清念翼免疫", 3, null, function(p) {
-            if (p.qingNianImmune) { p.statusImmunities = p.statusImmunities.filter(function(s){ return p.qingNianImmune.indexOf(s) < 0; }); p.qingNianImmune = null; }
-          });
-          pet.statImmunity = true;ctx.addTurnEffect(pet,"清念翼强化",3,null,function(p){p.statImmunity=false;});ctx.msg("【清念】3回合内免疫异常与负面强化！");
+          ctx.grantStatusImmunity(pet, "清念翼系", 3, { stats: true });
+          ctx.msg("【清念】3回合内免疫异常与负面强化！");
           // 若技能PP<8：净化自身+回复其他技能1PP
           if (skill.pp < 8) {
             pet.status = null; pet.confuseTurns = 0; pet.bindTurns = 0;
@@ -2325,23 +2277,8 @@ const DEFAULT_PETS = [
         // 冰系技能触发血脉效果（仅残脉态）
         if (skill.element === "ice" && bd.mode === "残脉") {
           // (1) 2回合免疫异常（可叠加回合数）
-          pet.qyIceImmuneTurns = (pet.qyIceImmuneTurns || 0) + 2;
-          var iceImms = ["freeze","sleep","paralyze","burn","poison","fear","bind","confuse"];
-          if (!pet.qyIceImmuneList) pet.qyIceImmuneList = [];
-          iceImms.forEach(function(s){ if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s); if (pet.qyIceImmuneList.indexOf(s) < 0) pet.qyIceImmuneList.push(s); });
-          // 注册前先移除旧 effect，保证同一时间只有一个递减器（避免并发多倍递减）
-          pet.turnEffects = pet.turnEffects.filter(function(e){ return e.name !== "清羽冰护"; });
-          pet.qyIceImmuneReg = true;
-          ctx.addTurnEffect(pet, "清羽冰护", 999, function(p){
-            if (p.qyIceImmuneTurns > 0) {
-              p.qyIceImmuneTurns--;
-              if (p.qyIceImmuneTurns <= 0 && p.qyIceImmuneList) {
-                p.statusImmunities = p.statusImmunities.filter(function(s){ return p.qyIceImmuneList.indexOf(s) < 0; });
-                p.qyIceImmuneList = null; p.qyIceImmuneReg = false;
-              }
-            }
-          }, null);
-          ctx.msg("【冰系】2回合免疫异常（可叠加，现剩" + pet.qyIceImmuneTurns + "回合）！");
+          var immuneTurns = ctx.grantStatusImmunity(pet, "残脉冰系", 2, { stack: true });
+          ctx.msg("【冰系】2回合免疫异常（可叠加，现剩" + immuneTurns + "回合）！");
           // 若技能PP≤4：净化+回复300精力（间隔<2回合则-30%）
           if (skill.pp <= 4) {
             pet.status = null; pet.confuseTurns = 0; pet.bindTurns = 0;
@@ -2422,22 +2359,9 @@ const DEFAULT_PETS = [
       onTurnStart: function(pet, ctx) {
         pet.bloodlineData = pet.bloodlineData || {};
         pet.bloodlineData.segmentIdx = 0;
-        pet.statusImmunities = pet.statusImmunities || [];
-        // 创世之能被动: 始终免疫睡眠/冰冻/恐惧（注：束缚暂未实现）
-    var cszn2 = pet.skills.find(function(s) { return s.id === "sk_cszn"; });
-    if (cszn2) {
-      ["freeze","sleep","fear","bind"].forEach(function(s) {
-        if (pet.statusImmunities.indexOf(s) < 0) pet.statusImmunities.push(s);
-      });
-    }
-    // 创世之能 PP=0 时免疫全部异常
+        // 沿用创世之能 PP 归零分支原有的开场状态清理。
         var cszn = pet.skills.find(function(s) { return s.id === "sk_cszn"; });
-        if (cszn && cszn.pp === 0) {
-          if (pet.statusImmunities.indexOf("freeze") < 0) {
-            pet.statusImmunities.push("freeze","sleep","paralyze","burn","poison","confuse","fear","bind");
-          }
-          if (pet.status) { pet.status = null; pet.confuseTurns = 0; }
-        }
+        if (cszn && cszn.pp === 0 && pet.status) { pet.status = null; pet.confuseTurns = 0; }
       }
     }
   }
@@ -2548,8 +2472,7 @@ class BattlePet {
     this.damageReductionTurns = 0;     // 减免剩余回合
     this.superEffReduction = 0;        // 克制伤害减免%
     this.fixedDmgHealPct = 0;         // 固伤反转治疗%
-    this.statusImmunities = [];        // 永久免疫的异常
-    this.statImmunity = false;          // 免疫负面强化
+    this.statusImmunitySources = new Map();
     this.outputReduction = 0;          // 输出降低%
     this.healInvertPct = 0;            // 倒置治疗比例（0-1）
     this.healInvertTurns = 0;         // 倒置治疗剩余回合
@@ -2579,6 +2502,17 @@ class BattlePet {
     this.skills = petData.skillIds.slice(0, 4).map(function(sid) {
       var s = findSkill(sid); return s ? { ...s, pp: s.maxPp, priority: s.priority || 8 } : null;
     }).filter(Boolean);
+    if (this.bloodline && this.bloodline.name === "清念/残脉" &&
+        ["sk_qy_1", "sk_qy_4"].some(id => !this.skills.some(skill => skill.id === id))) {
+      grantStatusImmunity(this, "清羽通用被动", Infinity, { statuses: ABNORMAL_WITHOUT_BIND });
+    }
+    if (this.bloodline && this.bloodline.name === "不灭魂体") {
+      var creationSkill = this.skills.find(skill => skill.id === "sk_cszn");
+      if (creationSkill) {
+        grantStatusImmunity(this, "创世之能", Infinity, { statuses: ["freeze", "sleep", "fear", "bind"] });
+        grantStatusImmunity(this, "创世之能空PP", Infinity, { active: () => creationSkill.pp === 0 });
+      }
+    }
   }
   getStat(stat) {
     var stages = { atk: this.atkStage, def: this.defStage, spatk: this.spatkStage, spdef: this.spdefStage, spd: this.spdStage };
@@ -2726,20 +2660,13 @@ function createBattleContext() {
     },
     doHeal: function(target, amount) { var healed = target.heal(Math.floor(amount)); if (healed > 0) addMessage(target.name + " 回复了" + healed + "HP"); },
     addShield: function(target, amount) { if (gameState.banEffects && gameState.banEffects.shield) { addMessage("护盾已被微灵封体永久限制！"); return; } var amt = Math.floor(amount); target.shield += amt; if (amt > 0) spawnFloatText(target, amt, "shield"); },
-    applyStatus: function(target, status) {
-      if (target.statusImmunities && target.statusImmunities.indexOf(status) >= 0) { var sn2=({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧",bind:"束缚"}[status]||status); addMessage(target.name + "免疫了"+sn2+"！"); return; }
-      if (target.status && status !== "confuse") return;
-      applyEffect(target, status);
-    },
-    fear: function(target) {
-      if (target.statusImmunities && target.statusImmunities.indexOf("fear") >= 0) { addMessage(target.name + "免疫了恐惧！"); return; }
-      if (!target.status) { target.status = "fear"; target.statusTurns = 1 + Math.floor(Math.random() * 2); addMessage(target.name + " 被恐惧了！"); }
-    },
+    grantStatusImmunity: grantStatusImmunity,
+    revokeStatusImmunity: revokeStatusImmunity,
+    applyStatus: applyEffect,
+    fear: function(target) { return applyEffect(target, "fear"); },
     modifyStat: function(target, stat, stages) {
       if (target.statLocked) return;
-      if (target.statImmunity && stages < 0) return;
-      // 明念：只免疫魔攻/速度两类负面强化
-      if (stages < 0 && target.statImmunityKeys && target.statImmunityKeys.indexOf(stat) >= 0) return;
+      if (stages < 0 && hasStatDropImmunity(target, stat)) return;
       var key = stat + "Stage";
       if (target[key] !== undefined) {
         var before = target[key];
@@ -2925,6 +2852,7 @@ function processTurnEffects(pet) {
     if (e.turnsLeft <= 0) { if (e.onExpire) e.onExpire(pet); }
     else pet.turnEffects.push(e);
   });
+  tickStatusImmunities(pet);
   // 保留既有封锁结束点：上一回合施加的封锁仍覆盖本回合开场回复。
   pet.blockPPRecovery = false;
 }
@@ -3093,20 +3021,83 @@ function calcDamage(attacker, defender, skill) {
   return { damage: Math.max(1, dmg), effectiveness: eff, isCrit: isCrit };
 }
 
-function applyEffect(pet, effect) {
-  if (pet.statusImmunities && pet.statusImmunities.indexOf(effect) >= 0) { var sn=({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧",bind:"束缚",confuse:"混乱"}[effect]||effect); addMessage(pet.name + "免疫了"+sn+"！"); return; }
-  if (pet.status && effect !== "confuse" && effect !== "bind") return;
-  switch(effect) {
-    case "burn": pet.status = "burn"; addMessage(pet.name + " 烧伤了！"); break;
-    case "freeze": pet.status = "freeze"; pet.statusTurns = 0; addMessage(pet.name + " 被冰冻了！"); break;
-    case "paralyze": pet.status = "paralyze"; addMessage(pet.name + " 麻痹了！"); break;
-    case "poison": pet.status = "poison"; addMessage(pet.name + " 中毒了！"); break;
-    case "sleep": pet.status = "sleep"; pet.statusTurns = 1 + Math.floor(Math.random() * 3); addMessage(pet.name + " 睡着了！"); break;
-    case "confuse": pet.confuseTurns = 2 + Math.floor(Math.random() * 3); addMessage(pet.name + " 混乱了！"); break;
-    case "fear": pet.status = "fear"; pet.statusTurns = 1 + Math.floor(Math.random() * 2); addMessage(pet.name + " 被恐惧了！"); break;
-    case "bind": pet.bindTurns = 2 + Math.floor(Math.random() * 4); addMessage(pet.name + " 被束缚了！"); break;
-  case "leech_seed": pet.leechSeed = true; addMessage(pet.name + " 被寄生种子缠住了！"); break;
+// 防控按宠物与来源登记，由同一处负责刷新、累加和到期。
+const ABNORMAL_WITHOUT_BIND = ["burn", "freeze", "paralyze", "poison", "sleep", "confuse", "fear"];
+const ABNORMAL_STATUSES = ABNORMAL_WITHOUT_BIND.concat("bind");
+const STATUS_LABELS = { burn: "烧伤", freeze: "冰冻", paralyze: "麻痹", poison: "中毒",
+  sleep: "睡眠", fear: "恐惧", confuse: "混乱", bind: "束缚", leech_seed: "寄生" };
+const STATUS_MESSAGES = { burn: "烧伤了", freeze: "被冰冻了", paralyze: "麻痹了", poison: "中毒了",
+  sleep: "睡着了", fear: "被恐惧了", confuse: "混乱了", bind: "被束缚了", leech_seed: "被寄生种子缠住了" };
+
+function grantStatusImmunity(pet, source, turns, options = {}) {
+  const sources = pet.statusImmunitySources;
+  const previous = sources.get(source);
+  const turnsLeft = options.stack && previous ? previous.turnsLeft + turns : turns;
+  sources.set(source, {
+    statuses: options.statuses || ABNORMAL_STATUSES,
+    stats: options.stats,
+    active: options.active,
+    turnsLeft,
+    createdTurn: gameState.turnCount
+  });
+  return turnsLeft;
+}
+
+function revokeStatusImmunity(pet, source) {
+  pet.statusImmunitySources.delete(source);
+}
+
+function activeStatusImmunities(pet) {
+  if (!pet.statusImmunitySources) return [];
+  return Array.from(pet.statusImmunitySources.values()).filter(lock => !lock.active || lock.active());
+}
+
+function hasStatusImmunity(pet, status) {
+  return activeStatusImmunities(pet).some(lock => lock.statuses.includes(status));
+}
+
+function hasStatDropImmunity(pet, stat) {
+  return activeStatusImmunities(pet).some(lock =>
+    lock.stats === true || (Array.isArray(lock.stats) && lock.stats.includes(stat))
+  );
+}
+
+function tickStatusImmunities(pet) {
+  for (const [source, lock] of pet.statusImmunitySources || []) {
+    if (lock.turnsLeft === Infinity || lock.createdTurn === gameState.turnCount) continue;
+    lock.turnsLeft--;
+    if (lock.turnsLeft <= 0) revokeStatusImmunity(pet, source);
   }
+}
+
+function clearTurnEffects(pet) {
+  pet.turnEffects = [];
+  for (const [source, lock] of pet.statusImmunitySources || []) {
+    if (lock.turnsLeft !== Infinity) revokeStatusImmunity(pet, source);
+  }
+}
+
+function applyEffect(pet, effect, options = {}) {
+  if (!Object.hasOwn(STATUS_MESSAGES, effect)) return false;
+  if (hasStatusImmunity(pet, effect)) {
+    addMessage(pet.name + "免疫了" + STATUS_LABELS[effect] + "！");
+    return false;
+  }
+  const independent = effect === "confuse" || effect === "bind";
+  // 已有同种主异常时保留原状态与时长，也保留技能原先的成功分支。
+  if (pet.status && !independent && !options.replace) return pet.status === effect;
+  const turns = options.turns ?? (
+    effect === "sleep" ? 1 + Math.floor(Math.random() * 3) :
+    effect === "fear" ? 1 + Math.floor(Math.random() * 2) :
+    effect === "confuse" ? 2 + Math.floor(Math.random() * 3) :
+    effect === "bind" ? 2 + Math.floor(Math.random() * 4) : 0
+  );
+  if (effect === "confuse") pet.confuseTurns = turns;
+  else if (effect === "bind") pet.bindTurns = turns;
+  else if (effect === "leech_seed") pet.leechSeed = true;
+  else { pet.status = effect; pet.statusTurns = turns; }
+  addMessage(options.message || pet.name + " " + STATUS_MESSAGES[effect] + "！");
+  return true;
 }
 
 
@@ -3459,8 +3450,8 @@ function executeSkillTurn(user, target, skill, who) {
   if (!user.canAct()) { addMessage(user.name + " 无法行动！"); return; }
   var isPlayer = who === "player";
   // 迷雾天气：主动行动结算前 80% 概率令自身混乱
-  if (gameState.weather === "mist" && (user.statusImmunities || []).indexOf("confuse") < 0 && !user.statImmunity) {
-    if (Math.random() < 0.8) { user.status = "confuse"; user.confuseTurns = 1; addMessage("迷雾缭绕，" + user.name + " 在行动前陷入混乱！"); }
+  if (gameState.weather === "mist" && !hasStatusImmunity(user, "confuse") && Math.random() < 0.8) {
+    applyEffect(user, "confuse", { turns: 1, message: "迷雾缭绕，" + user.name + " 在行动前陷入混乱！" });
   }
   var lastEff = 1, lastDmgVal = 0;
   var ctx = createBattleContext();
@@ -3611,13 +3602,16 @@ function executeSkillTurn(user, target, skill, who) {
     if (target.status && ["burn","freeze","paralyze","poison","sleep","fear"].indexOf(target.status) >= 0) {
       var rbSt = target.status, rbTurns = target.statusTurns;
       target.status = null; target.statusTurns = 0;
-      user.status = rbSt; user.statusTurns = rbTurns;
-      addMessage(target.name + " 反弹了异常【" + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[rbSt] || rbSt) + "】！");
+      applyEffect(user, rbSt, {
+        turns: rbTurns,
+        replace: true,
+        message: target.name + " 反弹了异常【" + STATUS_LABELS[rbSt] + "】！"
+      });
     }
   }
   // 迷雾天气：主动行动结算后 80% 概率令对手混乱
-  if (gameState.weather === "mist" && !target.isFainted() && !target.statImmunity && (target.statusImmunities || []).indexOf("confuse") < 0) {
-    if (Math.random() < 0.8) { target.status = "confuse"; target.confuseTurns = 1; addMessage("迷雾缭绕，" + target.name + " 在行动后陷入混乱！"); }
+  if (gameState.weather === "mist" && !target.isFainted() && !hasStatusImmunity(target, "confuse") && Math.random() < 0.8) {
+    applyEffect(target, "confuse", { turns: 1, message: "迷雾缭绕，" + target.name + " 在行动后陷入混乱！" });
   }
   // 瞬华环境：技能伤害被抵抗则追加原伤害30%固伤
   var resistEff = (ctx && ctx._lastEff !== undefined) ? ctx._lastEff : lastEff;
@@ -3644,8 +3638,11 @@ function applyLegacyStatusSkill(user, target, skill) {
   else if (name === "光合作用") { user.heal(Math.floor(user.maxHp / 2)); addMessage(user.name + " 回复了大量HP！"); }
   else if (name === "龙之舞") { user.atkStage = Math.min(6, user.atkStage + 1); user.spdStage = Math.min(6, user.spdStage + 1); addMessage(user.name + " 的攻击和速度提升了！"); }
   else if (name === "极光幕") { user.defStage = Math.min(6, user.defStage + 1); user.spdefStage = Math.min(6, user.spdefStage + 1); addMessage(user.name + " 的双防提升了！"); }
-  else if (name === "烟雾") { target.accuracyStage = Math.max(-6, target.accuracyStage - 1); addMessage(target.name + " 的命中率降低了！"); }
-  else if (name === "冰冻之风") { target.spdStage = Math.max(-6, target.spdStage - 1); addMessage(target.name + " 的速度降低了！");
+  else if (name === "烟雾") {
+    if (!hasStatDropImmunity(target, "accuracy")) { target.accuracyStage = Math.max(-6, target.accuracyStage - 1); addMessage(target.name + " 的命中率降低了！"); }
+  }
+  else if (name === "冰冻之风") {
+    if (!hasStatDropImmunity(target, "spd")) { target.spdStage = Math.max(-6, target.spdStage - 1); addMessage(target.name + " 的速度降低了！"); }
     var res = calcDamage(user, target, { ...skill, power: 55, category: "special" }); target.takeDamage(res.damage); addMessage("造成 " + res.damage + " 点伤害！"); }
   else if (name === "寄生种子") { if (Math.random() * 100 < 90) applyEffect(target, "leech_seed"); }
   else if (skill.effect && skill.effectChance > 0 && Math.random() * 100 < skill.effectChance) applyEffect(target, skill.effect);
@@ -3808,15 +3805,20 @@ function renderStatusBadges(pet) {
   if (pet.confuseTurns > 0) h += "<span class=status-badge confuse>混乱 " + pet.confuseTurns + "回合</span>";
   if (pet.bindTurns > 0) h += "<span class=status-badge bind>束缚 " + pet.bindTurns + "回合</span>";
   if (pet.leechSeed) h += "<span class=status-badge poison>寄生</span>";
-  // 冰系免疫剩余回合（叠加计数）
-  if (pet.qyIceImmuneTurns > 0) h += "<span class=status-badge immune>免疫异常 " + pet.qyIceImmuneTurns + "回合</span>";
-  // 免疫异常剩余回合（从回合效果中提取，如清翎覆尘12回合/清念翼系3回合/极影光幕5回合/极尽降华6回合/覆体魂衣4回合）
-  if (pet.turnEffects) {
-    pet.turnEffects.forEach(function(e) {
-      if (e.name && e.name.indexOf("免疫") >= 0 && e.turnsLeft > 0) {
-        h += "<span class=status-badge immune>免疫异常 " + e.turnsLeft + "回合</span>";
-      }
-    });
+  const immunityBadges = new Map();
+  for (const lock of activeStatusImmunities(pet)) {
+    const covered = lock.statuses.slice().sort();
+    const key = covered.join(",");
+    const previous = immunityBadges.get(key);
+    if (!previous || lock.turnsLeft > previous.turnsLeft) immunityBadges.set(key, lock);
+  }
+  for (const { statuses, turnsLeft } of immunityBadges.values()) {
+    const label = ABNORMAL_WITHOUT_BIND.every(status => statuses.includes(status)) ? "免疫异常"
+      : statuses.length === 6 ? "免疫控制"
+      : "免疫" + STATUS_LABELS[statuses[0]] + "等";
+    const tooltip = escapeHtml(statuses.map(status => STATUS_LABELS[status]).join("、"));
+    h += '<span class="status-badge immune" title="' + tooltip + '">' + label +
+      (turnsLeft === Infinity ? "" : " " + turnsLeft + "回合") + "</span>";
   }
   if (pet.bloodline) h += "<span class=bloodline-tag>" + pet.bloodline.name + "</span>";
   return h;
