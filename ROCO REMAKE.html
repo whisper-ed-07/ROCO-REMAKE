@@ -282,7 +282,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .pet-sprite::after { content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:96px; height:14px; border-radius:50%; background:radial-gradient(ellipse, rgba(226,176,74,0.30) 0%, transparent 72%); filter:blur(3px); pointer-events:none; }
 .pet-sprite.fainted { animation: faintOut 1.2s ease forwards; }
 
-.stage-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; }
+.stage-grid { display:flex; flex-wrap:wrap; gap:4px; }
 .pet-info-card {
   background: rgba(26,31,46,0.55);
   backdrop-filter: blur(16px) saturate(140%);
@@ -484,7 +484,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .enemy-side { order:1; }
 .player-side { order:2; }
 .stages-bar { display:flex; gap:4px; flex-wrap:wrap; margin-top:5px; justify-content:center; }
-.stage-pill { font-size: 12px; padding:2px 7px; border-radius:6px; background:rgba(255,255,255,0.06); color:var(--text2); font-weight:700; }
+.stage-pill { white-space:nowrap; font-size: 12px; padding:2px 7px; border-radius:6px; background:rgba(255,255,255,0.06); color:var(--text2); font-weight:700; }
 .stage-pill.up { background:rgba(63,185,80,0.18); color:#3fb950; }
 .stage-pill.down { background:rgba(248,81,73,0.18); color:#f85149; }
 
@@ -1259,7 +1259,7 @@ const DEFAULT_SKILLS = [
       }
       // 印记分支（规格：仅"对方被明念标记时"生效；未标记时 marks 也为 0，不能恒真判断）
       if (bd.marked) {
-        var extra = Math.floor(0.4 * (t.lastDealtDamage || 0) * (Math.abs(t.atkStage)+Math.abs(t.defStage)+Math.abs(t.spatkStage)+Math.abs(t.spdefStage)+Math.abs(t.spdStage)));
+        var extra = Math.floor(0.4 * (t.lastDealtDamage || 0) * (STAGE_FIELDS.reduce(function(sum, k) { return sum + Math.abs(t[k]); }, 0)));
         if (extra > 0) { ctx.doFixedDamage(t, extra); ctx.msg("标记追加" + extra + "固伤！"); }
         u.immuneEject = true; // 永久免疫驱逐
         if (m < 4) {
@@ -1288,7 +1288,7 @@ const DEFAULT_SKILLS = [
       // 次回合及再下一回合：减对方强化30%效果+回第2格1PP+60固伤+PP消耗加倍
       ctx.addTurnEffect(u, "化念作刃削", 2, function(p) {
         var ratio = bd.marked ? 0.66 : 0.7;
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (t[k]) t[k] = Math.trunc(t[k] * ratio); });
+        STAGE_FIELDS.forEach(function(k){ if (t[k]) t[k] = Math.trunc(t[k] * ratio); });
         if (u.skills[1]) u.skills[1].pp = Math.min(u.skills[1].maxPp, u.skills[1].pp + 1);
         ctx.doFixedDamage(t, bd.marked ? 72 : 60);
         t.skillPPCostMult = 2;
@@ -1297,7 +1297,7 @@ const DEFAULT_SKILLS = [
         // 末回合：对方被标记、有 2 项负面强化且 m>2 → 200+60% 当前精力
         if (!bd.marked || m <= 2) return;
         var neg = 0;
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (t[k] < 0) neg++; });
+        STAGE_FIELDS.forEach(function(k){ if (t[k] < 0) neg++; });
         if (neg < 2) return;
         var dmg = 200 + Math.floor(0.6 * t.hp);
         ctx.doFixedDamage(t, dmg);
@@ -1316,7 +1316,7 @@ const DEFAULT_SKILLS = [
       ctx.msg("10回合内闪避一次致命伤害" + (m >= 2 ? "（印记≥2回复+50%！）" : "") + "！");
       // (2) 净化 + 5回合免疫异常负面强化 + 速度提升（5+上回合伤害/220）%上限10%
       u.status = null; u.confuseTurns = 0; u.bindTurns = 0;
-      ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
+      STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
       ctx.grantStatusImmunity(u, "极影光幕", 5, { stats: true });
       var spdBoost = Math.min(10, 5 + Math.floor((t.lastDealtDamage || 0) / 220));
       u.spdMod = (u.spdMod || 1) * (1 + spdBoost / 100);
@@ -1367,7 +1367,7 @@ const DEFAULT_SKILLS = [
         }
       } else {
         u.skills.forEach(function(s){ s.pp = Math.min(s.maxPp, s.pp + 1); });
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (t[k] > 0) t[k] = -t[k]; });
+        STAGE_FIELDS.forEach(function(k){ if (t[k] > 0) t[k] = -t[k]; });
         ctx.msg("冰冻失败：回全体1PP，强制倒置对方正面强化！");
       }
       // 先手效果：非梦境下2回合先手+4 + 2段固伤
@@ -1458,7 +1458,7 @@ const DEFAULT_SKILLS = [
             ctx.msg(pet.name + " 回复了全部精力值！无视对方后手技能效果！");
           } else if (bd.creationTurn === 2) {
             // 重置双方强化
-            ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s) { pet[s]=0; opp[s]=0; });
+            STAGE_FIELDS.forEach(function(s) { pet[s]=0; opp[s]=0; });
             ctx.msg("双方强化被强制重置！");
             // 恢复首格技能全部PP
             if (pet.skills[0]) pet.skills[0].pp = pet.skills[0].maxPp;
@@ -1525,7 +1525,7 @@ const DEFAULT_SKILLS = [
       }
       // 若创世之能PP=0: 清除并锁定强化6回合
       if (cszn && cszn.pp === 0) {
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s) { user[s]=0; target[s]=0; });
+        STAGE_FIELDS.forEach(function(s) { user[s]=0; target[s]=0; });
         user.statLocked = true;
         target.statLocked = true;
         ctx.addTurnEffect(user, "锁定强化", 6, null, function(p) { p.statLocked = false; });
@@ -1560,7 +1560,7 @@ const DEFAULT_SKILLS = [
         var backOpts = Object.assign({ guaranteedCrit: true }, dmgOpts);
         r = ctx.doDamage(user, target, basePower, "physical", "fighting", backOpts);
         var negCount = 0;
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s) { if (user[s] < 0) negCount += Math.abs(user[s]); });
+        STAGE_FIELDS.forEach(function(s) { if (user[s] < 0) negCount += Math.abs(user[s]); });
         ctx.deletePP(target, -1, 1 + negCount);
         ctx.msg("造成 " + r.damage + " 点伤害！(必爆) 删除对方全体技能" + (1+negCount) + "PP！");
         if (r.effectiveness < 1) {
@@ -1584,8 +1584,8 @@ const DEFAULT_SKILLS = [
     }
   },
   { id: "sk_fthy", name: "覆体魂衣", element: "normal", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 11,
-    desc: "覆衣于身，以魂护体。【常规】消耗15%当前HP（不会致死），获得：2回合内超过自身15%最大HP的伤害降至80点；4回合免疫所有异常状态；双防提升2级；净化自身并反转所有负面强化为正。创世之能PP为空时：不消耗HP，回复400HP，1回合内减少70%所受伤害，倒置对方1回合治疗（治疗变为伤害），4回合内每回合回复20%HP并为PP最低的技能回复1PP，但每回合随机降低自身1项强化。若场上有天气则每回合额外回复120HP和全体1PP。",
-    detail: "① 消耗15%当前精力（不致死），2回合内超过自身15%最大精力的伤害降至80点。\n② 4回合免疫异常；双防+2，净化并反转自身负面强化。\n③ 防控回合内自身强化消失时，按消失级数×80对敌造成固伤。\n④ 场上有天气/环境时，防控回合内每回合回复120精力与全体技能1PP。\n⑤ 创世之能PP=0时：不扣血，回复400精力，1回合减伤70%，倒置对方1回合治疗；4回合内每回合回复20%精力、最低PP技能+1PP，并随机降低自身1项强化。",
+    desc: "覆衣于身，以魂护体。【常规】消耗15%当前HP（不会致死），获得：2回合内超过自身15%最大HP的伤害降至80点；4回合免疫所有异常状态；物防和魔防各提升2级；净化自身并反转所有负面强化为正。创世之能PP为空时：不消耗HP，回复400HP，1回合内减少70%所受伤害，倒置对方1回合治疗（治疗变为伤害），4回合内每回合回复20%HP并为PP最低的技能回复1PP，但每回合随机降低自身1项强化。若场上有天气则每回合额外回复120HP和全体1PP。",
+    detail: "① 消耗15%当前精力（不致死），2回合内超过自身15%最大精力的伤害降至80点。\n② 4回合免疫异常；物防和魔防各+2，净化并反转自身负面强化。\n③ 防控回合内自身强化消失时，按消失级数×80对敌造成固伤。\n④ 场上有天气/环境时，防控回合内每回合回复120精力与全体技能1PP。\n⑤ 创世之能PP=0时：不扣血，回复400精力，1回合减伤70%，倒置对方1回合治疗；4回合内每回合回复20%精力、最低PP技能+1PP，并随机降低自身1项强化。",
     onUse: function(user, target, ctx) {
       var cszn = user.skills.find(function(s) { return s.id === "sk_cszn"; });
       var csznEmpty = cszn && cszn.pp === 0;
@@ -1620,7 +1620,7 @@ const DEFAULT_SKILLS = [
         user.__fthyStageSum = 0;
         ctx.addTurnEffect(user, "覆体失强", 4, function(p) {
           var sum = 0;
-          ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ sum += Math.abs(p[k] || 0); });
+          STAGE_FIELDS.forEach(function(k){ sum += Math.abs(p[k] || 0); });
           if (p.__fthyStageSum !== undefined && sum < p.__fthyStageSum) {
             var lost = p.__fthyStageSum - sum;
             var opp = gameState.playerActive === p ? gameState.aiActive : gameState.playerActive;
@@ -1629,15 +1629,15 @@ const DEFAULT_SKILLS = [
           p.__fthyStageSum = sum;
         }, null);
       }
-      // 提升2级双抗 + 净化 + 反转负面
+      // 物防和魔防各提升2级 + 净化 + 反转负面
       ctx.modifyStat(user, "def", 2);
       ctx.modifyStat(user, "spdef", 2);
       user.status = null;
       user.confuseTurns = 0;
-      ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s) {
+      STAGE_FIELDS.forEach(function(s) {
         if (user[s] < 0) user[s] = Math.abs(user[s]);
       });
-      ctx.msg(user.name + " 双防+2，净化异常，反转负面强化！");
+      ctx.msg(user.name + " 物防和魔防各+2，净化异常，反转负面强化！");
       // 若场上有天气/环境：防控回合内每回合回复
       if (gameState.weather || gameState.field) {
         ctx.addTurnEffect(user, "覆体天气", 4, function(p) {
@@ -1713,7 +1713,7 @@ const DEFAULT_SKILLS = [
         ctx.msg("清风之念不足：2回合护盾并免疫后手伤害！");
       } else {
         u.status = null; u.statusTurns = 0; u.confuseTurns = 0; u.bindTurns = 0; u.leechSeed = false;
-        ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
+        STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
         ctx.doHeal(u, (u.maxHp + (u.maxHpBonus || 0)) - u.hp);
         u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3)); });
         clearTurnEffects(t);
@@ -1851,7 +1851,7 @@ const DEFAULT_SKILLS = [
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var total = 0;
-      [u, t].forEach(function(p) { ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
+      [u, t].forEach(function(p) { STAGE_FIELDS.forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
       var healAmt = total * 60;
       ctx.doHeal(t, healAmt);
       ctx.msg("清除双方强化，对敌方治疗" + healAmt + "！");
@@ -1883,7 +1883,7 @@ const DEFAULT_SKILLS = [
       var cap = u.maxHp + (u.maxHpBonus || 0);
       var ratio = u.hp / cap;
       u.status = null; u.statusTurns = 0; u.confuseTurns = 0; u.bindTurns = 0; u.leechSeed = false;
-      ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (u[k] < 0) u[k] = 0; });
+      STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
       ctx.doHeal(u, cap - u.hp);
       var ppHeal = Math.ceil(3 + ratio);
       u.skills.forEach(function(s){ gainPP(u, s, ppHeal); });
@@ -1934,7 +1934,7 @@ const DEFAULT_SKILLS = [
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
       if (isFirst) {
         ctx.doFixedDamage(t, Math.floor(dealt * 0.3), u);
-        [u, t].forEach(function(p){ ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ p[k] = 0; }); });
+        [u, t].forEach(function(p){ STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
         ctx.msg("先手：追加" + Math.floor(dealt * 0.3) + "固伤并强制重置双方强化！");
       } else {
         var healAmt = Math.floor(power * 1.1);
@@ -2053,7 +2053,7 @@ const DEFAULT_SKILLS = [
       var wjPower = bd.lastWjPower || (ql2 ? ql2.power : 150);
       var ok = ctx.setWeather("mist", 12);
       if (!ok) {
-        [u, t].forEach(function(p){ ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ p[k] = 0; }); });
+        [u, t].forEach(function(p){ STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
         ctx.msg("环境在场，迷雾无法降临！强制重置双方强化！");
       } else {
         var fd = Math.min(349, Math.floor(wjPower - 20));
@@ -2105,7 +2105,7 @@ const DEFAULT_PETS = [
           if (isFirst) {
             ctx.deletePP(target, -1, 1);
             var stages = 0;
-            [pet, target].forEach(function(p){ ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ stages += Math.abs(p[k] || 0); }); });
+            [pet, target].forEach(function(p){ STAGE_FIELDS.forEach(function(k){ stages += Math.abs(p[k] || 0); }); });
             var fd = 30 + stages * 20 + Math.floor(pet.maxHp * 0.08);
             ctx.doFixedDamage(target, fd);
             ctx.msg("【清念灵体】威力技先手：删对方全体1PP，追加固伤" + fd + "！");
@@ -2142,7 +2142,7 @@ const DEFAULT_PETS = [
           // 明念标记增益：每回合恢复全体技能1PP
           pet.skills.forEach(function(s){ gainPP(pet, s, 1); });
           var stages = 0;
-          [pet, opp].forEach(function(p){ if (!p) return; ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ stages += Math.abs(p[k]||0); }); });
+          [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ stages += Math.abs(p[k]||0); }); });
           pet.mingNianDmg = 40 + 15 * stages;            // 每次伤害追加(40+15×双方强化数)固伤
           ctx.msg("【明念】精力上限+" + pet.maxHpBonus + " 全体技能+1PP 追加固伤" + pet.mingNianDmg + "（标记剩余" + bd.markTurns + "回合）");
           if (bd.markTurns <= 0) {
@@ -2279,7 +2279,7 @@ const DEFAULT_PETS = [
           // 若技能PP<8：净化自身+回复其他技能1PP
           if (skill.pp < 8) {
             pet.status = null; pet.confuseTurns = 0; pet.bindTurns = 0;
-            ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
+            STAGE_FIELDS.forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
             pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1" && s.pp < s.maxPp) s.pp++; });
             ctx.msg("【清念】净化自身，其他技能回复1PP！");
           }
@@ -2317,10 +2317,10 @@ const DEFAULT_PETS = [
           ctx.deletePP(opp, -1, 1);
           if (skill.pp === 1) {
             var iceStages = 0;
-            [pet, opp].forEach(function(p){ if (!p) return; ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ iceStages += Math.abs(p[k]||0); }); });
+            [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ iceStages += Math.abs(p[k]||0); }); });
             var extraPP = 3 + iceStages * 2;
             ctx.deletePP(opp, -1, extraPP);
-            [pet, opp].forEach(function(p){ if (!p) return; ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ p[k] = 0; }); });
+            [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
             ctx.msg("【冰系】技能PP=1：额外删除对方" + extraPP + "PP并清除双方强化！");
           } else {
             ctx.msg("【冰系】删除对方全体技能1PP！");
@@ -2465,6 +2465,9 @@ function findPet(id) { return getAllPets().find(p => p.id === id); }
 //  V3 ENGINE - 完整机制引擎
 // ============================================================
 
+const STAGE_LABELS = Object.freeze({ atk: "物攻", def: "物防", spatk: "魔攻", spdef: "魔防", spd: "速度", accuracy: "命中", evasion: "闪避" });
+const STAGE_FIELDS = Object.keys(STAGE_LABELS).map(function(stat) { return stat + "Stage"; });
+
 class BattlePet {
   constructor(petData) {
     this.id = petData.id; this.name = petData.name; this.element = petData.element;
@@ -2473,8 +2476,8 @@ class BattlePet {
     this.maxHp = s.hp; this.hp = s.hp;
     this.atk = s.atk; this.def = s.def;
     this.spatk = s.spatk; this.spdef = s.spdef; this.spd = s.spd;
-    this.atkStage = 0; this.defStage = 0; this.spatkStage = 0; this.spdefStage = 0; this.spdStage = 0;
-    this.accuracyStage = 0; this.status = null; this.statusTurns = 0;
+    STAGE_FIELDS.forEach((key) => { this[key] = 0; });
+    this.status = null; this.statusTurns = 0;
     this.leechSeed = false; this.confuseTurns = 0; this.bindTurns = 0;
     // V2 fields
     this.shield = 0; this.marks = {}; this.turnEffects = [];
@@ -2690,14 +2693,13 @@ function createBattleContext() {
     applyStatus: applyEffect,
     fear: function(target) { return applyEffect(target, "fear"); },
     modifyStat: function(target, stat, stages) {
-      if (target.statLocked) return;
+      if (!Object.hasOwn(STAGE_LABELS, stat) || target.statLocked) return;
       if (stages < 0 && hasStatDropImmunity(target, stat)) return;
       var key = stat + "Stage";
       if (target[key] !== undefined) {
         var before = target[key];
         target[key] = Math.max(-6, Math.min(6, target[key] + stages));
-        var statNames = {atk:"物攻",def:"物防",spatk:"魔攻",spdef:"魔防",spd:"速度"};
-        addMessage(target.name + " 的" + (statNames[stat]||stat) + " " + (target[key]>=0?"+":"") + target[key] + "级（" + (before>=0?"+":"") + before + "→" + (target[key]>=0?"+":"") + target[key] + "）！");
+        addMessage(target.name + " 的" + STAGE_LABELS[stat] + " " + (target[key]>=0?"+":"") + target[key] + "级（" + (before>=0?"+":"") + before + "→" + (target[key]>=0?"+":"") + target[key] + "）！");
       }
     },
     deletePP: function(target, slot, amount) {
@@ -2732,7 +2734,7 @@ function createBattleContext() {
           return {
             id: pet.id, hp: pet.hp,
             pp: pet.skills.map(function(s){ return s.pp; }),
-            stages: [pet.atkStage, pet.defStage, pet.spatkStage, pet.spdefStage, pet.spdStage],
+            stages: STAGE_FIELDS.map(function(key) { return pet[key]; }),
             status: pet.status, statusTurns: pet.statusTurns,
             confuseTurns: pet.confuseTurns, bindTurns: pet.bindTurns
           };
@@ -2762,7 +2764,7 @@ function createBattleContext() {
           if (!s) return;
           pet.hp = Math.min(pet.maxHp + (pet.maxHpBonus || 0), s.hp);
           pet.skills.forEach(function(sk, i){ if (s.pp[i] !== undefined) sk.pp = s.pp[i]; });
-          ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k, i){ pet[k] = s.stages[i]; });
+          STAGE_FIELDS.forEach(function(k, i){ if (s.stages[i] !== undefined) pet[k] = s.stages[i]; });
           pet.status = s.status; pet.statusTurns = s.statusTurns;
           pet.confuseTurns = s.confuseTurns || 0; pet.bindTurns = s.bindTurns || 0;
         });
@@ -3522,7 +3524,7 @@ function executeSkillTurn(user, target, skill, who) {
   if (!skill.semiSure && target.dodgeNextNonSure && skill.accuracy >= 100 && userIsBackhand) {
     target.dodgeNextNonSure = false;
     [user, target].forEach(function(p){
-      ["atkStage","defStage","spatkStage","spdefStage","spdStage"].forEach(function(k){ if (p[k] !== 0) p[k] = -p[k]; });
+      STAGE_FIELDS.forEach(function(k){ if (p[k] !== 0) p[k] = -p[k]; });
     });
     ctx.deletePP(user, -1, 2);
     addMessage("闪避失败！倒置双方强化，删除对方全体2PP！");
@@ -3658,13 +3660,13 @@ function executeSkillTurn(user, target, skill, who) {
 
 function applyLegacyStatusSkill(user, target, skill) {
   var name = skill.name;
-  if (name === "祈雨") { user.spatkStage = Math.min(6, user.spatkStage + 2); addMessage(user.name + " 的特攻大幅提升！"); }
+  if (name === "祈雨") { user.spatkStage = Math.min(6, user.spatkStage + 2); addMessage(user.name + " 的魔攻大幅提升！"); }
   else if (name === "水流环") { user.heal(Math.floor(user.maxHp / 4)); addMessage(user.name + " 回复了HP！"); }
   else if (name === "光合作用") { user.heal(Math.floor(user.maxHp / 2)); addMessage(user.name + " 回复了大量HP！"); }
-  else if (name === "龙之舞") { user.atkStage = Math.min(6, user.atkStage + 1); user.spdStage = Math.min(6, user.spdStage + 1); addMessage(user.name + " 的攻击和速度提升了！"); }
-  else if (name === "极光幕") { user.defStage = Math.min(6, user.defStage + 1); user.spdefStage = Math.min(6, user.spdefStage + 1); addMessage(user.name + " 的双防提升了！"); }
+  else if (name === "龙之舞") { user.atkStage = Math.min(6, user.atkStage + 1); user.spdStage = Math.min(6, user.spdStage + 1); addMessage(user.name + " 的物攻和速度提升了！"); }
+  else if (name === "极光幕") { user.defStage = Math.min(6, user.defStage + 1); user.spdefStage = Math.min(6, user.spdefStage + 1); addMessage(user.name + " 的物防和魔防提升了！"); }
   else if (name === "烟雾") {
-    if (!hasStatDropImmunity(target, "accuracy")) { target.accuracyStage = Math.max(-6, target.accuracyStage - 1); addMessage(target.name + " 的命中率降低了！"); }
+    if (!hasStatDropImmunity(target, "accuracy")) { target.accuracyStage = Math.max(-6, target.accuracyStage - 1); addMessage(target.name + " 的命中降低了！"); }
   }
   else if (name === "冰冻之风") {
     if (!hasStatDropImmunity(target, "spd")) { target.spdStage = Math.max(-6, target.spdStage - 1); addMessage(target.name + " 的速度降低了！"); }
@@ -4003,18 +4005,16 @@ function updateBattleUI() {
     wEl.innerHTML = wParts.join("");
     wEl.style.display = wParts.length ? "flex" : "none";
   }
-  // 强化六维
   var pSt = document.querySelector("#player-stages"); if (pSt && p) pSt.innerHTML = renderStages(p);
   var aSt = document.querySelector("#ai-stages"); if (aSt && a) aSt.innerHTML = renderStages(a);
 }
 
 function renderStages(pet) {
   if (!pet) return "";
-  var defs = [["atk","\u653b"],["def","\u9632"],["spatk","\u7279\u653b"],["spdef","\u7279\u9632"],["spd","\u901f"],["accuracy","\u547d"]];
   var h = '<div class="stage-grid">';
-  defs.forEach(function(e) {
-    var v = pet[e[0] + "Stage"] || 0;
-    h += "<span class=stage-pill" + (v > 0 ? " up" : v < 0 ? " down" : "") + ">" + e[1] + (v > 0 ? "+" + v : v < 0 ? v : "\u00b10") + "</span>";
+  Object.entries(STAGE_LABELS).forEach(function([stat, label]) {
+    var v = pet[stat + "Stage"] || 0;
+    h += '<span class="stage-pill' + (v > 0 ? " up" : v < 0 ? " down" : "") + '">' + label + (v > 0 ? "+" + v : v < 0 ? v : "\u00b10") + "</span>";
   });
   return h + "</div>";
 }
@@ -4627,7 +4627,7 @@ var mgmtTab = "pets";
 function renderPetManagement(app) { app.innerHTML = '<div class="screen active"><div class="screen-header"><button class="back-btn" id="mgmt-back">\u2190</button><span class="screen-title">宠物管理</span></div><div class="mgmt-tabs"><button class="mgmt-tab ' + (mgmtTab === "pets" ? "active" : "") + '" id="tab-pets">\u{1F43E} 宠物列表</button><button class="mgmt-tab ' + (mgmtTab === "skills" ? "active" : "") + '" id="tab-skills">\u2B50 技能列表</button></div><div class="mgmt-list" id="mgmt-list"></div><button class="add-btn" id="mgmt-add">+ 添加' + (mgmtTab === "pets" ? "自定义宠物" : "自定义技能") + '</button></div>'; document.querySelector("#mgmt-back").addEventListener("click", function() { showScreen("menu"); }); document.querySelector("#tab-pets").addEventListener("click", function() { mgmtTab = "pets"; showScreen("pets"); }); document.querySelector("#tab-skills").addEventListener("click", function() { mgmtTab = "skills"; showScreen("pets"); }); document.querySelector("#mgmt-add").addEventListener("click", function() { mgmtTab === "pets" ? showPetForm() : showSkillForm(); }); renderMgmtList(); }
 
 function renderMgmtList() { try { var list = document.querySelector("#mgmt-list"); if (!list) return; list.innerHTML = ""; if (mgmtTab === "pets") { getAllPets().forEach(function(pet) { var isCustom = pet.id ? pet.id.indexOf("pet_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji">' + pet.emoji + '</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + pet.name + (isCustom ? " \u2728" : "") + (pet.bloodline ? ' <span style="color:var(--gold);font-size: 12px">血脉:' + pet.bloodline.name + '</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(pet.element) + (ELEMENTS[pet.element]||{name:'?'}).name + '系 · Lv.' + (pet.level||'?') + ' · HP:' + (pet.baseStats||pet.stats||{hp:100}).hp + '</div></div><div class="mgmt-item-actions"><button class="edit-pet-btn">编辑</button>' + (isCustom ? '<button class="del-pet-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-pet-btn").addEventListener("click", function() { showPetForm(pet); }); var db = div.querySelector(".del-pet-btn"); if (db) db.addEventListener("click", function() { deletePet(pet.id); }); list.appendChild(div); }); } else { getAllSkills().forEach(function(skill) { var isCustom = skill.id ? skill.id.indexOf("sk_") !== 0 : true; var div = document.createElement("div"); div.className = "mgmt-item"; div.innerHTML = '<div class="mgmt-item-emoji" style="color:' + (ELEMENTS[skill.element]||{color:"#888"}).color + '">\u2726</div><div class="mgmt-item-info"><div class="mgmt-item-name">' + escapeHtml(skill.name) + (isCustom ? " \u2728" : "") + (skill.onUse ? ' <span style="color:var(--accent);font-size: 12px">扩展</span>' : '') + '</div><div class="mgmt-item-detail">' + elemIcon(skill.element) + (ELEMENTS[skill.element]||{name:"?"}).name + '系 · 威力:' + (skill.power || "-") + ' · PP:' + skill.maxPp + '</div></div><div class="mgmt-item-actions"><button class="edit-sk-btn">编辑</button>' + (isCustom ? '<button class="del-sk-btn" style="color:var(--accent)">删除</button>' : '') + '</div>'; div.querySelector(".edit-sk-btn").addEventListener("click", function() { showSkillForm(skill); }); var db2 = div.querySelector(".del-sk-btn"); if (db2) db2.addEventListener("click", function() { deleteSkill(skill.id); }); list.appendChild(div); }); } } catch(e) { console.error("renderMgmtList error:", e); list.innerHTML = "<div style=color:red>加载失败: " + e.message + "</div>"; } }function showPetForm(pet) { removeBodyLayer("modal-overlay"); var isEdit = !!pet; var skills = getAllSkills(); if (pet && pet.stats && !pet.baseStats) pet.baseStats = pet.stats;
-  var selSkills = pet ? [...pet.skillIds].slice(0, 4) : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + escapeHtml(s.name) + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk","攻击"],["def","防御"],["spatk","特攻"],["spdef","特防"],["spd","速度"]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); var formLayer = prepareFormLayer(); formLayer.addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { if (formLayer.layerIsOpen()) savePetForm(isEdit, pet); }); }
+  var selSkills = pet ? [...pet.skillIds].slice(0, 4) : []; while (selSkills.length < 4) selSkills.push(""); var elemOpts = ""; Object.entries(ELEMENTS).forEach(function(e) { if (e[0][0] === '_' || !e[1] || !e[1].name) return; elemOpts += '<option value="' + e[0] + '"' + (pet && pet.element === e[0] ? " selected" : "") + '>' + e[1].name + '系</option>'; }); var skOpts = '<option value="">-- 无 --</option>'; skills.forEach(function(s) { skOpts += '<option value="' + s.id + '">' + escapeHtml(s.name) + ' (' + (ELEMENTS[s.element]||{name:'?'}).name + ')</option>'; }); var html = '<div class="modal-overlay show" id="modal-overlay"><div class="modal"><h3>' + (isEdit ? "编辑" : "创建") + '宠物</h3>'; html += '<div class="form-group"><label>名称</label><input id="fp-name" value="' + (pet ? pet.name : "") + '" maxlength="10"></div>'; html += '<div class="form-group"><label>Emoji</label><input id="fp-emoji" value="' + (pet ? pet.emoji : "\u{1F43E}") + '" maxlength="4"></div>'; html += '<div class="form-group"><label>元素</label><select id="fp-element">' + elemOpts + '</select></div>'; html += '<div class="form-group"><label>等级</label><input id="fp-level" type="number" value="' + (pet ? pet.level : 100) + '" min="1" max="100"></div>'; html += '<label style="font-size:12px;color:var(--text2);font-weight:600;">能力值（输入能力值，种族值自动换算）</label><div class="stat-grid">'; [["hp","HP"],["atk",STAGE_LABELS.atk],["def",STAGE_LABELS.def],["spatk",STAGE_LABELS.spatk],["spdef",STAGE_LABELS.spdef],["spd",STAGE_LABELS.spd]].forEach(function(e2) { var baseVal = (pet ? ((pet.baseStats || pet.stats || {})[e2[0]] || 100) : 100); var abilityVal = e2[0] === "hp" ? calcHpAbility(baseVal, (pet ? pet.level : 100) || 100) : calcAbility(baseVal, (pet ? pet.level : 100) || 100); html += '<div class="form-group"><label>' + e2[1] + '</label><input id="fp-' + e2[0] + '" type="number" value="' + abilityVal + '" min="1" max="999" title="能力值（种族值 ' + baseVal + '）"></div>'; }); html += '</div>'; for (var i = 0; i < 4; i++) { var so = skOpts.replace('value="' + selSkills[i] + '"', 'value="' + selSkills[i] + '" selected'); html += '<div class="form-group"><select id="fp-skill-' + i + '">' + so + '</select></div>'; } html += '<div class="form-actions"><button class="btn btn-secondary" id="form-cancel">取消</button><button class="btn btn-primary" id="form-save">' + (isEdit ? "保存" : "创建") + '</button></div></div></div>'; document.body.insertAdjacentHTML("beforeend", html); var formLayer = prepareFormLayer(); formLayer.addEventListener("click", function(e) { if (e.target.id === "modal-overlay") closeModal(); }); document.querySelector("#form-cancel").addEventListener("click", closeModal); document.querySelector("#form-save").addEventListener("click", function() { if (formLayer.layerIsOpen()) savePetForm(isEdit, pet); }); }
 
 function savePetForm(isEdit, orig) { var name = document.querySelector("#fp-name").value.trim(); if (!name) { alert("请输入名称！"); return; } var np = { id: isEdit ? orig.id : ("custom_pet_" + Date.now()), name: name, emoji: document.querySelector("#fp-emoji").value || "\u{1F43E}", element: document.querySelector("#fp-element").value, level: parseInt(document.querySelector("#fp-level").value) || 100, baseStats: { hp: abilityToBase(parseInt(document.querySelector("#fp-hp").value) || calcHpAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, true), atk: abilityToBase(parseInt(document.querySelector("#fp-atk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), def: abilityToBase(parseInt(document.querySelector("#fp-def").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spatk: abilityToBase(parseInt(document.querySelector("#fp-spatk").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spdef: abilityToBase(parseInt(document.querySelector("#fp-spdef").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false), spd: abilityToBase(parseInt(document.querySelector("#fp-spd").value) || calcAbility(100, parseInt(document.querySelector("#fp-level").value) || 100), parseInt(document.querySelector("#fp-level").value) || 100, false) }, skillIds: [0,1,2,3].map(function(i) { var el = document.querySelector("#fp-skill-" + i); return el ? el.value : ""; }).filter(Boolean) }; np.ownedSkillIds = Array.from(new Set([].concat(isEdit && orig.ownedSkillIds ? orig.ownedSkillIds : [], np.skillIds)));
   // R09：内置宠物编辑写入 loadout（保留血脉函数），不再静默丢弃
