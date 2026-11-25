@@ -292,6 +292,94 @@ async function test(browserConnection, origin) {
   assert.ok(adjusted[0] > standard[0], '扩大日志使实际区域变高');
   assert.ok(adjusted[1] > standard[1], '大号日志使实际文字变大');
 
+  await size(320);
+  await media('light', 'reduce');
+  await open('/game?developer-log', '#intro-screen');
+  await inspect(() => {
+    click('#intro-screen');
+    click('#mode-developer');
+    layout();
+    eq(get('#mode-developer').getAttribute('aria-pressed'), 'true', '已选开发者测试模式');
+    eq(get('#mode-solo').getAttribute('aria-pressed'), 'false', '单机模式取消选中');
+    eq(get('#btn-battle .menu-action-title').textContent, '开始测试', '测试入口');
+    enterBattle();
+    const viewport = document.documentElement.clientWidth;
+    const logBounds = get('#battle-messages').getBoundingClientRect();
+    eq(logBounds.left >= 0 && logBounds.right <= viewport, true, '窄屏日志位于视口内');
+    stopTurnTimer();
+    eq(gameState.battleMode, 'developer', '测试模式进入实际对战');
+    eq(gameState.messages[0].text, '━━━ 战斗开始 ━━━', '保留开局');
+    click('.skill-btn');
+    stopTurnTimer();
+    eq(gameState.turnCount, 1, '正常选招并结算对手');
+    gameState.logFilter = 'system';
+    gameState.logCollapsed[1] = true;
+    for (let i = 0; i < 1205; i++) addMessage('回归记录 ' + i, i % 2 ? 'action' : 'system');
+    addMessage('未分类的日志同样显示', 'collapsed');
+    const repeated = '命中要害 <b>原文</b>  双空格\n换行';
+    addMessage(repeated, 'damage', 'player');
+    addMessage(repeated, 'damage', 'player');
+    window.checkDeveloperLog = () => {
+      const text = Array.from(document.querySelectorAll('#battle-messages .msg-text'), node => node.textContent);
+      eq(JSON.stringify(text), JSON.stringify(gameState.messages.map(message => message.text)), '完整日志与记录逐条一致');
+      eq(get('#developer-log-count').textContent, '完整日志 · ' + text.length + ' 条', '显示总条数');
+      eq(document.querySelector('.log-tab, .turn-caret, .msg.collapsed'), null, '测试日志全展开');
+    };
+  });
+  await until(() => inspect(() => document.querySelectorAll('#battle-messages .msg').length === gameState.messages.length), '新增记录自动刷新');
+  await inspect(() => {
+    checkDeveloperLog();
+    const log = get('#battle-messages');
+    eq(log.tabIndex, 0, '完整日志可以键盘聚焦');
+    const first = get('#battle-messages .msg');
+    get('#battle-messages .msg.turn').click();
+    log.scrollTop = 0;
+    log.dispatchEvent(new Event('scroll'));
+    eq(get('#log-jump').hidden, false, '查看开头时显示回到最新');
+    addMessage('增量追加', 'system');
+    renderBattleLog();
+    eq(get('#battle-messages .msg'), first, '只追加新日志');
+    eq(log.scrollTop, 0, '追加日志时保留阅读位置');
+    renderBattle(get('#app'));
+    stopTurnTimer();
+    eq(get('#battle-messages'), log, '重绘战斗界面仍保留日志节点');
+    eq(log.scrollTop, 0, '重绘后保留阅读位置');
+    click('#log-jump');
+    eq(log.scrollHeight - log.scrollTop - log.clientHeight < 2, true, '可回到最新一条');
+    let copied;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText(text) { copied = text; return Promise.resolve(); }
+    }});
+    click('#log-copy');
+    eq(copied, gameState.messages.map(message => message.text).join('\n'), '复制全部原始消息');
+    delete navigator.clipboard;
+    gameState.aiActive.hp = 0;
+    checkFaints();
+    eq(get('#result-overlay').classList.contains('show'), true, '胜负弹窗打开');
+    click('#result-close');
+    checkDeveloperLog();
+    eq(get('#battle-messages .msg:last-child .msg-text').textContent, '战斗结束，我方胜利。', '结算记录可回看');
+    click('#flee-btn');
+    enterBattle();
+    checkDeveloperLog();
+    eq(get('#battle-messages').textContent.includes('回归记录'), false, '新局清除上一局记录');
+    click('#flee-btn');
+    click('#flee-confirm');
+    click('#result-close');
+    checkDeveloperLog();
+    eq(get('#battle-messages .msg:last-child .msg-text').textContent, '我方逃跑，测试结束。', '逃跑后可以查看最后一条');
+    click('#flee-btn');
+    click('#mode-solo');
+    enterBattle();
+    stopTurnTimer();
+    eq(gameState.battleMode, 'solo', '可返回单机对战');
+    eq(document.querySelectorAll('.log-tab').length, 3, '单机保留筛选');
+    click('[data-filter="all"]');
+    for (let i = 0; i < 230; i++) addMessage('单机记录 ' + i);
+    renderBattleLog();
+    eq(document.querySelectorAll('#battle-messages .msg').length, 200, '单机仍只显示最近两百条');
+  });
+
   await inspect(() => localStorage.setItem('roco_theme', 'light'));
   await send('Page.enable');
   await send('Page.addScriptToEvaluateOnNewDocument', {
