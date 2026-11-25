@@ -18,7 +18,7 @@ function blocked(f, status='freeze') { f.p.status=null; f.p.statusTurns=0; f.ctx
 function permitted(f, status='freeze') { f.p.status=null; f.p.statusTurns=0; f.ctx.applyStatus(f.p,status); assert.strictEqual(f.p.status,status, status+' 应可施加'); f.p.status=null; }
 
 test('光幕刷新后旧光幕到期，状态栏与残风临霜均保留防控', () => {
-  const f = fixture('pet_jydm', ['sk_jydm_3']);
+  const f = fixture('pet_jydm', ['sk_jydm_3','sk_jydm_2']);
   f.e.api.executeSkillTurn(f.p, f.a, f.p.skills[0], 'player');
   tick(f, 2);
   f.e.api.executeSkillTurn(f.p, f.a, f.p.skills[0], 'player');
@@ -41,9 +41,11 @@ test('降华到期不清除后施放的光幕', () => {
   const f=fixture('pet_jydm',['sk_jydm_1','sk_jydm_3']); use(f,'sk_jydm_1'); tick(f,2); use(f,'sk_jydm_3'); tick(f,4); blocked(f); tick(f,1); permitted(f);
 });
 test('明念结束不清除光幕，光幕结束不清除明念', () => {
-  const f=fixture('pet_jydm',['sk_jydm_3']); f.p.bloodlineData={marks:0,marked:true,markTurns:2,used:{},jianghuaTurns:0};
-  f.p.bloodline.onTurnStart(f.p,f.ctx); use(f,'sk_jydm_3'); f.p.bloodline.onTurnStart(f.p,f.ctx); blocked(f);
-  f.p.bloodlineData.marked=true; f.p.bloodlineData.markTurns=10; f.p.bloodline.onTurnStart(f.p,f.ctx); tick(f,5); blocked(f);
+  const f=fixture('pet_jydm',['sk_jydm_3']);
+  f.e.sandbox.advanceMingnian(f.p,f.a,f.ctx,f.p.skills[0]);
+  use(f,'sk_jydm_3'); tick(f,4); f.p.bloodline.onTurnStart(f.p,f.ctx); blocked(f);
+  f.e.sandbox.advanceMingnian(f.p,f.a,f.ctx,f.p.skills[0]);
+  tick(f,1); blocked(f);
 });
 test('清翎十二回合防控不被清念翼系三回合清除', () => {
   const f=fixture('pet_qy',['sk_qy_1','sk_qy_2','sk_qy_4']); f.p.bloodlineData={mode:'清念',qfzn:3,turnCount:0}; use(f,'sk_qy_1');
@@ -155,8 +157,7 @@ test('原初血脉免疫寄生，点名免疫与零 PP 通用免疫按各自条�
   assert.equal(original.ctx.applyStatus(original.p, 'leech_seed'), false);
 
   const mark = fixture('pet_jydm', ['sk_jydm_3']);
-  mark.p.bloodlineData = {marks:0, marked:true, markTurns:2, used:{}, jianghuaTurns:0};
-  mark.p.bloodline.onTurnStart(mark.p, mark.ctx);
+  mark.e.sandbox.advanceMingnian(mark.p, mark.a, mark.ctx, mark.p.skills[0]);
   assert.equal(mark.ctx.applyStatus(mark.p, 'leech_seed'), true);
   assert.equal(mark.ctx.applyStatus(mark.p, 'freeze'), false);
 

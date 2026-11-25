@@ -76,7 +76,7 @@ test('R06 单次致死保护先于判负', () => {
   const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'attacker',skill('first-lethal',(u,t,c)=>{if(e.api.gameState.turnCount===1)c.doFixedDamage(t,10,u);}),200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a); turn(e); assert.strictEqual(p.hp,1); assert.strictEqual(e.api.gameState.battleOver,false);
 });
 test('R07 新局清除降华全局状态', () => {
-  const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); e.api.findSkill('sk_jydm_1').onUse(p,a,e.api.createBattleContext()); e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); assert.strictEqual(e.api.gameState.forceSkillElement,null); assert.strictEqual(e.api.gameState.jianghuaBuff,null); assert.strictEqual(e.api.gameState.pendingJianghua,null);
+  const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); e.api.findSkill('sk_jydm_1').onUse(p,a,e.api.createBattleContext()); e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); assert.strictEqual(e.api.gameState.forceSkillElement,null); assert.strictEqual(e.api.gameState.jianghuaBuff,null); assert.strictEqual(e.api.gameState.pendingJianghuaByPet?.size || 0,0);
 });
 test('R08 旧局自动跳过回调不能推进新局', () => {
   const e=loadEngine(html,{seed:55}), p=pet(e,'p'), a=pet(e,'a'); setup(e,p,a); p.status='sleep'; p.statusTurns=3; e.sandbox.renderBattleActions(); for(const k of ['renderBattleActions','renderBattle','updateBattleUI','spawnFloatText','showScreen']) e.sandbox[k]=()=>{}; e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); e.clock.advance(800); assert.strictEqual(e.api.gameState.turnCount,0);
@@ -91,7 +91,7 @@ test('残念只在清念→残脉→清念完整循环恢复一次', () => {
 });
 test('明念四招事件消费后无新动作不重复叠印且保留累计次数', () => {
   const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); const ctx=e.api.createBattleContext(); p.bloodlineData={marks:0,marked:false,markTurns:0,used:{},jianghuaTurns:0}; for (const s of p.skills) { s.onUse=()=>{}; e.api.executeSkillTurn(p,a,s,'player'); }
-  p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,1); p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,1); for (const s of p.skills) assert.strictEqual(p.skillUseCounts[s.id],1);
+  assert.strictEqual(p.bloodlineData.markTarget,a); p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,0); for (const s of p.skills) assert.strictEqual(p.skillUseCounts[s.id],1);
 });
 test('清念沉脉敌方未出招时不自动削弱', () => {
   const e=env(), p=built(e,'pet_qy',qids), a=pet(e,'a'); setup(e,p,a); p.bloodlineData={mode:'清念',turnCount:0,qfzn:0,healCount:0}; p.skills[2].onUse(p,a,e.api.createBattleContext()); const effect=p.turnEffects.find(x=>x.name==='清念沉脉'); const count=effect.turnsLeft; for(let i=0;i<count;i++) e.sandbox.processTurnEffects(p); assert.strictEqual(a.dmgMod,1); assert.ok(!a.prioPenalty);
@@ -111,10 +111,10 @@ test('明念第二轮须四招均有新使用才再次加印', () => {
   const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a);
   p.bloodlineData={marks:0,marked:false,markTurns:0,used:{},jianghuaTurns:0}; const ctx=e.api.createBattleContext();
   for(const s of p.skills) { s.onUse=()=>{}; e.api.executeSkillTurn(p,a,s,'player'); }
-  p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,1);
-  e.api.executeSkillTurn(p,a,p.skills[0],'player'); p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,1);
+  assert.strictEqual(p.bloodlineData.markTarget,a); assert.strictEqual(p.bloodlineData.marks,0);
+  e.api.executeSkillTurn(p,a,p.skills[0],'player'); p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,0);
   for(const s of p.skills.slice(1)) e.api.executeSkillTurn(p,a,s,'player');
-  p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,2);
+  p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,1);
   for(const s of p.skills) assert.strictEqual(p.skillUseCounts[s.id],2);
 });
 test('降华开始前旧出招不触发快捷印，窗口中新出招可以触发', () => {
@@ -124,7 +124,7 @@ test('降华开始前旧出招不触发快捷印，窗口中新出招可以触�
   // 直接调用 onUse 开窗，未经过执行入口登记新事件，隔离检查窗口前的旧记录。
   e.api.findSkill('sk_jydm_1').onUse(p,a,ctx); p.bloodline.onTurnStart(p,ctx); assert.strictEqual(p.bloodlineData.marks,0);
   e.api.executeSkillTurn(p,a,p.skills[0],'player'); p.bloodline.onTurnStart(p,ctx);
-  assert.strictEqual(p.bloodlineData.marks,1); assert.strictEqual(p.skillUseCounts[p.skills[0].id],2);
+  assert.strictEqual(p.bloodlineData.markTarget,a); assert.strictEqual(p.bloodlineData.marks,0); assert.strictEqual(p.skillUseCounts[p.skills[0].id],2);
 });
 test('创世神钟受威力伤害后封锁攻击者下一回合血脉与回合效果的PP回复', () => {
   const e=env(), p=pet(e,'attacker'), a=built(e,'pet_bmhs',[]); setup(e,p,a);
@@ -200,8 +200,8 @@ test('沉脉对未命中出招生效，但零PP或受控取消的行动不触发
 test('原文明确为被动使用的极尽降华也触发沉脉', () => {
   const e=env(), p=pet(e,'p'), a=built(e,'pet_jydm',['sk_jydm_1','sk_jydm_2','sk_jydm_3','sk_jydm_4']); setup(e,p,a);
   a.qingnianWindowEnd=4; for(const x of [p,a]) { x.status='sleep'; x.statusTurns=1; }
-  e.api.createBattleContext().deletePP(a,0,1); assert.strictEqual(e.api.gameState.pendingJianghua,a);
-  turn(e); assert.strictEqual(a.skills[0].qingnianPriorityLoss,1); assert.strictEqual(e.api.gameState.pendingJianghua,null);
+  e.api.createBattleContext().deletePP(a,0,1); assert.strictEqual(e.api.gameState.pendingJianghuaByPet.get(a),a.skills[0]);
+  turn(e); assert.strictEqual(a.skills[0].qingnianPriorityLoss,1); assert.strictEqual(e.api.gameState.pendingJianghuaByPet?.size || 0,0);
 });
 
 function microSealFixture() {
@@ -241,7 +241,7 @@ test('微灵封体威力免疫覆盖发动后和整个下回合，包括回合�
   a.skills.push(skill('sk_jydm_1', (u, t, c) => {
     lateHits.push(c.doDamage(u, t, 40, 'special', 'fire').damage);
   }));
-  e.api.gameState.pendingJianghua = a;
+  e.api.gameState.pendingJianghuaByPet = new Map([[a, a.skills.at(-1)]]);
   turn(e, 1);
   assert.deepEqual(openingHits, [0], '下一回合开场');
   assert.equal(hits[1].damage, 0, '下一回合行动');

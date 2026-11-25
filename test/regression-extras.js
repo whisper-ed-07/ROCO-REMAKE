@@ -125,7 +125,7 @@ test('R13 明念：按实际施放次数触发，四招未全部使用时不触�
   use(3);
   p.bloodline.onTurnStart(p, ctx);
   assert.strictEqual(p.bloodlineData.marked, true, '四招各实际施放一次后触发');
-  assert.strictEqual(p.bloodlineData.marks, 1);
+  assert.strictEqual(p.bloodlineData.marks, 0);
 });
 
 test('R14 炽光失败：按格位清空对方同格技能PP', () => {
