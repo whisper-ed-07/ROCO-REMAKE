@@ -115,3 +115,19 @@ test('同类免疫的提示保留所有生效来源和最长剩余时间', () =>
   assert.match(html, /title="极尽降华、极影光幕 · [^"]+">免疫异常 6回合/);
   assert.equal((html.match(/class="status-badge immune"/g) || []).length, 1);
 });
+
+test('局内技能详情显示明确的作用对象、触发条件和基础威力', () => {
+  const { api, sandbox } = loadEngine(game);
+  const cases = [
+    ['sk_jydm_5', /对方同一格技能的 PP[^]*?本招从发动起 12 个战斗回合无法回复 PP/],
+    ['sk_qy_3', /处于残脉且对方有生效的限伤时[^]*?追加固伤分四段/],
+    ['sk_qy_5', /分别计算技能 PP 总量的期初和期末净变化[^]*?取绝对值后相加/],
+    ['sk_ql_3', /幽灵系 · 魔法[^]*?基础威力 70[^]*?未携带万念俱灰时，其参与计算的威力取 150/],
+    ['sk_cszn', /末回合自身精力低于最大精力的 30% 时，回复 70% 已损精力，并清空本招 PP/],
+  ];
+  for (const [id, expected] of cases) {
+    sandbox.showSkillDetail(api.findSkill(id));
+    assert.match(sandbox.document.body.children.at(-1).innerHTML, expected, id);
+  }
+  assert.match(sandbox.skillMetaText({ ...api.findSkill('sk_nlex'), element: null }), /^无属系 · 物理/);
+});
