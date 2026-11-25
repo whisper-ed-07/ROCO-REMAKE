@@ -122,3 +122,22 @@ test('清羽 PP 封存和跨形态恢复单独记录，普通模式沿用原有�
   assert.equal(a.skills[2].pp, 4);
   assert.equal(ppLog(), prior);
 });
+
+test('血脉回 PP 记录触发技能，沉脉分别记录两种跳过原因', () => {
+  const { api, engine, p, a, state, ppLog } = fixture(['sk_ql_4'], ['sk_qy_5']);
+  const taixu = p.skills[0];
+  taixu.pp = 5;
+  state.turnCount = 1;
+  api.executeSkillTurn(p, a, taixu, 'player');
+  assert.equal(taixu.pp, 6);
+  assert.match(ppLog(), /太虚灵威」 5 → 4[^\n]*选招扣费/);
+  assert.match(ppLog(), /太虚灵威」 4 → 6[^\n]*清念灵体·变化招（太虚灵威）/);
+
+  engine.enterQingyuMode(a, '清念');
+  a.bloodlineData.qfzn = 1;
+  api.executeSkillTurn(a, p, a.skills[0], 'ai');
+  assert.match(ppLog(), /清念沉脉」 0 → 0[^\n]*清念·翼系招式（清念沉脉）[^\n]*跳过血脉回复/);
+  assert.match(ppLog(), /清念沉脉」 0 → 0[^\n]*清念·低PP回满（清念沉脉）[^\n]*跳过血脉回复/);
+  assert.equal(a.skills[0].pp, 0);
+  assert.equal(a.bloodlineData.qfzn, 1);
+});

@@ -946,10 +946,11 @@ button { min-height: 40px; }
   box-shadow: 0 12px 32px rgba(0,0,0,.32); padding: 14px 16px;
 }
 .bloodline-preview h3 { margin: 0 0 8px; color: var(--gold); font-size: 15px; }
-.bloodline-preview-body {
+.bloodline-preview-body, .bloodline-preview-ruling {
   margin: 0; font: inherit; font-size: 13px; line-height: 1.8;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.bloodline-preview-ruling { margin-bottom: 8px; }
 .log-tools { display: flex; gap: 6px; margin-bottom: 10px; }
 .log-tab, .log-copy { min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text2); cursor: pointer; font-size: 11px; }
 .log-tab.active { background: var(--ui-gold-soft); border-color: var(--gold); color: var(--gold); }
@@ -1291,14 +1292,14 @@ const DEFAULT_SKILLS = [
   { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15,
     ppRecoverySource: ["化念作刃清印", "瞬华若霜冰冻"], passiveLabel: "被动发动",
     desc: "使双方技能暂时变为光系，提高全场回复和输出。发动回合免疫外来效果，持续限伤并封禁原为神系的伤害来源技能。上场前三回合免删，删空可被动发动。",
-    detail: "① 每次上场后的前三回合免疫删 PP。被删至 0 PP 时，若仍在场且存活，回合末被动发动并触发明念。只有化念作刃清印回首格，或瞬华若霜满足冰冻与印记条件回首格，才能回复本招 PP。\n② 双方队伍所有技能视为光系 6 回合，发动时被自身标记的目标单独持续 12 回合。6 回合内双方全队的精力回复和输出伤害各提高 100%，自身免疫异常与负面强化，场地锁定为无天气、无环境。\n③ 发动回合免疫外来的正面与负面效果，自身效果照常。对手同一只宠物在本次降华期间第 3 次尝试召唤天气或环境时受到 999 点固伤。\n④ 首次发动回满精力和其他可回复技能的 PP，后续回复量为上次的 85%。每回合累计承伤上限初始为 300 点，每次再发动降低 20 点。\n⑤ 若受到原为神水、神火或神草的技能造成的实际伤害，该来源技能下一回合无法使用。同一回合该招多段伤害只算一次封技。限伤与封技合计每触发两次，获得 1 层光明之印。",
+    detail: "① 每次上场后的前三回合免疫删 PP。被删至 0 PP 时，若仍在场且存活，回合末被动发动并触发明念。只有化念作刃清印回首格，或瞬华若霜满足冰冻与印记条件回首格，才能回复本招 PP。\n② 双方队伍所有技能视为光系 6 回合，发动时被自身标记的目标单独持续 12 回合。6 回合内双方全队的精力回复和输出伤害各提高 100%，自身免疫异常与负面强化，场地锁定为无天气、无环境。\n③ 发动回合免疫外来的正面与负面效果，自身效果照常。对手同一只宠物在本次降华期间第 3 次尝试召唤天气或环境时受到 999 点固伤。\n④ 首次发动回满精力和其他可回复技能的 PP，后续回复量为上次的 85%。每回合累计承伤上限初始为 300 点，每次再发动降低 20 点，最低为 100 点。\n⑤ 若受到原为神水、神火或神草的技能造成的实际伤害，该来源技能下一回合无法使用。同一回合该招多段伤害只算一次封技。限伤与封技合计每触发两次，获得 1 层光明之印。",
     onUse: function(u, t, ctx) {
       const bd = mingnianData(u);
       const turn = gameState.turnCount;
       const priorCasts = bd.jianghuaCasts || 0;
       bd.jianghuaCasts = priorCasts + 1;
       bd.jianghuaThrough = turn + 5;
-      bd.jianghuaCap = 300 - 20 * priorCasts;
+      bd.jianghuaCap = Math.max(100, 300 - 20 * priorCasts);
       bd.jianghuaDamage = 0;
       bd.jianghuaDamageTurn = turn;
       bd.jianghuaSummons = new Map();
@@ -1492,9 +1493,9 @@ const DEFAULT_SKILLS = [
     }
   },
   { id: "sk_nlex", name: "逆流而行", element: "divine_water", power: 135, pp: 2, maxPp: 2, accuracy: 100, category: "physical", priority: 12,
-    desc: "回溯双方全队的精力、PP、强化和异常，并按精力差追加固伤，同时为己方场下第二格回 PP。本招耗尽后自身失去属系，下一次威力招触发终结效果。",
-    detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次扣费耗尽本招 PP，或回溯后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 免疫常规删 PP 和回 PP。时间回溯和强制清空可跨常规保护，普通回复仍受 PP 回复限制。",
-    immuneToPP: true, noPPRecover: true,
+    desc: "回溯双方全队的精力、PP、强化和异常，本招自身 PP 除外。按精力差追加固伤，同时为己方场下第二格回 PP。本招耗尽后自身失去属系，下一次威力招触发终结效果。",
+    detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前，跳过施放者本招的 PP。每场战斗最多使用本招 2 次。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次扣费耗尽本招 PP，或回溯后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 免疫常规删 PP 和回 PP。时间回溯和强制清空可跨常规保护，历史回溯最多为本招恢复至剩余可用次数。",
+    immuneToPP: true, noPPRecover: true, useLimit: 2,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了逆流而行！时间倒流，逆转法则！");
       // 威力伤害
@@ -1503,7 +1504,7 @@ const DEFAULT_SKILLS = [
       const nlexSkill = user.skills.find(skill => skill.id === "sk_nlex");
       const spentLastPP = nlexSkill?.pp === 0 || (ctx.sourceSkill === nlexSkill && ctx.skillPPAfter === 0);
       // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
-      var hpDiff = ctx.restoreSnapshot(3);
+      var hpDiff = ctx.restoreSnapshot(3, nlexSkill);
       if (hpDiff > 0) {
         ctx.doFixedDamage(target, hpDiff);
         ctx.msg("状态回溯造成 " + hpDiff + " 点固定伤害！");
@@ -1516,7 +1517,7 @@ const DEFAULT_SKILLS = [
         bench.skills.forEach(function(s) { gainPP(bench, s, recover, "sk_nlex"); });
         ctx.msg("场下" + bench.name + "全体技能恢复" + recover + "PP！");
       }
-      // 本次是第几次使用（通用执行在 onUse 之后统一 +1，避免重复计数）
+      // 通用出招流程已计入本次使用。
       if (!user.skillUseCounts) user.skillUseCounts = {};
       var nlexCount = ctx.sourceSkill?.useCount ?? ((user.skillUseCounts["sk_nlex"] || 0) + 1);
       // 当PP=0: 失去属系
@@ -1852,7 +1853,7 @@ const DEFAULT_SKILLS = [
     } },
   { id: "sk_qy_5", name: "清念沉脉", element: "flying", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 11,
     desc: "清双方强化并治疗对手，自身各招回 3 PP。耗尽本招 PP 进入清念，期满按双方各自的 PP 净变化回复本招，随后四回合永久削弱对手实际用过的技能。",
-    detail: "① 强制清除双方七项强化。把清除的正负等级分别取绝对值后求和，每级为对方回复 60 点精力。\n② 该次计算的治疗量低于 240 点时，额外删除对方上次所用技能 5 PP。\n③ 回复自身各技能 3 PP，然后清空本招。\n④ 进入清念，时长等于 1 加上本招实际扣费的 PP 和本招随后清空的 PP。\n⑤ 按每只在场宠物分别计算技能 PP 总量的期初和期末净变化，再对双方各自取绝对值后相加，乘 0.5 并四舍五入，期满一次回复本招。场下期间的 PP 改变不计。清羽换下暂停，重复发动时以该回合期初值重新计时和统计，提前转离清念则立即结算。\n⑥ 结算回复后开启 4 回合削弱窗口，跟随当前在场对手。对方出威力招时，按该招原始威力永久削弱 30%，累计上限 50%。出变化招时，该招先手永久减 1，本回合已排定的先后不重排。已造成的削弱持续到战斗结束。",
+    detail: "① 强制清除双方七项强化。把清除的正负等级分别取绝对值后求和，每级为对方回复 60 点精力。\n② 该次计算的治疗量低于 240 点时，额外删除对方上次所用技能 5 PP。\n③ 回复自身各技能 3 PP，然后清空本招。等待沉脉结算时，本招跳过清念翼系回 PP 与消耗清风之念回满。\n④ 进入清念，时长等于 1 加上本招实际扣费的 PP 和本招随后清空的 PP。\n⑤ 按每只在场宠物分别计算技能 PP 总量的期初和期末净变化，再对双方各自取绝对值后相加，乘 0.5 并四舍五入，期满一次回复本招。场下期间的 PP 改变不计。清羽换下暂停，重复发动时以该回合期初值重新计时和统计，提前转离清念则立即结算。\n⑥ 结算回复后开启 4 回合削弱窗口，跟随当前在场对手。对方出威力招时，按该招原始威力永久削弱 30%，累计上限 50%。出变化招时，该招先手永久减 1，本回合已排定的先后不重排。已造成的削弱持续到战斗结束。",
     onUse: function(u, t, ctx) {
       var total = 0;
       const recipient = skillEffectTarget(ctx, t, "stat");
@@ -2084,7 +2085,8 @@ const DEFAULT_PETS = [
           ctx.doHeal(pet, 200);
           ctx.msg("【清念灵体】使用变化技：回复200精力！");
           if (skill.pp <= 4) {
-            pet.skills.forEach(function(s){ gainPP(pet, s, 2, undefined, "清念灵体·变化招"); });
+            const source = "清念灵体·变化招（" + skill.name + "）";
+            pet.skills.forEach(function(s){ gainPP(pet, s, 2, undefined, source); });
             ctx.invertHealing(target, 1.0, 2);
             ctx.msg("【清念灵体】技能PP≤4：全体+2PP，倒置对方治疗2回合！");
           }
@@ -2226,7 +2228,8 @@ const DEFAULT_PETS = [
           if (skill.pp < 8) {
             ctx.cleanseAbnormalStatuses(pet);
             STAGE_FIELDS.forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
-            pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1") gainPP(pet, s, 1, undefined, "清念·翼系招式"); });
+            const source = "清念·翼系招式";
+            pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1") gainPP(pet, s, 1, source, source + "（" + skill.name + "）"); });
             ctx.msg("【清念】净化自身，其他技能回复1PP！");
           }
           // (2) 3回合速度-25%
@@ -2277,10 +2280,13 @@ const DEFAULT_PETS = [
           const lost = skill.maxPp - skill.pp;
           const useAll = skill.pp <= skill.maxPp * 0.2 || skill.maxPp < 4;
           const marks = bd.qfzn || 0;
-          const cost = useAll ? marks : Math.max(0, lost - 3);
-          if ((!useAll || marks > 0) && marks >= cost && gainPP(pet, skill, lost, "清念PP回复") > 0) {
-            bd.qfzn = marks - cost;
-            ctx.msg("【清念PP回复】" + skill.name + "回满PP，消耗" + cost + "层！");
+          const cost = useAll ? marks : Math.max(1, lost - 3);
+          if (cost > 0 && marks >= cost) {
+            const restored = gainPP(pet, skill, lost, "清念PP回复", "清念·低PP回满（" + skill.name + "）");
+            if (restored > 0) {
+              bd.qfzn = marks - cost;
+              ctx.msg("【清念PP回复】" + skill.name + "回复" + restored + " PP，消耗" + cost + "层清风之念！");
+            }
           }
         }
       },
@@ -2319,6 +2325,7 @@ const DEFAULT_PETS = [
         return damage;
       },
       onAfterDamageSegment: function(pet, segmentIndex, ctx) {
+        if (pet.hp === 0 && pet.lethalHitThisTurn && (isEjectImmune(pet) || !getForcedSwitchCandidates(pet).length)) return;
         // 第n段伤害后恢复(30-4n)%已损精力
         var n = segmentIndex + 1;
         var pct = Math.max(0, 30 - 4 * n);
@@ -2897,7 +2904,7 @@ function createBattleContext() {
       if (gameState.snapshots.length > 30) gameState.snapshots.shift();
     },
     // 时间回溯：恢复双方全体宠物的精力/PP/强化/异常，返回回溯前后精力差
-    restoreSnapshot: function(turnsBack) {
+    restoreSnapshot: function(turnsBack, excludedSkill) {
       // 快照在回合末保存，按回合号定位：当前回合 - turnsBack
       var targetTurn = (gameState.turnCount || 0) - turnsBack;
       var idx = -1;
@@ -2917,7 +2924,11 @@ function createBattleContext() {
           if (!s) return;
           pet.hp = Math.min(pet.maxHp + (pet.maxHpBonus || 0), s.hp);
           pet.skills.forEach(function(skill, i) {
-            if (s.pp[i] !== undefined) setSkillPP(pet, skill, s.pp[i], "回溯到第" + snap.turn + "回合", "逆流而行");
+            if (skill === excludedSkill) {
+              traceSkillPP(pet, skill, skill.pp, skill.pp, "跳过回溯", "逆流而行", "本招不回溯自身 PP");
+            } else if (s.pp[i] !== undefined) {
+              setSkillPP(pet, skill, s.pp[i], "回溯到第" + snap.turn + "回合", "逆流而行");
+            }
           });
           STAGE_FIELDS.forEach(function(k, i){ if (s.stages[i] !== undefined) pet[k] = s.stages[i]; });
           pet.status = s.status; pet.statusTurns = s.statusTurns;
@@ -3035,6 +3046,14 @@ function traceBlockedPPSlots(pet, slot, action, source, detail) {
 }
 
 function setSkillPP(pet, skill, value, action, source, detail) {
+  if (skill.useLimit) {
+    const remaining = Math.max(0, skill.useLimit - (skill.useCount || 0));
+    if (value > remaining) {
+      value = remaining;
+      const limit = "本局最多使用 " + skill.useLimit + " 次，剩余 " + remaining + " 次";
+      detail = detail ? detail + "，" + limit : limit;
+    }
+  }
   const before = skill.pp;
   skill.pp = value;
   if (before !== value || detail) traceSkillPP(pet, skill, before, value, action, source, detail);
@@ -3054,7 +3073,11 @@ function gainPP(pet, skill, amount, sourceSkillId, logSource = sourceSkillId) {
   }
   const allowed = skill.ppRecoverySource;
   let blocked;
-  if (isPPRecoveryBlocked(pet)) blocked = "目标本回合禁止回复 PP";
+  if (skill.id === "sk_qy_5" && pet?.bloodlineData?.qingnianChannel &&
+      (sourceSkillId === "清念·翼系招式" || sourceSkillId === "清念PP回复")) {
+    blocked = "清念沉脉正在等待自身结算，跳过血脉回复";
+  }
+  else if (isPPRecoveryBlocked(pet)) blocked = "目标本回合禁止回复 PP";
   else if (skill.noPPRecover) blocked = "技能免疫常规 PP 回复";
   else if (skill.noPPRecoverThrough >= gameState.turnCount) blocked = "技能禁回至第" + skill.noPPRecoverThrough + "回合结束";
   else if (allowed && ![allowed].flat().includes(sourceSkillId)) {
@@ -3568,22 +3591,36 @@ function postDamageProcessing() {
     if (!pet || !pet.bloodline) return;
     if (pet.lethalHitThisTurn && pet.bloodline.name === "不灭魂体" && !pet.lethalHandled) {
       pet.lethalHandled = true;
-      pet.hp = 1;
-      createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
-      addMessage(pet.name + " 被致命一击！不灭魂体保留1点精力！全体技能-4PP！");
-      // Force switch
-      forceSwitchPet(pet);
+      const switched = forceSwitchPet(pet, () => {
+        pet.hp = 1;
+        createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
+        addMessage(pet.name + " 被致命一击！不灭魂体保留1点精力！全体技能-4PP！");
+      });
+      if (!switched) {
+        pet.hp = 0;
+        addMessage("【不灭魂体】" + pet.name + "无法被驱逐，致死保命未生效。");
+      }
     }
   });
 }
 
-function forceSwitchPet(pet) {
+function isEjectImmune(pet) {
+  return pet.immuneEject || pet.dimoEjectImmuneThrough >= gameState.turnCount;
+}
+
+function getForcedSwitchCandidates(pet) {
+  if (pet !== gameState.playerActive && pet !== gameState.aiActive) return [];
+  const party = gameState.playerActive === pet ? gameState.playerParty : gameState.aiParty;
+  return party.filter(candidate => candidate !== pet && !candidate.isFainted());
+}
+
+function forceSwitchPet(pet, beforeLeave) {
   if (pet !== gameState.playerActive && pet !== gameState.aiActive) return;
-  if (pet.immuneEject || pet.dimoEjectImmuneThrough >= gameState.turnCount) { addMessage(pet.name + " 免疫了驱逐效果！"); return; }
-  var party = gameState.playerActive === pet ? gameState.playerParty : gameState.aiParty;
-  var candidates = party.filter(function(p) { return !p.isFainted() && p !== pet; });
+  if (isEjectImmune(pet)) { addMessage(pet.name + " 免疫了驱逐效果！"); return; }
+  const candidates = getForcedSwitchCandidates(pet);
   if (!candidates.length) return;
-  var next = candidates[Math.floor(Math.random() * candidates.length)];
+  const next = candidates[Math.floor(Math.random() * candidates.length)];
+  beforeLeave?.();
   leaveBattlefield(pet);
   if (gameState.playerActive === pet) {
     addMessage(pet.name + " 被迫换下！"); gameState.playerActive = next; callBloodlineEnter(next); addMessage("换上 " + next.name + "！");
@@ -4363,6 +4400,10 @@ function recordRoundSkillUse(action, otherPet) {
   const { user, skill } = action;
   user.skillsUsedThisTurn = (user.skillsUsedThisTurn || 0) + 1;
   skill.useCount = (skill.useCount || 0) + 1;
+  // 先手的历史回溯可能在后手已付费后写回 PP，实际使用时重新套用剩余次数上限。
+  if (skill.useLimit && skill.pp > skill.useLimit - skill.useCount) {
+    setSkillPP(user, skill, skill.pp, "校正剩余使用次数", skill.id);
+  }
   user.skillUseCounts[skill.id] = (user.skillUseCounts[skill.id] || 0) + 1;
   if (user.oppConsecutive) {
     user.oppConsecutive = user.lastUsedSkillId === skill.id ? user.oppConsecutive : {};
@@ -4720,6 +4761,11 @@ const BLOODLINE_ORIGINALS = {
 ③在②的基础上，若受到克制伤害，则降低40%`
 };
 
+const BLOODLINE_TEMP_RULES = {
+  pet_qy: "当前裁定中，低 PP 回满至少消耗 1 层清风之念。清念沉脉清空后直到自身结算，跳过血脉的两种 PP 回复。",
+  pet_bmhs: "当前裁定中，有存活后备且能成功驱逐时，才保留 1 点精力并扣除 PP。"
+};
+
 let bloodlinePreview = null;
 let bloodlineHover = null;
 
@@ -4758,7 +4804,7 @@ function dismissBloodlinePreviewSoon(trigger) {
   }, 160);
 }
 
-function showBloodlinePreview(trigger, name, original) {
+function showBloodlinePreview(trigger, name, original, ruling) {
   if (!trigger.isConnected || gameState.screen !== "battle") return;
   if (bloodlinePreview && bloodlinePreview.trigger === trigger) {
     clearTimeout(bloodlinePreview.dismissTimer);
@@ -4778,6 +4824,12 @@ function showBloodlinePreview(trigger, name, original) {
   body.className = "bloodline-preview-body";
   body.textContent = original;
   panel.appendChild(title);
+  if (ruling) {
+    const update = document.createElement("p");
+    update.className = "bloodline-preview-ruling";
+    update.textContent = ruling;
+    panel.appendChild(update);
+  }
   panel.appendChild(body);
   document.body.appendChild(panel);
   trigger.setAttribute("aria-expanded", "true");
@@ -4880,7 +4932,7 @@ function syncBattleBloodline(slot, pet) {
   entry.type = "button";
   entry.classList.add("battle-bloodline-trigger");
   entry.setAttribute("aria-expanded", "false");
-  const open = () => showBloodlinePreview(entry, name, original);
+  const open = () => showBloodlinePreview(entry, name, original, BLOODLINE_TEMP_RULES[pet.id]);
   entry.addEventListener("pointerenter", function(event) {
     if (event.pointerType !== "mouse") return;
     if (bloodlinePreview && bloodlinePreview.trigger === entry) {

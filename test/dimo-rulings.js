@@ -52,6 +52,19 @@ check('降华区分6和12回合、外免与累计限伤', ()=>{
   g.turnCount=16;
   assert.equal(vm.getEffectiveSkillElement(a,'ice'),'light'); assert.equal(vm.getEffectiveSkillElement(b,'ice'),'ice');
 });
+check('极尽降华第 11 次达到 100 限伤，第 12 次后不再下降', () => {
+  const {p,a,ctx,g}=init(['sk_jydm_1']);
+  for (let casts = 1; casts <= 12; casts++) {
+    p.skills[0].onUse(p, a, ctx);
+    assert.equal(p.bloodlineData.jianghuaCap, Math.max(100, 300 - (casts - 1) * 20));
+    g.turnCount++;
+  }
+  assert.equal(p.takeDamage(60, a), 60);
+  assert.equal(p.takeDamage(180, a), 40);
+  assert.equal(p.takeDamage(180, a), 0);
+  g.turnCount++;
+  assert.equal(p.takeDamage(180, a), 100);
+});
 check('光幕三损跨越释放回合且不会因同回合重复凑数', ()=>{
   const {p,a,ctx,g}=init(['sk_jydm_3']);
   const opp=a.skills[0];

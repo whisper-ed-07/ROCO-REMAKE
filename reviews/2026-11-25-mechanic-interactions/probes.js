@@ -24,8 +24,9 @@ function solitaryClock() {
     [['pet_bmhs', ['sk_nlex', 'sk_cszn']]], [['pet_qingling', ['sk_ql_2']]]
   );
   const hits = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 3 && !state.battleOver; i++) {
     round();
+    if (state.battleOver) break;
     const ctx = api.createBattleContext();
     ctx.doFixedDamage(state.playerActive, 9999, state.aiActive);
     engine.checkFaints();
@@ -35,12 +36,15 @@ function solitaryClock() {
 }
 
 function clockVersusQingling() {
-  const { state, round } = battle(
+  const { state, round, engine } = battle(
     [['pet_bmhs', ['sk_nlex', 'sk_mszw', 'sk_fthy', 'sk_cszn']]], [['pet_qingling', ['sk_ql_1', 'sk_ql_2']]]
   );
   const before = activeState(state);
-  for (let i = 0; i < 12; i++) round(0, 0);
-  return { before, after: activeState(state), ended: state.battleOver };
+  const reverse = state.playerActive.skills[0];
+  for (let i = 0; i < 12 && !state.battleOver; i++) {
+    round(engine.canSelectSkill(reverse) ? 0 : -1, engine.canSelectSkill(state.aiActive.skills[0]) ? 0 : -1);
+  }
+  return { before, after: activeState(state), ended: state.battleOver, reverseCasts: reverse.useCount };
 }
 
 function sameSkillMatchup(id, skillIds, skillIndex, rounds) {
@@ -98,17 +102,18 @@ function dimoRotate() {
     }
     return -1;
   }
-  let firstZeroCap;
+  let firstZeroCap, minObservedCap;
   const firstZeroWindowDamage = [];
   for (let i = 0; i < 200 && !state.battleOver; i++) {
     round(choose(state.playerActive, 0), choose(state.aiActive, 1));
     const bd = state.playerActive.bloodlineData;
+    if (bd.jianghuaCap !== undefined) minObservedCap = Math.min(minObservedCap ?? Infinity, bd.jianghuaCap);
     if (firstZeroCap === undefined && bd.jianghuaCap <= 0) firstZeroCap = { turn: state.turnCount, casts: bd.jianghuaCasts, cap: bd.jianghuaCap };
     if (firstZeroCap && state.turnCount > firstZeroCap.turn && state.turnCount <= firstZeroCap.turn + 5) {
       firstZeroWindowDamage.push([state.playerActive.lastTakenTotal, state.aiActive.lastTakenTotal]);
     }
   }
-  return { after: activeState(state), turns: state.turnCount, ended: state.battleOver, firstZeroCap, firstZeroWindowDamage,
+  return { after: activeState(state), turns: state.turnCount, ended: state.battleOver, minObservedCap, firstZeroCap, firstZeroWindowDamage,
     casts: [state.playerActive, state.aiActive].map(pet => pet.skills.map(skill => skill.useCount || 0)) };
 }
 

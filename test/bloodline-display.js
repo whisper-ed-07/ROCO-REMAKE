@@ -104,6 +104,7 @@ key('Escape'); assert.strictEqual(preview(), null, 'Escape 关闭');
 button.dispatch('pointerenter', { pointerType: 'mouse' }); clock.advance(280); assert(preview());
 s.syncBattleBloodline(slot, pet('pet_qy')); assert.strictEqual(preview(), null, '换宠同步应关闭旧预览');
 button = trigger(); button.dispatch('click'); assert.strictEqual(preview().querySelector('.bloodline-preview-body').textContent, originals.pet_qy);
+assert.match(preview().querySelector('.bloodline-preview-ruling').textContent, /至少消耗 1 层清风之念/);
 s.closeBloodlinePreview(); assert.strictEqual(preview(), null);
 
 document.documentElement.clientWidth = 390;

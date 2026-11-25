@@ -123,19 +123,30 @@ test('重衍携带减输出实时随PP切换，也作用于固伤', () => {
   assert.equal(hp - foe.hp, 100);
 });
 
-test('逆流付掉末点PP后即使回溯恢复，也能由下一招普通威力技能终结', () => {
+test('逆流回溯跳过本招 PP，末点用完仍触发下一招普通威力技能的终结', () => {
   const { api, sandbox, owner, foe, state, ctx } = fixture(['sk_nlex', 'sk_mszw']);
   foe.hp = foe.maxHp = 100000;
   foe.skills[0].immuneToPP = true;
   owner.skills[1].name = '普通威力招';
   owner.skills[1].id = 'ordinary-power';
   owner.skills[1].onUse = undefined;
+  owner.hp = 400;
+  owner.atkStage = 2;
+  owner.leechSeed = true;
   ctx.saveSnapshot();
+  owner.hp = 200;
+  owner.atkStage = 0;
+  owner.leechSeed = false;
   owner.skills[0].pp = 1;
+  owner.skills[1].pp = 2;
   state.turnCount = 1;
   state.pendingFirstMove = 'player';
   api.executeSkillTurn(owner, foe, owner.skills[0], 'player');
-  assert.equal(owner.skills[0].pp, 2, '回溯仍恢复历史PP');
+  assert.equal(owner.skills[0].pp, 0, '施放者本招保留实际扣费');
+  assert.equal(owner.skills[1].pp, owner.skills[1].maxPp);
+  assert.equal(owner.hp, 400);
+  assert.equal(owner.atkStage, 2);
+  assert.equal(owner.leechSeed, true);
   assert.equal(owner.element, null);
   assert.equal(owner.pendingNilex.cnt, 1);
   const before = foe.hp;
@@ -143,4 +154,48 @@ test('逆流付掉末点PP后即使回溯恢复，也能由下一招普通威力
   assert.ok(before - foe.hp >= 9999);
   assert.ok(foe.skills.every(skill => skill.pp === 0), '终结强制清空免删招');
   assert.equal(owner.pendingNilex, null);
+});
+
+test('逆流最多使用两次，其他历史回溯不能重新点亮用尽的逆流', () => {
+  const { api, sandbox, owner, foe, state, ctx } = fixture(['sk_nlex', 'sk_mszw']);
+  foe.hp = foe.maxHp = 100000;
+  const reverse = owner.skills[0];
+  ctx.saveSnapshot();
+  ctx.savePPState();
+  for (let turn = 1; turn <= 2; turn++) {
+    state.turnCount = turn;
+    api.executeSkillTurn(owner, foe, reverse, 'player');
+    assert.equal(reverse.pp, 2 - turn);
+    assert.equal(reverse.useCount, turn);
+  }
+  assert.equal(owner.pendingNilex.cnt, 2);
+  ctx.rewindPPToMin(24);
+  ctx.restoreSnapshot(3);
+  assert.equal(reverse.pp, 0);
+  assert.equal(sandbox.canSelectSkill(reverse), false);
+  api.executeSkillTurn(owner, foe, reverse, 'player');
+  assert.equal(reverse.useCount, 2);
+});
+
+test('免疫驱逐的神钟受到超出当前精力的伤害后倒下，存活后备正常登场', () => {
+  const { owner, foe, state, build, sandbox } = fixture(['sk_fthy']);
+  const reserve = build('pet_qy', ['sk_qy_2']);
+  state.playerParty.push(reserve);
+  owner.hp = 10;
+  owner.immuneEject = true;
+  owner.takeDamage(11, foe);
+  assert.equal(owner.hp, 0, '致死段的回复不会让神钟从 0 精力复活');
+  sandbox.checkFaints();
+  assert.equal(owner.hp, 0);
+  assert.equal(state.playerActive, reserve);
+  assert.equal(owner.skills[0].pp, 8);
+  assert.ok(state.messages.some(message => message.text.includes('倒下了')));
+  assert.ok(!state.messages.some(message => message.text.includes('被迫换下')));
+});
+
+test('覆体魂衣单段限伤仍为 80，降华下限不改变此招', () => {
+  const { ctx, owner, foe } = fixture(['sk_fthy']);
+  owner.skills[0].onUse(owner, foe, ctx);
+  assert.equal(owner.damageCap, 80);
+  assert.equal(owner.takeDamage(140, foe), 80);
 });

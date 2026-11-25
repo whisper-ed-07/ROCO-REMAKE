@@ -32,9 +32,21 @@ test('E02 双方睡一回合后醒来并继续出招', () => {
   turn(e); assert.strictEqual(p.status,null); assert.strictEqual(a.status,null);
   turn(e); assert.ok(e.api.gameState.turnCount>=2); assert.strictEqual(p.skills[0].pp,4); assert.strictEqual(a.skills[0].pp,4);
 });
-test('E03 跨回合致死保护复位', () => {
-  const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'attacker',skill('first-lethal',(u,t,c)=>{if(e.api.gameState.turnCount===1)c.doFixedDamage(t,10,u);}),200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a);
-  turn(e); assert.strictEqual(p.hp,1); p.poisoned=true; turn(e); assert.ok(p.hp>0); assert.strictEqual(e.api.gameState.battleOver,false);
+test('E03 神钟重新入场后在下一回合仍能触发致死保护', () => {
+  const e = env(), p = built(e, 'pet_bmhs', []);
+  const a = pet(e, 'attacker', skill('lethal', (u,t,c) => c.doFixedDamage(t,10,u)), 200);
+  const reserve = pet(e, 'reserve');
+  setup(e, p, a);
+  e.api.gameState.playerParty.push(reserve);
+  p.hp = 1;
+  turn(e, -1, 0);
+  assert.strictEqual(p.hp, 1);
+  assert.strictEqual(e.api.gameState.playerActive, reserve);
+  e.sandbox.executeSwitchAction({ user: reserve, incoming: p }, 'player');
+  turn(e, -1, 0);
+  assert.strictEqual(p.hp, 1);
+  assert.strictEqual(e.api.gameState.playerActive, reserve);
+  assert.strictEqual(e.api.gameState.battleOver, false);
 });
 test('先手施加睡眠使后手本回合不能行动', () => {
   const e=env(); let actions=0; const p=pet(e,'p',skill('sleep',(u,t,c)=>c.applyStatus(t,'sleep'),15)); const a=pet(e,'a',skill('queued',()=>actions++)); setup(e,p,a); turn(e); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,4);
@@ -72,8 +84,18 @@ test('先手控制已选招的后手时 PP 只扣一次', () => {
 test('R05 驱逐后离场宠物不能行动', () => {
   const e=env(); let count=0; const p=built(e,'pet_qy',['sk_qy_1','sk_qy_2','sk_qy_3','sk_qy_4']), a=pet(e,'a',skill('queued',()=>count++)), b=pet(e,'bench'); setup(e,p,a); e.api.gameState.aiParty.push(b); turn(e,3); assert.strictEqual(e.api.gameState.aiActive,b); assert.strictEqual(count,0);
 });
-test('R06 单次致死保护先于判负', () => {
-  const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'attacker',skill('first-lethal',(u,t,c)=>{if(e.api.gameState.turnCount===1)c.doFixedDamage(t,10,u);}),200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a); turn(e); assert.strictEqual(p.hp,1); assert.strictEqual(e.api.gameState.battleOver,false);
+test('R06 没有存活后备的神钟受到致死段时倒下并判负', () => {
+  const e = env(), p = built(e, 'pet_bmhs', ['sk_fthy']);
+  const a = pet(e, 'attacker', skill('lethal', (u,t,c) => c.doFixedDamage(t,10,u)), 200);
+  const defeatedReserve = pet(e, 'defeated-reserve');
+  setup(e, p, a);
+  p.hp = 1;
+  defeatedReserve.hp = 0;
+  e.api.gameState.playerParty.push(defeatedReserve);
+  turn(e, -1, 0);
+  assert.strictEqual(p.hp, 0);
+  assert.strictEqual(p.skills[0].pp, 8);
+  assert.strictEqual(e.api.gameState.battleOver, true);
 });
 test('R07 新局清除降华全局状态', () => {
   const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); e.api.findSkill('sk_jydm_1').onUse(p,a,e.api.createBattleContext()); e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); assert.strictEqual(e.api.gameState.forceSkillElement,null); assert.strictEqual(e.api.gameState.jianghuaBuff,null); assert.strictEqual(e.api.gameState.pendingJianghuaByPet?.size || 0,0);
@@ -107,6 +129,44 @@ test('沉脉时长计入本次普通扣PP与清空本技能PP，不计其他技�
   // 出招扣2，技能内先回复3后剩5，再清空5：1+2+5=8。
   assert.strictEqual(duration(0),8); assert.strictEqual(duration(6),8);
 });
+test('沉脉保持零 PP 等待自身结算，结算后开启削弱窗口', () => {
+  const e = env(), p = built(e, 'pet_qy', ['sk_qy_5', 'sk_qy_2']), a = pet(e, 'opponent');
+  setup(e, p, a);
+  e.sandbox.enterQingyuMode(p, '清念');
+  p.bloodlineData.qfzn = 2;
+  const [channel, wing] = p.skills;
+  wing.pp -= 4;
+  turn(e);
+  assert.strictEqual(channel.pp, 0);
+  assert.strictEqual(p.bloodlineData.qfzn, 2);
+  assert.ok(wing.pp > wing.maxPp - 4, '其他招仍可回复 PP');
+  assert.ok(!e.sandbox.canSelectSkill(channel));
+  turn(e, 1, 0);
+  assert.strictEqual(channel.pp, 0, '期间再次出翼系也不会回填沉脉');
+  while (e.api.gameState.turnCount < 8) turn(e, -1, -1);
+  assert.strictEqual(channel.pp, 0);
+  assert.strictEqual(a.qingnianWindowEnd, undefined);
+  turn(e, -1, -1);
+  assert.ok(channel.pp > 0, '自身结算回复 PP');
+  assert.strictEqual(p.bloodlineData.qingnianChannel, undefined);
+  assert.strictEqual(a.qingnianWindowEnd, 12);
+});
+
+test('清念低 PP 回满至少消耗一层，零层不可回满', () => {
+  const e = env(), p = built(e, 'pet_qy', []), a = pet(e, 'opponent');
+  setup(e, p, a);
+  e.sandbox.enterQingyuMode(p, '清念');
+  const move = { ...skill('four-pp'), maxPp: 4, pp: 1 };
+  p.skills.push(move);
+  const ctx = e.api.createBattleContext();
+  p.bloodline.onSkillUse(p, a, ctx, move);
+  assert.strictEqual(move.pp, 1);
+  p.bloodlineData.qfzn = 2;
+  p.bloodline.onSkillUse(p, a, ctx, move);
+  assert.strictEqual(move.pp, 4);
+  assert.strictEqual(p.bloodlineData.qfzn, 1);
+});
+
 test('明念第二轮须四招均有新使用才再次加印', () => {
   const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a);
   p.bloodlineData={marks:0,marked:false,markTurns:0,used:{},jianghuaTurns:0}; const ctx=e.api.createBattleContext();
