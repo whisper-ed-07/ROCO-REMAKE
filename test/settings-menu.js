@@ -1,6 +1,7 @@
 // Node 22+ 与本机 Chromium。可用 ROCO_CHROMIUM 指定可执行文件。
 const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
+const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -409,9 +410,75 @@ async function test(browserConnection, origin) {
   });
 }
 
+// 使用同一文件 URL 和隔离浏览器配置，模拟旧版本存档后替换游戏文件。
+async function testFileReplacement(connection, gameFile) {
+  const { send } = connection;
+  const evaluate = async expression => {
+    const result = await send('Runtime.evaluate', { expression, returnByValue: true });
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+    return result.result.value;
+  };
+  const inspect = callback => evaluate('(' + callback.toString() + ')()');
+  const url = pathToFileURL(gameFile).href;
+  const open = async () => {
+    await send('Page.navigate', { url });
+    await until(() => evaluate('location.href === ' + JSON.stringify(url) + ' && !!document.querySelector("#intro-screen")'), 'file 游戏启动');
+    await inspect(pageSetup);
+  };
+  await open();
+  await inspect(() => {
+    // 通过旧版公开的存储接口写入完整、非空的数据。
+    const skill = { id: 'custom_skill_file_test', name: '存档招式', element: DEFAULT_SKILLS[0].element,
+      power: 50, pp: 10, maxPp: 10, accuracy: 100, category: 'physical', priority: 8, desc: '存档测试' };
+    const pet = { id: 'custom_pet_file_test', name: '存档宠物', emoji: '🐾', element: DEFAULT_PETS[0].element,
+      level: 100, baseStats: { hp: 100, atk: 100, def: 100, spatk: 100, spdef: 100, spd: 100 },
+      skillIds: [skill.id], ownedSkillIds: [skill.id] };
+    saveCustomSkills([skill]);
+    saveCustomPets([pet]);
+    const builtin = DEFAULT_PETS[0];
+    savePetLoadouts({ [builtin.id]: { name: '存档配置', skillIds: builtin.skillIds.slice(0, 2).reverse() } });
+    localStorage.setItem('roco_theme', 'light');
+    localStorage.setItem('roco_log_size', 'expanded');
+    eq(findPet(pet.id).name, pet.name, '旧版自定义宠物已保存');
+  });
+  // 离开后在同一路径覆盖文件，避免更换 URL 或 Chromium profile。
+  await send('Page.navigate', { url: 'about:blank' });
+  await until(() => evaluate('location.href === "about:blank"'), '离开旧文件');
+  fs.writeFileSync(gameFile, html);
+  await open();
+  const title = html.toString('utf8').match(/<title>([^<]+)<\/title>/)[1];
+  assert.equal(await evaluate('document.title'), title, '同一路径已加载当前构建');
+  await inspect(() => {
+    eq(root('theme'), 'light', '文件替换后读取主题');
+    eq(root('log-size'), 'expanded', '文件替换后读取日志设置');
+    eq(findSkill('custom_skill_file_test').name, '存档招式', '自定义技能');
+    eq(findPet('custom_pet_file_test').skillIds[0], 'custom_skill_file_test', '自定义宠物与技能');
+    const builtin = DEFAULT_PETS[0], loaded = findPet(builtin.id);
+    eq(loaded.name, '存档配置', '内置宠物配置');
+    eq(JSON.stringify(loaded.skillIds), JSON.stringify(builtin.skillIds.slice(0, 2).reverse()), '技能顺序');
+    click('#intro-screen');
+    click('#mode-developer');
+    click('#btn-battle');
+    click('[data-pet-id="custom_pet_file_test"]');
+    click('#btn-ready');
+    click('[data-opp-id]');
+    click('#opp-ready');
+    stopTurnTimer();
+    eq(gameState.playerActive.name, '存档宠物', '存档宠物实际出战');
+    eq(gameState.playerActive.skills[0].name, '存档招式', '存档技能实际出战');
+    click('.skill-btn');
+    stopTurnTimer();
+    eq(gameState.turnCount, 1, '开发者对战完成一回合');
+    eq(gameState.messages.some(({ text }) => /^【PP】我方场上.*选招扣费/.test(text)), true, '开发者 PP 日志');
+  });
+}
+
 async function main() {
   assert.ok(browser, '找不到 Chromium，请设置 ROCO_CHROMIUM');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'roco-settings-'));
+  const fileMode = process.argv.includes('--file-replacement');
+  const gameFile = path.join(directory, 'ROCO REMAKE.html');
+  if (fileMode) fs.writeFileSync(gameFile, execFileSync('git', ['show', '0.0.1-preview:ROCO REMAKE.html'], { cwd: path.join(__dirname, '..') }));
   const server = http.createServer((request, response) => {
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
     // 保持测试只访问本机。字体仍可验证实际 CSS 字体链。
@@ -439,8 +506,13 @@ async function main() {
     }, 'Chromium 调试端口');
     const pages = await fetch('http://127.0.0.1:' + port + '/json/list').then(response => response.json());
     connection = await connect(pages.find(page => page.type === 'page').webSocketDebuggerUrl);
-    await test(connection, 'http://127.0.0.1:' + server.address().port);
-    console.log('settings and menu interactions passed');
+    if (fileMode) {
+      await testFileReplacement(connection, gameFile);
+      console.log('file replacement and persisted battle passed');
+    } else {
+      await test(connection, 'http://127.0.0.1:' + server.address().port);
+      console.log('settings and menu interactions passed');
+    }
   } finally {
     connection?.close();
     if (processHandle?.pid && processHandle.exitCode === null) {

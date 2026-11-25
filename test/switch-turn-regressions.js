@@ -44,7 +44,7 @@ function setup({ priority, outgoingSpeed = 50, dream = false, hit = () => {} }) 
     clock.advance(800);
     assert.equal(state.turnCount, 1);
   }
-  return { state, events, incoming, outgoing, switchPet };
+  return { sandbox, state, events, incoming, outgoing, switchPet };
 }
 
 for (const { name, options, expected } of [
@@ -85,4 +85,23 @@ test('先手施加换宠锁，拦下已提交的 8 速换宠行动', () => {
   assert.deepEqual(events, ['对手命中旧宠']);
   assert.equal(state.playerActive, outgoing);
   assert.ok(state.messages.some(message => (message.text ?? message).includes('无法换宠')));
+});
+
+test('驱逐仅在完成换入和入场结算后同步通知界面', () => {
+  const { sandbox, state, events, incoming, outgoing } = setup({ priority: 9 });
+  const updates = [];
+  sandbox.setActivePetChangeListener(update => {
+    assert.equal(state.playerActive, incoming);
+    assert.deepEqual(events, ['新宠入场']);
+    assert.equal(state.messages.at(-1).text, '换上 新宠！');
+    updates.push(update);
+  });
+
+  outgoing.immuneEject = true;
+  assert.equal(sandbox.forceSwitchPet(outgoing), undefined);
+  assert.equal(updates.length, 0);
+  outgoing.immuneEject = false;
+  assert.equal(sandbox.forceSwitchPet(outgoing), incoming);
+  assert.equal(updates.length, 1);
+  assert.deepEqual({ ...updates[0] }, { side: 'player', previous: outgoing, incoming, reason: 'forced' });
 });

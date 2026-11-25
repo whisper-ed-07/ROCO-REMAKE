@@ -9,42 +9,37 @@
 2. 工作目录：`C:\dsh work space\rocoremake`（当前主副本）。`Documents\ROCO-REMAKE` 与 `C:\Users\wwjgc\Documents\Codex\2026-10-22\rocoremake` 均为旧副本，保留但不再开发，不用旧文件覆盖主副本。
 3. 确认基线：`git log --oneline -1` 与 `git status`；有未提交改动先查明来源。
 4. 只改任务范围内文件；设计决策问玩家，实现细节自决并在报告里标注。
-5. 完成后按 §9 自检 → 本地提交（不推送）→ 写 `CHANGELOG.md` → 报告。
-6. 玩家于2026-11-10指定两个agent共同维护本项目。同一 `ROCO REMAKE.html` 轮流写入；并行任务优先分配原文核对、审查与测试。保存与提交前重新核对最新提交及文件改动，发现其他agent正在修改同一文件时先协调，禁止覆盖、重置或混入来源未明的改动。文件级白名单与提交前缀见 `COLLAB.md`。
+5. 完成后按 §9 自检，追加 `CHANGELOG.md` 并本地提交。根据玩家授权推送。
+6. 自 2026-11-26 起由本对话的 Codex 负责主副本。根目录游戏文件由统一构建生成，改动从源码进入。提交前核对最新提交与工作区状态。协作细则见 `COLLAB.md`。
 
-## 1. 项目现状（2026-11-08）
+## 1. 开发与运行
 
-- 单文件 HTML 游戏：`ROCO REMAKE.html`，3492 行，全部 JS 在一个 `<script>`（第 922 行起）内，CSS 在前。
-- 原生 JS + CSS，无构建链；自定义宠物/技能存 localStorage（`pbg_custom_pets` / `pbg_custom_skills`）。
-- 内置 4 只宠物、20 个技能；全部技能走 `onUse` 扩展路径。
-- 机制修复进度：清灵、极影迪莫、清羽、创世神钟均已完成按原文重做；剩余偏差见各自 `pets/<名>.md` §5（主要为神系属性预留）。
-- 文件布局：
-  - `ROCO REMAKE.html` — 唯一运行文件
-  - `pets/<宠物名>.md` / `.txt` — 机制文档 / 原文；`pets/_source/` 原文 HTML 存档
-  - `CHANGELOG.md` — 每次会话的记录
-  - `specs/PET-CREATION-FLOW.md` / `specs/PET_TEMPLATE.md` — 新宠物流程与规格模板（保留）
-  - `test/static-checks.js` + `test/lib/harness.js` — 静态检查与 Node 引擎加载
-  - `deploy.bat` — 旧部署脚本（当前无 git remote，仅留档）
-  - `work/` — 历史草稿，不维护
+根目录的游戏文件 `ROCO REMAKE.html` 是单文件产物，直接双击运行。版本 `0.0.1-preview` 的 Git 标签记录重构前的 GitHub 备份。
 
-## 2. 代码地图（行号会漂移，优先 grep 关键字）
+开发时修改 `src/`。使用 Node.js 从仓库目录运行以下命令，生成并校验根目录的同名 HTML。
 
-| 区域 | 行 | 说明 |
-|---|---|---|
-| `<script>` | 922 | 引擎与 UI 全部代码 |
-| `ELEMENTS` | 951 | 19 系属性表；加属性要补 `_icon`/`_emoji`/name/color/bg |
-| `DEFAULT_SKILLS` | 1054 | 内置技能数组 |
-| `DEFAULT_PETS` | 1761 | 内置宠物数组 |
-| `class BattlePet` | 2093 | 战斗实例 |
-| `gameState` | 2220 | 全局状态 |
-| `createBattleContext()` | 2232 | ctx API |
-| `gainPP()` | 2387 | 统一的 PP 恢复入口 |
-| `tickEnvironments()` | 2505 | 天气/环境回合末计时 |
-| `resolveTurn` | 2657 | 回合主管线 |
-| `executeSkillTurn` | 2799 | 单技能执行 |
-| `renderBattleActions` | 3209 | 战斗技能栏 |
-| `showSkillDetail` | 3234 | 技能详情弹窗（游戏内机制说明） |
-| `openSkillSwap` | 3274 | 局外技能更换/排序 |
+```powershell
+node scripts/build.cjs
+node scripts/build.cjs --check
+```
+
+构建读取 `src/index.html`、`src/styles.css` 和 `scripts/build.cjs` 中按初始化顺序列出的 JS 源文件。游戏与现有测试共用同一份合并后的经典脚本。构建使用 Node.js 内置模块。自定义宠物、技能、配招和设置沿用本地存储。
+
+- `pets/<宠物名>.md` / `.txt` 保存机制说明和玩家原文，`pets/_source/` 为原文 HTML 存档。
+- `CHANGELOG.md` 记录开发历史。
+- `test/static-checks.js` 与 `test/lib/harness.js` 从生成的游戏文件加载引擎。
+- `work/` 和 `deploy.bat` 留存旧阶段资料。
+
+## 2. 源码入口
+
+| 目录或文件 | 职责 |
+|---|---|
+| `src/data/` | 属性、克制表、宠物与技能注册顺序 |
+| `src/pets/` | 四只内置宠物的技能与血脉。清灵专属的微灵印记和倒置结算在 `qingling.js` |
+| `src/storage.js` | 宠物、技能和配招存储，内置数据与自定义配置的合并 |
+| `src/battle/` | 战斗实例、结算上下文、状态、天气、回合和换宠。换宠结算完成后同步通知界面 |
+| `src/ui/` | 设置、选队、编辑器、血脉、对战、动画与日志 |
+| `src/main.js` | 初始化设置并启动游戏 |
 
 ## 3. 数据模型
 
@@ -88,7 +83,7 @@
 
 1. 读 `pets/<宠物名>.txt` 原文，与 `pets/<宠物名>.md` 的「实现」逐条比对。
 2. 有歧义 → 一次性列给玩家裁定；不要边猜边写。
-3. 改代码：一个技能/一组同源改动为一个 commit。
+3. 改源码并重新生成游戏：一个技能或一组同源改动为一个 commit。
 4. 同步三处：`skill.desc`（一句）、`skill.detail`（游戏内完整机制）、`pets/<宠物名>.md`（§4 实现、§5 偏差、修订记录）。
 5. 跑 §9 自检；在 `CHANGELOG.md` 记录。
 
@@ -116,17 +111,18 @@
 
 1. **收原文**：玩家给的文本原样存 `pets/<宠物名>.txt`，不改措辞。
 2. **写机制文档**：`pets/<宠物名>.md`，至少包含：id/名称/系别/等级/种族值、血脉（触发点/公式/上限）、技能表（id/系别/威力/PP/先手/命中/分类/标记）、逐技能机制、待确认问题。
-3. **实现**：`DEFAULT_PETS` 注册宠物、`DEFAULT_SKILLS` 注册技能（含 `desc` + `detail` + `onUse`）、血脉写 `bloodline` 钩子；引擎缺能力先问玩家。
+3. **实现**：在 `src/pets/` 编写专属机制，在 `src/data/catalog.js` 注册宠物和技能（含 `desc` + `detail` + `onUse`）、血脉写 `bloodline` 钩子；引擎缺能力先问玩家。
 4. **自检与提交**：§9 全过；文档与代码同一 commit；报告要点与遗留。
 
 ## 9. 完成标准（DoD）
 
-1. **语法**：提取 `<script>` 内容用 `vm.Script` 或 `node --check` 通过。
+1. **产物和语法**：`node scripts/build.cjs --check` 通过，生成 HTML 中的 `<script>` 能通过 `vm.Script` 校验。
 2. **静态检查**：`node test/static-checks.js` 0 错 0 警（0 种族值合法）。
 3. **冒烟**：`test/lib/harness.js` 加载引擎无异常。
 4. **矩阵**：4 宠两两 16 场，记录胜负/僵局/卡死/异常；卡死与异常必须为 0。
 5. **定向探针**：本次改动涉及的效果至少各一条可复现断言。
-6. **提交**：本地提交、中文、动词开头；报告改动与验证结果。
+6. **浏览器**：涉及构建或存档时，用本机 Chromium 运行 `node test/settings-menu.js --file-replacement`，验证同一文件路径覆盖后的存档、开局和开发者日志。
+7. **提交**：本地提交、中文、动词开头。报告改动与验证结果。
 
 ## 10. 已知坑
 

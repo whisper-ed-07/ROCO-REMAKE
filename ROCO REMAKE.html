@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20170%20110%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22a%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220.5%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23ffe9a8%22%2F%3E%3Cstop%20offset%3D%2250%25%22%20stop-color%3D%22%23e2b04a%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23b8841a%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220.5%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23d9b45c%22%2F%3E%3Cstop%20offset%3D%2250%25%22%20stop-color%3D%22%23a8801f%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%236d5210%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20fill%3D%22none%22%20stroke-width%3D%2212%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M22%2C14%20V86%20M22%2C14%20H54%20A20%2C20%200%200%201%2054%2C54%20H22%20M48%2C54%20L76%2C86%22%20stroke%3D%22url(%23b)%22%20transform%3D%22translate(52%2C20)%20rotate(-13%2038%2042)%22%2F%3E%3Cpath%20d%3D%22M22%2C14%20V86%20M22%2C14%20H54%20A20%2C20%200%200%201%2054%2C54%20H22%20M48%2C54%20L76%2C86%22%20stroke%3D%22url(%23a)%22%20transform%3D%22translate(24%2C0)%20rotate(11%2038%2042)%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
-<title>ROCO REMAKE — 洛克王国：对战重置版</title>
+<title>ROCO REMAKE — 洛克王国：对战重置版 · 0.0.1-preview</title>
 <style>
 :root {
   --bg: #0d1117; --surface: #1a1f2e; --surface2: #252b3a;
@@ -1286,9 +1286,7 @@ const WEATHER_DISPLAY = {
   [GALE_WEATHER]: ["💨", "疾风"]
 };
 
-// ---------- DEFAULT SKILLS ----------
-const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、沉睡、混乱、恐惧、寄生，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
-const DEFAULT_SKILLS = [
+const DIMO_SKILLS = [
   { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15,
     ppRecoverySource: ["化念作刃清印", "瞬华若霜冰冻"], passiveLabel: "被动发动",
     desc: "使双方技能暂时变为光系，提高全场回复和输出。发动回合免疫外来效果，持续限伤并封禁原为神系的伤害来源技能。上场前三回合免删，删空可被动发动。",
@@ -1458,7 +1456,35 @@ const DEFAULT_SKILLS = [
       // 4回合召唤锁定瞬华环境
       ctx.setField("shunhua", 4, { locked: true });
     } },
-{ id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
+];
+
+const DIMO_PET = { id: "pet_jydm", name: "极影迪莫", element: "light", emoji: "⚔️", level: 100,
+    baseStats: { hp: 144, atk: 151, def: 130, spatk: 145, spdef: 131, spd: 137 },
+    skillIds: ["sk_jydm_1", "sk_jydm_2", "sk_jydm_3", "sk_jydm_4", "sk_jydm_5"],
+    bloodline: {
+      name: "明念", markName: "光明之印",
+      onEnter: function(pet) {
+        mingnianData(pet).jianghuaDeleteProtectedThrough = gameState.turnCount + 3 - (gameState.resolvingTurn ? 1 : 0);
+        syncMingnianMaxHP(pet);
+      },
+      onActionEnd: function(pet, target, ctx, skill) {
+        if (!pet.dimoPendingAttack) advanceMingnian(pet, target, ctx, skill);
+      },
+      onTurnStart: function(pet, ctx) {
+        const bd = mingnianData(pet);
+        syncMingnianMaxHP(pet);
+        if (!bd.markTarget || bd.markThrough < gameState.turnCount) {
+          endMingnian(pet);
+          return;
+        }
+        bd.markTurns = bd.markThrough - gameState.turnCount + 1;
+        for (const skill of pet.skills) gainPP(pet, skill, 1, undefined, "明念·标记期间");
+        ctx.msg("【明念】全体技能回复1PP，标记剩余" + (bd.markThrough - gameState.turnCount + 1) + "回合！");
+      }
+    }
+};
+const CLOCK_SKILLS = [
+  { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
     passiveLabel: "携带被动",
     desc: "携带时免疫束缚、恐惧、睡眠和冰冻，本招无 PP 时免疫全部异常。主动发动三回合，增加速度与输出、吸取 PP，并分别结算回满精力、重置强化，末回合精力低于 30% 时回复精力并清空本招 PP。",
     detail: "① 创世神钟携带本技能时，无需出招即免疫束缚、恐惧、睡眠、冰冻。当前PP为0时，免疫所有异常状态。PP恢复后保留原有四种免疫。\n② 主动效果持续 3 回合。发动时在场的两只宠物速度各提高 10%，自身所有类型输出提高 25%。重复发动刷新效果。\n③ 每回合从当前在场对手的各技能最多吸取 2 PP，按实际扣除量回复自己的对应格。首回合吸取后，锁定对方所有并列最低 PP 的技能，使其出招额外消耗 1 PP。0 PP 也参与比较。\n④ 首回合回满精力，免疫对方后手施加给自身的效果。若先手，额外删除对方各技能 1 PP。\n⑤ 次回合强制清除在场双方强化，并尝试回满自身首格技能的 PP。\n⑥ 末回合自身精力低于最大精力的 30% 时，回复 70% 已损精力，并清空本招 PP。\n⑦ 免疫常规删 PP 和回 PP。时间回溯与逆流而行的强制清空可以越过对应保护。",
@@ -1667,7 +1693,53 @@ const DEFAULT_SKILLS = [
       }
     }
   },
-  // === 清羽新技能 ===
+];
+
+const CLOCK_PET = { id: "pet_bmhs", name: "创世神钟", element: "normal", emoji: "🔔", level: 100,
+    baseStats: { hp: 132, atk: 164, def: 172, spatk: 109, spdef: 168, spd: 139 },
+    skillIds: ["sk_cszn", "sk_nlex", "sk_mszw", "sk_fthy", "sk_cyjy"],
+    bloodline: {
+      name: "不灭魂体",
+      onBeforeDamage: function(pet, damage, type, attacker, ctx, element) {
+        if (type === "fixed") {
+          const inverted = Math.floor(damage * 0.3);
+          createBattleContext().doHeal(pet, inverted);
+          ctx.msg("【不灭魂体】将固伤的30%反转为治疗。");
+          return damage - inverted;
+        }
+        if (type === "power" && attacker && attacker !== pet) {
+          attacker.blockPPRecoveryOnTurn = gameState.turnCount + 1;
+          ctx.msg("【不灭魂体】封锁攻击者下回合回复PP。");
+          if (getEffectiveness(element, pet.element) >= 2) {
+            ctx.msg("【不灭魂体】克制伤害降低40%！");
+            return Math.floor(damage * 0.6);
+          }
+        }
+        return damage;
+      },
+      onAfterDamageSegment: function(pet, segmentIndex, ctx) {
+        if (pet.hp === 0 && pet.lethalHitThisTurn && (isEjectImmune(pet) || !getForcedSwitchCandidates(pet).length)) return;
+        // 第n段伤害后恢复(30-4n)%已损精力
+        var n = segmentIndex + 1;
+        var pct = Math.max(0, 30 - 4 * n);
+        if (pct > 0 && pet.hp < pet.maxHp) {
+          var lost = pet.maxHp - pet.hp;
+          var healAmt = Math.floor(lost * pct / 100);
+          if (healAmt > 0) {
+            ctx.doHeal(pet, healAmt);
+            ctx.msg("【不灭魂体】第" + n + "段伤害后恢复" + healAmt + "HP(" + pct + "%已损)");
+          }
+        }
+      },
+      onTurnStart: function(pet, ctx) {
+        pet.bloodlineData = pet.bloodlineData || {};
+        pet.bloodlineData.segmentIdx = 0;
+      }
+    }
+};
+const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、沉睡、混乱、恐惧、寄生，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
+
+const QINGYU_SKILLS = [
   { id: "sk_qy_1", ppRecoverySource: ["sk_qy_2", "清念PP回复"], noExtraPPCost: true, name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     passiveLabel: "血脉联动",
     desc: "清念且清风之念至少 3 层时净化、回满精力并解除对手的回合效果。其他情况获得护盾并免疫当回合后手伤害。首用让双方技能变为各自主系，续用倒置对方治疗。",
@@ -1872,8 +1944,176 @@ const DEFAULT_SKILLS = [
       startQingnianChannel(u, t, 1 + cp, ctx);
       ctx.msg("进入清念" + (1 + cp) + "回合！");
     } },
+];
 
-  // ============ 清灵（清念灵体） ============
+const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "🕊️", level: 100,
+    baseStats: { hp: 172, atk: 0, def: 162, spatk: 0, spdef: 159, spd: 77 },
+    skillIds: ["sk_qy_1", "sk_qy_2", "sk_qy_3", "sk_qy_4", "sk_qy_5"],
+    bloodline: {
+      name: "清念/残脉",
+      onTurnStart: function(pet, ctx) {
+        if (!pet.bloodlineData) pet.bloodline.onEnter(pet, ctx);
+        var bd = pet.bloodlineData;
+        bd.turnCount = (bd.turnCount || 0) + 1;
+        bd.switchTurn = !!bd.mode && bd.turnCount % 5 === 0;
+        if (!bd.mode) return;
+        var opp = ctx.playerActive === pet ? ctx.aiActive : ctx.playerActive;
+        if (bd.switchTurn) {
+          ctx.doHeal(pet, 99);
+          ctx.msg("【血脉切换期】回复99HP！使用翼系→清念 / 冰系→残脉");
+          return;
+        }
+        if (bd.healCount >= 2) { bd.qfzn += Math.floor(bd.healCount / 2); bd.healCount = bd.healCount % 2; }
+        if (bd.mode === "清念") {
+          var ql = pet.skills.find(function(s) { return s.id === "sk_qy_1"; });
+          var qlLost = ql ? ql.maxPp - ql.pp : 0;
+          var spdDiff = opp ? Math.abs(pet.getStat("spd") - opp.getStat("spd")) : 0;
+          var healAmt = Math.ceil(60 + pet.maxHp * 0.1 + bd.qfzn * 40 + 0.1 * spdDiff + qlLost * 50);
+          ctx.doHeal(pet, healAmt);
+          if (opp && !opp.isFainted()) ctx.doHeal(opp, healAmt);
+          bd.healCount++;
+          bd.qingLingLost = qlLost;
+
+        } else if (bd.mode === "残脉") {
+          if (opp && !opp.isFainted()) {
+            var emptySkills = pet.skills.filter(function(s) { return s.pp === 0; }).length;
+            var oppHasMit = opp.getDamageReduction() > 0 || opp.hasDamageCap();
+            if (oppHasMit) {
+              // 对方有减伤/限伤：改为治疗对方（0.3×上回合受伤总值 + 30 + 50×本回合使用技能次数）
+              bd.residualHealingTurn = gameState.turnCount;
+            } else {
+              // 0.3×上回合所受最高两段伤害总值 + 50×空PP数
+              var segs = (pet.lastTakenSegments || []).slice().sort(function(a, b) { return b - a; }).slice(0, 2);
+              var top2 = segs.reduce(function(a, b) { return a + b; }, 0);
+              var fixDmg = Math.floor(0.3 * top2 + 50 * emptySkills);
+              if (fixDmg > 0) {
+                ctx.doFixedDamage(opp, fixDmg, pet);
+                ctx.doFixedDamage(pet, fixDmg);
+                ctx.msg("【残脉】对双方各造成" + fixDmg + "固伤！");
+              }
+            }
+          }
+          // 回血改由 onAfterDamageSegment 处理（R16）
+        }
+      },
+      // 上场钩子：按首格技能决定初始形态，并重置形态计时
+      onEnter: function(pet, ctx) {
+        var bd = pet.bloodlineData = pet.bloodlineData || {};
+        if (bd.qingnianChannel) return;
+        const mode = getQingyuStartingMode(pet);
+        if (mode) enterQingyuMode(pet, mode);
+        else {
+          bd.mode = null;
+          bd.modeEntered = false;
+          setQingyuOriginalBloodline(pet, true);
+        }
+        bd.turnCount = 0; bd.qfzn = 0; bd.healCount = 0; bd.switchTurn = false;
+        if (ctx) ctx.msg("【清羽】上场进入" + (bd.mode || "原初血脉") + "状态！");
+      },
+      // R16：残脉②改为每次受伤后结算（原文：每次受到伤害后）
+      onAfterDamageSegment: function(pet) {
+        var bd = pet.bloodlineData;
+        if (!bd || bd.mode !== "残脉") return;
+        if (pet.hp > 200) pet.heal(Math.floor((pet.maxHp + (pet.maxHpBonus || 0)) * 0.3));
+      },
+      onSkillUse: function(pet, target, ctx, skill) {
+        var bd = pet.bloodlineData;
+        if (!bd || !bd.mode) return;
+        var opp = target;
+        const element = ctx.skillElement ?? getEffectiveSkillElement(pet, skill.element);
+        // 切换期判定：翼系→清念，冰系→残脉
+        if (bd.switchTurn) {
+          if (element === "flying") {
+            enterQingyuMode(pet, "清念");
+            ctx.msg("切换期使用翼系技能，进入【清念】状态！");
+          }
+          else if (element === "ice") { enterQingyuMode(pet, "残脉"); ctx.msg("切换期使用冰系技能，进入【残脉】状态！"); }
+          bd.switchTurn = false;
+        }
+        // 翼系技能触发血脉效果（仅清念态）
+        if (element === "flying" && bd.mode === "清念") {
+          // (1) 3回合免疫异常与负面强化
+          ctx.grantStatusImmunity(pet, "清念翼系", 3, { stats: true });
+          ctx.msg("【清念】3回合内免疫异常与负面强化！");
+          // 若技能PP<8：净化自身+回复其他技能1PP
+          if (skill.pp < 8) {
+            ctx.cleanseAbnormalStatuses(pet);
+            STAGE_FIELDS.forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
+            const source = "清念·翼系招式";
+            pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1") gainPP(pet, s, 1, source, source + "（" + skill.name + "）"); });
+            ctx.msg("【清念】净化自身，其他技能回复1PP！");
+          }
+          // (2) 3回合速度-25%
+          pet.spdMod = (pet.spdMod || 1) * 0.75;
+          ctx.addTurnEffect(pet, "清念翼速", 3, null, function(p){ p.spdMod = (p.spdMod || 1) / 0.75; });
+          // 30%减伤4回合；清翎覆尘PP=0时可叠加（最多60%）
+          var ql = pet.skills.find(function(s){ return s.id === "sk_qy_1"; });
+          var canStack = ql && ql.pp === 0;
+          var reduction = canStack ? Math.min(60, (pet.damageReduction || 0) + 30) : Math.max(30, pet.damageReduction || 0);
+          if (ctx.setDamageReduction(pet, reduction, 4)) {
+            ctx.msg("【清念】速度-25%（3回合），减伤" + reduction + "%（4回合）" + (canStack?"（可叠加）":"") + "！");
+          } else ctx.msg("【清念】速度-25%（3回合）！");
+          // (3) 4回合每回合回复10%最大精力
+          ctx.addTurnEffect(pet, "清念翼愈", 4, function(p){ ctx.doHeal(p, Math.floor(p.maxHp * 0.1)); ctx.msg("【清念】回复10%最大精力！"); }, null);
+          // 对敌方治疗：0.2×双方已损精力之和
+          var lostSum = (pet.maxHp - pet.hp) + (opp ? (opp.maxHp - opp.hp) : 0);
+          var oppHeal = Math.ceil(0.2 * lostSum);
+          if (opp && !opp.isFainted() && oppHeal > 0) { ctx.doHeal(opp, oppHeal); ctx.msg("【清念】对敌方治疗" + oppHeal + "HP！"); }
+        }
+        // 冰系技能触发血脉效果（仅残脉态）
+        if (element === "ice" && bd.mode === "残脉") {
+          // (1) 2回合免疫异常（可叠加回合数）
+          var immuneTurns = ctx.grantStatusImmunity(pet, "残脉冰系", 2, { stack: true });
+          ctx.msg("【冰系】2回合免疫异常（可叠加，现剩" + immuneTurns + "回合）！");
+          // 若技能PP≤4：净化+回复300精力（间隔<2回合则-30%）
+          if (skill.pp <= 4) {
+            ctx.cleanseAbnormalStatuses(pet);
+            var iceHeal = 300;
+            if (pet.lastIceSkillTurn !== undefined && gameState.turnCount - pet.lastIceSkillTurn < 2) iceHeal = Math.floor(iceHeal * 0.7);
+            pet.lastIceSkillTurn = gameState.turnCount;
+            ctx.doHeal(pet, iceHeal);
+            ctx.msg("【冰系】净化自身，回复" + iceHeal + "精力" + (iceHeal < 300 ? "（间隔惩罚-30%）" : "") + "！");
+          }
+          // (2) 删除对方全体1PP；技能PP=1时额外删(3+双方强化数×2)PP并清除双方强化
+          ctx.deletePP(opp, -1, 1, "残脉·冰系招式");
+          if (skill.pp === 1) {
+            var iceStages = 0;
+            [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ iceStages += Math.abs(p[k]||0); }); });
+            var extraPP = 3 + iceStages * 2;
+            ctx.deletePP(opp, -1, extraPP, "残脉·冰系招式额外删除");
+            [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
+            ctx.msg("【冰系】技能PP=1：额外删除对方" + extraPP + "PP并清除双方强化！");
+          } else {
+            ctx.msg("【冰系】删除对方全体技能1PP！");
+          }
+        }
+        if (bd.mode === "清念" && skill.pp < skill.maxPp * 0.3) {
+          const lost = skill.maxPp - skill.pp;
+          const useAll = skill.pp <= skill.maxPp * 0.2 || skill.maxPp < 4;
+          const marks = bd.qfzn || 0;
+          const cost = useAll ? marks : Math.max(1, lost - 3);
+          if (cost > 0 && marks >= cost) {
+            const restored = gainPP(pet, skill, lost, "清念PP回复", "清念·低PP回满（" + skill.name + "）");
+            if (restored > 0) {
+              bd.qfzn = marks - cost;
+              ctx.msg("【清念PP回复】" + skill.name + "回复" + restored + " PP，消耗" + cost + "层清风之念！");
+            }
+          }
+        }
+      },
+      onActionEnd: function(pet) {
+        const data = pet.bloodlineData;
+        if (data?.residualHealingTurn !== gameState.turnCount) return;
+        delete data.residualHealingTurn;
+        const opponent = gameState.playerActive === pet ? gameState.aiActive : gameState.playerActive;
+        if (!opponent || opponent.isFainted() || pet.isFainted()) return;
+        const ice = pet.skills.find(skill => skill.id === "sk_qy_4");
+        const amount = Math.ceil(0.3 * (pet.lastTakenTotal || 0) + 30 + 50 * (pet.skillsUsedThisTurn || 0));
+        createBattleContext().doHeal(opponent, amount, { invertPct: pet.hp < 500 && ice && ice.pp !== 4 ? 1 : 0 });
+      }
+    }
+};
+const QINGLING_SKILLS = [
   { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     passiveLabel: "PP保护",
     desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队再次获得同类效果，固有能力除外。永久防控，发动起至下回合结束免疫威力伤害。留场时，后续6回合向当时在场双方赋予微灵印记。",
@@ -2063,10 +2303,7 @@ const DEFAULT_SKILLS = [
   }
 ];
 
-
-
-const DEFAULT_PETS = [
-  { id: "pet_qingling", name: "清灵", element: "ghost", emoji: "\u{1F47B}", level: 100,
+const QINGLING_PET = { id: "pet_qingling", name: "清灵", element: "ghost", emoji: "\u{1F47B}", level: 100,
     baseStats: { hp: 149, atk: 152, def: 128, spatk: 151, spdef: 129, spd: 132 },
     skillIds: ["sk_ql_1", "sk_ql_2", "sk_ql_3", "sk_ql_4", "sk_ql_5"],
     bloodline: {
@@ -2113,242 +2350,85 @@ const DEFAULT_PETS = [
         }
       }
     }
-  },
-  { id: "pet_jydm", name: "极影迪莫", element: "light", emoji: "⚔️", level: 100,
-    baseStats: { hp: 144, atk: 151, def: 130, spatk: 145, spdef: 131, spd: 137 },
-    skillIds: ["sk_jydm_1", "sk_jydm_2", "sk_jydm_3", "sk_jydm_4", "sk_jydm_5"],
-    bloodline: {
-      name: "明念", markName: "光明之印",
-      onEnter: function(pet) {
-        mingnianData(pet).jianghuaDeleteProtectedThrough = gameState.turnCount + 3 - (gameState.resolvingTurn ? 1 : 0);
-        syncMingnianMaxHP(pet);
-      },
-      onActionEnd: function(pet, target, ctx, skill) {
-        if (!pet.dimoPendingAttack) advanceMingnian(pet, target, ctx, skill);
-      },
-      onTurnStart: function(pet, ctx) {
-        const bd = mingnianData(pet);
-        syncMingnianMaxHP(pet);
-        if (!bd.markTarget || bd.markThrough < gameState.turnCount) {
-          endMingnian(pet);
-          return;
-        }
-        bd.markTurns = bd.markThrough - gameState.turnCount + 1;
-        for (const skill of pet.skills) gainPP(pet, skill, 1, undefined, "明念·标记期间");
-        ctx.msg("【明念】全体技能回复1PP，标记剩余" + (bd.markThrough - gameState.turnCount + 1) + "回合！");
-      }
-    }
-  },
-  { id: "pet_qy", name: "清羽", element: "flying", emoji: "🕊️", level: 100,
-    baseStats: { hp: 172, atk: 0, def: 162, spatk: 0, spdef: 159, spd: 77 },
-    skillIds: ["sk_qy_1", "sk_qy_2", "sk_qy_3", "sk_qy_4", "sk_qy_5"],
-    bloodline: {
-      name: "清念/残脉",
-      onTurnStart: function(pet, ctx) {
-        if (!pet.bloodlineData) pet.bloodline.onEnter(pet, ctx);
-        var bd = pet.bloodlineData;
-        bd.turnCount = (bd.turnCount || 0) + 1;
-        bd.switchTurn = !!bd.mode && bd.turnCount % 5 === 0;
-        if (!bd.mode) return;
-        var opp = ctx.playerActive === pet ? ctx.aiActive : ctx.playerActive;
-        if (bd.switchTurn) {
-          ctx.doHeal(pet, 99);
-          ctx.msg("【血脉切换期】回复99HP！使用翼系→清念 / 冰系→残脉");
-          return;
-        }
-        if (bd.healCount >= 2) { bd.qfzn += Math.floor(bd.healCount / 2); bd.healCount = bd.healCount % 2; }
-        if (bd.mode === "清念") {
-          var ql = pet.skills.find(function(s) { return s.id === "sk_qy_1"; });
-          var qlLost = ql ? ql.maxPp - ql.pp : 0;
-          var spdDiff = opp ? Math.abs(pet.getStat("spd") - opp.getStat("spd")) : 0;
-          var healAmt = Math.ceil(60 + pet.maxHp * 0.1 + bd.qfzn * 40 + 0.1 * spdDiff + qlLost * 50);
-          ctx.doHeal(pet, healAmt);
-          if (opp && !opp.isFainted()) ctx.doHeal(opp, healAmt);
-          bd.healCount++;
-          bd.qingLingLost = qlLost;
+};
 
-        } else if (bd.mode === "残脉") {
-          if (opp && !opp.isFainted()) {
-            var emptySkills = pet.skills.filter(function(s) { return s.pp === 0; }).length;
-            var oppHasMit = opp.getDamageReduction() > 0 || opp.hasDamageCap();
-            if (oppHasMit) {
-              // 对方有减伤/限伤：改为治疗对方（0.3×上回合受伤总值 + 30 + 50×本回合使用技能次数）
-              bd.residualHealingTurn = gameState.turnCount;
-            } else {
-              // 0.3×上回合所受最高两段伤害总值 + 50×空PP数
-              var segs = (pet.lastTakenSegments || []).slice().sort(function(a, b) { return b - a; }).slice(0, 2);
-              var top2 = segs.reduce(function(a, b) { return a + b; }, 0);
-              var fixDmg = Math.floor(0.3 * top2 + 50 * emptySkills);
-              if (fixDmg > 0) {
-                ctx.doFixedDamage(opp, fixDmg, pet);
-                ctx.doFixedDamage(pet, fixDmg);
-                ctx.msg("【残脉】对双方各造成" + fixDmg + "固伤！");
-              }
-            }
-          }
-          // 回血改由 onAfterDamageSegment 处理（R16）
-        }
-      },
-      // 上场钩子：按首格技能决定初始形态，并重置形态计时
-      onEnter: function(pet, ctx) {
-        var bd = pet.bloodlineData = pet.bloodlineData || {};
-        if (bd.qingnianChannel) return;
-        const mode = getQingyuStartingMode(pet);
-        if (mode) enterQingyuMode(pet, mode);
-        else {
-          bd.mode = null;
-          bd.modeEntered = false;
-          setQingyuOriginalBloodline(pet, true);
-        }
-        bd.turnCount = 0; bd.qfzn = 0; bd.healCount = 0; bd.switchTurn = false;
-        if (ctx) ctx.msg("【清羽】上场进入" + (bd.mode || "原初血脉") + "状态！");
-      },
-      // R16：残脉②改为每次受伤后结算（原文：每次受到伤害后）
-      onAfterDamageSegment: function(pet) {
-        var bd = pet.bloodlineData;
-        if (!bd || bd.mode !== "残脉") return;
-        if (pet.hp > 200) pet.heal(Math.floor((pet.maxHp + (pet.maxHpBonus || 0)) * 0.3));
-      },
-      onSkillUse: function(pet, target, ctx, skill) {
-        var bd = pet.bloodlineData;
-        if (!bd || !bd.mode) return;
-        var opp = target;
-        const element = ctx.skillElement ?? getEffectiveSkillElement(pet, skill.element);
-        // 切换期判定：翼系→清念，冰系→残脉
-        if (bd.switchTurn) {
-          if (element === "flying") {
-            enterQingyuMode(pet, "清念");
-            ctx.msg("切换期使用翼系技能，进入【清念】状态！");
-          }
-          else if (element === "ice") { enterQingyuMode(pet, "残脉"); ctx.msg("切换期使用冰系技能，进入【残脉】状态！"); }
-          bd.switchTurn = false;
-        }
-        // 翼系技能触发血脉效果（仅清念态）
-        if (element === "flying" && bd.mode === "清念") {
-          // (1) 3回合免疫异常与负面强化
-          ctx.grantStatusImmunity(pet, "清念翼系", 3, { stats: true });
-          ctx.msg("【清念】3回合内免疫异常与负面强化！");
-          // 若技能PP<8：净化自身+回复其他技能1PP
-          if (skill.pp < 8) {
-            ctx.cleanseAbnormalStatuses(pet);
-            STAGE_FIELDS.forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
-            const source = "清念·翼系招式";
-            pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1") gainPP(pet, s, 1, source, source + "（" + skill.name + "）"); });
-            ctx.msg("【清念】净化自身，其他技能回复1PP！");
-          }
-          // (2) 3回合速度-25%
-          pet.spdMod = (pet.spdMod || 1) * 0.75;
-          ctx.addTurnEffect(pet, "清念翼速", 3, null, function(p){ p.spdMod = (p.spdMod || 1) / 0.75; });
-          // 30%减伤4回合；清翎覆尘PP=0时可叠加（最多60%）
-          var ql = pet.skills.find(function(s){ return s.id === "sk_qy_1"; });
-          var canStack = ql && ql.pp === 0;
-          var reduction = canStack ? Math.min(60, (pet.damageReduction || 0) + 30) : Math.max(30, pet.damageReduction || 0);
-          if (ctx.setDamageReduction(pet, reduction, 4)) {
-            ctx.msg("【清念】速度-25%（3回合），减伤" + reduction + "%（4回合）" + (canStack?"（可叠加）":"") + "！");
-          } else ctx.msg("【清念】速度-25%（3回合）！");
-          // (3) 4回合每回合回复10%最大精力
-          ctx.addTurnEffect(pet, "清念翼愈", 4, function(p){ ctx.doHeal(p, Math.floor(p.maxHp * 0.1)); ctx.msg("【清念】回复10%最大精力！"); }, null);
-          // 对敌方治疗：0.2×双方已损精力之和
-          var lostSum = (pet.maxHp - pet.hp) + (opp ? (opp.maxHp - opp.hp) : 0);
-          var oppHeal = Math.ceil(0.2 * lostSum);
-          if (opp && !opp.isFainted() && oppHeal > 0) { ctx.doHeal(opp, oppHeal); ctx.msg("【清念】对敌方治疗" + oppHeal + "HP！"); }
-        }
-        // 冰系技能触发血脉效果（仅残脉态）
-        if (element === "ice" && bd.mode === "残脉") {
-          // (1) 2回合免疫异常（可叠加回合数）
-          var immuneTurns = ctx.grantStatusImmunity(pet, "残脉冰系", 2, { stack: true });
-          ctx.msg("【冰系】2回合免疫异常（可叠加，现剩" + immuneTurns + "回合）！");
-          // 若技能PP≤4：净化+回复300精力（间隔<2回合则-30%）
-          if (skill.pp <= 4) {
-            ctx.cleanseAbnormalStatuses(pet);
-            var iceHeal = 300;
-            if (pet.lastIceSkillTurn !== undefined && gameState.turnCount - pet.lastIceSkillTurn < 2) iceHeal = Math.floor(iceHeal * 0.7);
-            pet.lastIceSkillTurn = gameState.turnCount;
-            ctx.doHeal(pet, iceHeal);
-            ctx.msg("【冰系】净化自身，回复" + iceHeal + "精力" + (iceHeal < 300 ? "（间隔惩罚-30%）" : "") + "！");
-          }
-          // (2) 删除对方全体1PP；技能PP=1时额外删(3+双方强化数×2)PP并清除双方强化
-          ctx.deletePP(opp, -1, 1, "残脉·冰系招式");
-          if (skill.pp === 1) {
-            var iceStages = 0;
-            [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ iceStages += Math.abs(p[k]||0); }); });
-            var extraPP = 3 + iceStages * 2;
-            ctx.deletePP(opp, -1, extraPP, "残脉·冰系招式额外删除");
-            [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
-            ctx.msg("【冰系】技能PP=1：额外删除对方" + extraPP + "PP并清除双方强化！");
-          } else {
-            ctx.msg("【冰系】删除对方全体技能1PP！");
-          }
-        }
-        if (bd.mode === "清念" && skill.pp < skill.maxPp * 0.3) {
-          const lost = skill.maxPp - skill.pp;
-          const useAll = skill.pp <= skill.maxPp * 0.2 || skill.maxPp < 4;
-          const marks = bd.qfzn || 0;
-          const cost = useAll ? marks : Math.max(1, lost - 3);
-          if (cost > 0 && marks >= cost) {
-            const restored = gainPP(pet, skill, lost, "清念PP回复", "清念·低PP回满（" + skill.name + "）");
-            if (restored > 0) {
-              bd.qfzn = marks - cost;
-              ctx.msg("【清念PP回复】" + skill.name + "回复" + restored + " PP，消耗" + cost + "层清风之念！");
-            }
-          }
-        }
-      },
-      onActionEnd: function(pet) {
-        const data = pet.bloodlineData;
-        if (data?.residualHealingTurn !== gameState.turnCount) return;
-        delete data.residualHealingTurn;
-        const opponent = gameState.playerActive === pet ? gameState.aiActive : gameState.playerActive;
-        if (!opponent || opponent.isFainted() || pet.isFainted()) return;
-        const ice = pet.skills.find(skill => skill.id === "sk_qy_4");
-        const amount = Math.ceil(0.3 * (pet.lastTakenTotal || 0) + 30 + 50 * (pet.skillsUsedThisTurn || 0));
-        createBattleContext().doHeal(opponent, amount, { invertPct: pet.hp < 500 && ice && ice.pp !== 4 ? 1 : 0 });
-      }
+function getWannenPower(pet) {
+  const skill = pet.skills.find(item => item.id === "sk_ql_2");
+  if (!skill) return 150;
+  const spent = Math.max(0, skill.maxPp - skill.pp);
+  const marks = pet.bloodlineData?.microLing || 0;
+  return Math.min(pet.skills[0]?.pp === 0 ? 1000 : 500, Math.ceil(spent * (150 + marks)));
+}
+
+function resolveQinglingHealBatches() {
+  const batches = gameState.qinglingHealBatches;
+  gameState.qinglingHealBatches = null;
+  for (const [target, segments] of batches) {
+    if (target.isFainted()) continue;
+    let highest = -1;
+    if (target.qinglingInvertNext) {
+      highest = segments.reduce((best, segment, index) =>
+        best < 0 || segment.effective > segments[best].effective ? index : best, -1);
+      target.qinglingInvertNext = false;
+      target.qinglingInvertThrough = gameState.turnCount + 2;
     }
-  },
-  { id: "pet_bmhs", name: "创世神钟", element: "normal", emoji: "🔔", level: 100,
-    baseStats: { hp: 132, atk: 164, def: 172, spatk: 109, spdef: 168, spd: 139 },
-    skillIds: ["sk_cszn", "sk_nlex", "sk_mszw", "sk_fthy", "sk_cyjy"],
-    bloodline: {
-      name: "不灭魂体",
-      onBeforeDamage: function(pet, damage, type, attacker, ctx, element) {
-        if (type === "fixed") {
-          const inverted = Math.floor(damage * 0.3);
-          createBattleContext().doHeal(pet, inverted);
-          ctx.msg("【不灭魂体】将固伤的30%反转为治疗。");
-          return damage - inverted;
-        }
-        if (type === "power" && attacker && attacker !== pet) {
-          attacker.blockPPRecoveryOnTurn = gameState.turnCount + 1;
-          ctx.msg("【不灭魂体】封锁攻击者下回合回复PP。");
-          if (getEffectiveness(element, pet.element) >= 2) {
-            ctx.msg("【不灭魂体】克制伤害降低40%！");
-            return Math.floor(damage * 0.6);
-          }
-        }
-        return damage;
-      },
-      onAfterDamageSegment: function(pet, segmentIndex, ctx) {
-        if (pet.hp === 0 && pet.lethalHitThisTurn && (isEjectImmune(pet) || !getForcedSwitchCandidates(pet).length)) return;
-        // 第n段伤害后恢复(30-4n)%已损精力
-        var n = segmentIndex + 1;
-        var pct = Math.max(0, 30 - 4 * n);
-        if (pct > 0 && pet.hp < pet.maxHp) {
-          var lost = pet.maxHp - pet.hp;
-          var healAmt = Math.floor(lost * pct / 100);
-          if (healAmt > 0) {
-            ctx.doHeal(pet, healAmt);
-            ctx.msg("【不灭魂体】第" + n + "段伤害后恢复" + healAmt + "HP(" + pct + "%已损)");
-          }
-        }
-      },
-      onTurnStart: function(pet, ctx) {
-        pet.bloodlineData = pet.bloodlineData || {};
-        pet.bloodlineData.segmentIdx = 0;
-      }
-    }
+    segments.forEach((segment, index) => {
+      if (target.isFainted()) return;
+      const result = target.applyHealSegment(segment.effective, index === highest ? 1 : segment.inversion);
+      if (result > 0) addMessage(target.name + " 回复了" + result + "HP");
+    });
   }
+}
+
+function resolveWanguHeals() {
+  const ctx = createBattleContext();
+  gameState.wanguHeals = gameState.wanguHeals.filter(heal => {
+    if (heal.castTurn >= gameState.turnCount) return true;
+    const target = gameState[heal.targetSide];
+    if (target && !target.isFainted() && heal.amount > 0) {
+      ctx.doHeal(target, heal.amount);
+      ctx.msg("万古遗恨：按施放回合双方输出差给予对方" + heal.amount + "点治疗。");
+    }
+    return false;
+  });
+}
+
+function recordQinglingMatchingSkills(action, otherPet) {
+  if (gameState.microLingAwarded) return;
+  const opponentAction = gameState.roundActions?.get(otherPet);
+  if (!opponentAction?.used) return;
+  const isStatus = action.skill.category === "status";
+  if (isStatus !== (opponentAction.skill.category === "status")) return;
+  const toAdd = Math.max(0, action.effectivePriority + opponentAction.effectivePriority);
+  if (!Number.isFinite(toAdd) || toAdd === 0) return;
+  gameState.microLingAwarded = true;
+  const pets = [action.user, otherPet];
+  const cap = 100 + 20 * pets.reduce((total, pet) => total + pet.skills.filter(skill => skill.pp === 0).length, 0);
+  for (const pet of pets) {
+    if (pet.bloodline?.name !== "清念灵体") continue;
+    const bloodline = pet.bloodlineData ||= {};
+    const prior = bloodline.microLingFromMatches || 0;
+    const added = Math.min(toAdd, Math.max(0, cap - prior));
+    if (!added) continue;
+    bloodline.microLingFromMatches = prior + added;
+    bloodline.microLing = (bloodline.microLing || 0) + added;
+    addMessage("【清念灵体】双方同用" + (isStatus ? "变化" : "威力") + "技能，" + pet.name + " 获得" + added + "点微灵印记！");
+  }
+}
+const DEFAULT_SKILLS = [
+  ...DIMO_SKILLS,
+  ...CLOCK_SKILLS,
+  ...QINGYU_SKILLS,
+  ...QINGLING_SKILLS,
 ];
+
+const DEFAULT_PETS = [
+  QINGLING_PET,
+  DIMO_PET,
+  QINGYU_PET,
+  CLOCK_PET,
+];
+
 // ---------- STORAGE ----------
 const STORAGE_KEY_PETS = "pbg_custom_pets";
 const STORAGE_KEY_SKILLS = "pbg_custom_skills";
@@ -2636,6 +2716,16 @@ var gameState = {
   snapshots: [],       // 状态快照历史
   ppHistory: []        // 全局PP历史 [{turn, pets: [{id,pp}]}]
 };
+
+let activePetChangeListener = null;
+
+function setActivePetChangeListener(listener) {
+  activePetChangeListener = listener;
+}
+
+function notifyActivePetChanged(side, previous, incoming, reason) {
+  activePetChangeListener?.({ side, previous, incoming, reason });
+}
 
 // ---------- BATTLE CONTEXT (V3 extended) ----------
 function recordAttemptedNegativeEffect(ctx, pet, replay) {
@@ -3541,14 +3631,6 @@ function getEffectiveSkillElement(pet, baseElement) {
   return element;
 }
 
-function getWannenPower(pet) {
-  const skill = pet.skills.find(item => item.id === "sk_ql_2");
-  if (!skill) return 150;
-  const spent = Math.max(0, skill.maxPp - skill.pp);
-  const marks = pet.bloodlineData?.microLing || 0;
-  return Math.min(pet.skills[0]?.pp === 0 ? 1000 : 500, Math.ceil(spent * (150 + marks)));
-}
-
 function getSkillPower(skill, power) {
   return power * (1 - (skill ? skill.qingnianPowerLoss || 0 : 0));
 }
@@ -3626,12 +3708,12 @@ function forceSwitchPet(pet, beforeLeave) {
   const next = candidates[Math.floor(Math.random() * candidates.length)];
   beforeLeave?.();
   leaveBattlefield(pet);
-  if (gameState.playerActive === pet) {
-    addMessage(pet.name + " 被迫换下！"); gameState.playerActive = next; callBloodlineEnter(next); addMessage("换上 " + next.name + "！");
-  } else {
-    addMessage(pet.name + " 被迫换下！"); gameState.aiActive = next; callBloodlineEnter(next); addMessage("对手换上 " + next.name + "！");
-  }
-  renderBattle(document.querySelector("#app"));
+  const isPlayer = gameState.playerActive === pet;
+  addMessage(pet.name + " 被迫换下！");
+  gameState[isPlayer ? "playerActive" : "aiActive"] = next;
+  callBloodlineEnter(next);
+  addMessage((isPlayer ? "换上 " : "对手换上 ") + next.name + "！");
+  notifyActivePetChanged(isPlayer ? "player" : "ai", pet, next, "forced");
   return next;
 }
 
@@ -4360,39 +4442,6 @@ function fmtPriority(p) {
   return "±0";
 }
 
-function resolveQinglingHealBatches() {
-  const batches = gameState.qinglingHealBatches;
-  gameState.qinglingHealBatches = null;
-  for (const [target, segments] of batches) {
-    if (target.isFainted()) continue;
-    let highest = -1;
-    if (target.qinglingInvertNext) {
-      highest = segments.reduce((best, segment, index) =>
-        best < 0 || segment.effective > segments[best].effective ? index : best, -1);
-      target.qinglingInvertNext = false;
-      target.qinglingInvertThrough = gameState.turnCount + 2;
-    }
-    segments.forEach((segment, index) => {
-      if (target.isFainted()) return;
-      const result = target.applyHealSegment(segment.effective, index === highest ? 1 : segment.inversion);
-      if (result > 0) addMessage(target.name + " 回复了" + result + "HP");
-    });
-  }
-}
-
-function resolveWanguHeals() {
-  const ctx = createBattleContext();
-  gameState.wanguHeals = gameState.wanguHeals.filter(heal => {
-    if (heal.castTurn >= gameState.turnCount) return true;
-    const target = gameState[heal.targetSide];
-    if (target && !target.isFainted() && heal.amount > 0) {
-      ctx.doHeal(target, heal.amount);
-      ctx.msg("万古遗恨：按施放回合双方输出差给予对方" + heal.amount + "点治疗。");
-    }
-    return false;
-  });
-}
-
 function getRoundSkillSlot(pet, requireUse = false) {
   const action = gameState.roundActions?.get(pet);
   if (!action || action.kind !== "skill" || (requireUse && !action.used)) return -1;
@@ -4415,26 +4464,7 @@ function recordRoundSkillUse(action, otherPet) {
   }
   user.lastUsedSkillId = skill.id;
   if (skill.power > 0) user.lastPowerSkillId = skill.id;
-  if (gameState.microLingAwarded) return;
-  const opponentAction = gameState.roundActions?.get(otherPet);
-  if (!opponentAction?.used) return;
-  const isStatus = action.skill.category === "status";
-  if (isStatus !== (opponentAction.skill.category === "status")) return;
-  const toAdd = Math.max(0, action.effectivePriority + opponentAction.effectivePriority);
-  if (!Number.isFinite(toAdd) || toAdd === 0) return;
-  gameState.microLingAwarded = true;
-  const pets = [action.user, otherPet];
-  const cap = 100 + 20 * pets.reduce((total, pet) => total + pet.skills.filter(skill => skill.pp === 0).length, 0);
-  for (const pet of pets) {
-    if (pet.bloodline?.name !== "清念灵体") continue;
-    const bloodline = pet.bloodlineData ||= {};
-    const prior = bloodline.microLingFromMatches || 0;
-    const added = Math.min(toAdd, Math.max(0, cap - prior));
-    if (!added) continue;
-    bloodline.microLingFromMatches = prior + added;
-    bloodline.microLing = (bloodline.microLing || 0) + added;
-    addMessage("【清念灵体】双方同用" + (isStatus ? "变化" : "威力") + "技能，" + pet.name + " 获得" + added + "点微灵印记！");
-  }
+  recordQinglingMatchingSkills(action, otherPet);
 }
 
 function runTurnAction(action, target, who) {
@@ -4695,17 +4725,34 @@ function executeSwitchAction(action, who) {
   incoming.lastDealtDamage = incoming.currentDealt || 0; incoming.currentDealt = 0;
   callBloodlineEnter(incoming);
   addMessage(who === "player" ? "上吧，" + incoming.name + "！" : "对手换上了 " + incoming.name + "！");
-  updateBattleUI();
+  notifyActivePetChanged(who, user, incoming, "voluntary");
   return incoming;
 }
 
+function replaceFaintedPet(pet, side) {
+  const isPlayer = side === "player";
+  const party = isPlayer ? gameState.playerParty : gameState.aiParty;
+  leaveBattlefield(pet);
+  addMessage(pet.name + " 倒下了！");
+  const incoming = party.find(candidate => candidate !== pet && !candidate.isFainted());
+  if (!incoming) {
+    endBattle(!isPlayer);
+    return true;
+  }
+  gameState[isPlayer ? "playerActive" : "aiActive"] = incoming;
+  callBloodlineEnter(incoming);
+  addMessage((isPlayer ? "上吧，" : "对手派出了 ") + incoming.name + "！");
+  notifyActivePetChanged(side, pet, incoming, "faint");
+  return false;
+}
+
 function checkFaints() {
-  // R06：先处理不灭魂体等致死保护，再判定濒死/胜负
+  // 先处理不灭魂体等致死保护，再判定濒死或胜负。
   postDamageProcessing();
   if (gameState.battleOver) return false;
-  var player = gameState.playerActive, ai = gameState.aiActive;
-  if (player && player.isFainted()) { leaveBattlefield(player); addMessage(player.name + " 倒下了！"); var np = gameState.playerParty.find(function(p) { return !p.isFainted() && p !== player; }); if (np) { gameState.playerActive = np; callBloodlineEnter(np); addMessage("上吧，" + np.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(false); return true; } }
-  if (ai && ai.isFainted()) { leaveBattlefield(ai); addMessage(ai.name + " 倒下了！"); var na = gameState.aiParty.find(function(p) { return !p.isFainted() && p !== ai; }); if (na) { gameState.aiActive = na; callBloodlineEnter(na); addMessage("对手派出了 " + na.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(true); return true; } }
+  const { playerActive, aiActive } = gameState;
+  if (playerActive?.isFainted() && replaceFaintedPet(playerActive, "player")) return true;
+  if (aiActive?.isFainted() && replaceFaintedPet(aiActive, "ai")) return true;
   return false;
 }
 
@@ -5378,6 +5425,14 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   stopTurnTimer();
   if (!isDeveloperBattle()) addMessage("━━━ 战斗开始 ━━━", "turn");
   showScreen("battle"); }
+
+setActivePetChangeListener(({ reason }) => {
+  if (reason === "voluntary") {
+    updateBattleUI();
+  } else {
+    renderBattle(document.querySelector("#app"));
+  }
+});
 
 function displayedPercent(node, fallback) {
   if (!node) return fallback;
