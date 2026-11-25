@@ -247,7 +247,11 @@ test('R18 残脉：识别对方清羽的原初血脉减伤', () => {
   residual.lastTakenTotal = 100;
   opponent.hp = 200;
   residual.bloodline.onTurnStart(residual, ctx);
-  assert.equal(opponent.hp, 260, '目标持有有效常驻减伤时改为治疗');
+  assert.equal(opponent.hp, 200, '开场不提前治疗');
+  const action = skill('noop-action');
+  residual.skills.push(action);
+  e.api.executeSkillTurn(residual, opponent, action, 'player');
+  assert.equal(opponent.hp, 310, '目标持有有效常驻减伤时改为治疗');
 });
 
 test('R19 清羽：血脉切换期只持续一回合，空过后冰系技能不迟到切形态', () => {
@@ -596,6 +600,56 @@ test('全空 PP 只空过，不凭空攻击、掉精力或在 150 回合判负',
   assert.equal(e.api.gameState.battleOver, false);
   assert.equal(p.hp, p.maxHp);
   assert.equal(a.hp, a.maxHp);
+});
+
+test('残脉无减限伤分支也对自身结算固伤', () => {
+  const e = env();
+  const q = built(e, 'pet_qy', ['sk_qy_4', 'sk_qy_1']);
+  const a = pet(e, 'enemy');
+  setup(e, q, a);
+  const ctx = e.api.createBattleContext();
+  q.bloodline.onEnter(q, ctx);
+  q.hp = 100;
+  q.lastTakenSegments = [100];
+  const before = a.hp;
+  q.bloodline.onTurnStart(q, ctx);
+  assert.equal(q.hp, 70);
+  assert.equal(a.hp, before - 30);
+  assert.equal(q.outputThisTurn, 30);
+});
+
+test('轻风先手在对方结算后回 PP，百分比删除向下取整', () => {
+  const e = env();
+  const q = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4', 'sk_qy_2']);
+  let during;
+  const a = pet(e, 'enemy', skill('watch', (u, t) => { during = t.skills[2].pp; }));
+  setup(e, q, a);
+  q.bloodline.onEnter(q, e.api.createBattleContext());
+  q.skills[2].pp = 6;
+  e.api.gameState.pendingPlayerSkill = 2;
+  e.sandbox.resolveTurn();
+  assert.equal(during, 6);
+  assert.equal(q.skills[2].pp, 8);
+  assert.equal(a.skills[0].pp, 4);
+});
+
+test('双损、三损分别计时，源到期后只撤自己的扣费', () => {
+  const e = env();
+  const p = pet(e, 'owner');
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  const move = p.skills[0];
+  e.api.gameState.turnCount = 1;
+  e.sandbox.setPPCostEffect(p, 'three', 2, { extra: 2, skill: move });
+  e.sandbox.setPPCostEffect(p, 'double', 4, { extra: 1 });
+  assert.equal(e.sandbox.getRequiredPPCost(p, move), 3);
+  e.api.gameState.turnCount++;
+  assert.equal(e.sandbox.getRequiredPPCost(p, move), 2);
+  e.api.gameState.turnCount = 4;
+  assert.equal(e.sandbox.getRequiredPPCost(p, move), 1);
+  move.noExtraPPCost = true;
+  e.sandbox.setPPCostEffect(p, 'another', 3, { extra: 2 });
+  assert.equal(e.sandbox.getRequiredPPCost(p, move), 1);
 });
 
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
