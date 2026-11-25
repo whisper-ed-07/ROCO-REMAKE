@@ -142,9 +142,12 @@ test('R14 炽光失败：按格位清空对方同格技能PP', () => {
   assert.strictEqual(a.skills[3].pp, 0, '清空对方第 4 格技能（按格位，不按技能 id）');
   assert.strictEqual(a.skills[0].pp, 5, '其他格技能不受影响');
   assert.strictEqual(burn.pp, 0, '自身技能 PP 清空');
-  assert.strictEqual(burn.noPPRecover, true, '本技能 12 回合内无法回复');
-  const ban = p.turnEffects.find((x) => x.name === '炽光禁回');
-  assert.strictEqual(ban && ban.turnsLeft, 12);
+  assert.equal(e.api.gameState.field, 'shunhua');
+  assert.equal(e.api.gameState.fieldTurns, 4);
+  e.api.gameState.turnCount = burn.noPPRecoverThrough;
+  assert.strictEqual(e.sandbox.gainPP(p, burn, 1), 0, '第 12 回合仍无法回复');
+  e.api.gameState.turnCount++;
+  assert.strictEqual(e.sandbox.gainPP(p, burn, 1), 1, '第 13 回合可以恢复');
 });
 
 test('R15 逆流回溯：按 snapshot.turn 定位并恢复精力/PP/强化/异常', () => {
@@ -718,7 +721,7 @@ test('残念返还最近一段承伤及上次被防控挡住的负面效果', ()
   e.api.gameState.pendingFirstMove = 'player';
   e.api.executeSkillTurn(p, a, p.skills[0], 'player');
   assert.equal(a.hp, hp - 16, '仅返还减伤后的最近一段');
-  assert.equal(a.status, 'poison');
+  assert.equal(a.poisoned, true);
   assert.equal(a.defStage, -2);
 });
 

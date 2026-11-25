@@ -307,6 +307,28 @@ test('共2 · 后手反弹转移全部伤害段、异常、删 PP 和降强化',
   assert.equal(q.defStage, 0);
   assert.equal(foe.defStage, -2);
   assert.equal(q.status, null);
-  assert.equal(foe.status, 'poison');
+  assert.equal(foe.poisoned, true);
   assert.equal(state.messages.filter(message => message.text.includes('反弹了后手技能效果')).length, 1);
+});
+
+test('共2 · 封灵印记和传统降强化共用后手效果判定', () => {
+  const { api, sandbox, q, foe, state } = setup(['sk_ql_3']);
+  state.pendingFirstMove = 'ai';
+  foe.hp = foe.maxHp = 100000;
+  foe.immuneBackhandEffects = true;
+  api.executeSkillTurn(q, foe, q.skills[0], 'player');
+  assert.equal(foe.qlSealMark, false);
+  foe.immuneBackhandEffects = false;
+  foe.reflectBackhand = true;
+  api.executeSkillTurn(q, foe, q.skills[0], 'player');
+  assert.equal(foe.qlSealMark, false);
+  assert.equal(q.qlSealMark, true);
+
+  state.pendingFirstMove = 'player';
+  q.immuneBackhandEffects = false;
+  q.reflectBackhand = true;
+  Object.assign(foe.skills[0], { name: '烟雾', onUse: undefined });
+  api.executeSkillTurn(foe, q, foe.skills[0], 'ai');
+  assert.equal(q.accuracyStage, 0);
+  assert.equal(foe.accuracyStage, -1);
 });

@@ -169,4 +169,46 @@ test('原初血脉免疫寄生，点名免疫与零 PP 通用免疫按各自条�
   creation.p.skills[0].pp = 1;
   assert.equal(creation.ctx.applyStatus(creation.p, 'leech_seed'), true);
 });
+test('官方互斥表：各组内后施加替换，跨组及束缚双向共存', () => {
+  const pairs = [
+    ['fear', 'burn', false], ['leech_seed', 'poison', false], ['confuse', 'freeze', false],
+    ['fear', 'poison', true], ['fear', 'leech_seed', true], ['burn', 'poison', true],
+    ['burn', 'leech_seed', true], ['confuse', 'leech_seed', true], ['sleep', 'bind', true]
+  ];
+  const present = (p, effect) => ({ poison:p.poisoned, leech_seed:p.leechSeed,
+    confuse:p.confuseTurns > 0, bind:p.bindTurns > 0 }[effect] ?? p.status === effect);
+  for (const [a, b, coexist] of pairs) for (const [first, second] of [[a,b], [b,a]]) {
+    const f = fixture('pet_jydm', []);
+    assert.equal(f.ctx.applyStatus(f.p, first), true);
+    assert.equal(f.ctx.applyStatus(f.p, second), true);
+    assert.equal(present(f.p, second), true, second);
+    assert.equal(present(f.p, first), coexist, first + ' → ' + second);
+  }
+});
+
+test('跨组掉血与控制独立回溯并在换宠面板复用的异常条显示', () => {
+  const f = fixture('pet_jydm', []);
+  assert.equal(f.ctx.applyStatus(f.p, 'fear', { turns:2 }), true);
+  assert.equal(f.ctx.applyStatus(f.p, 'fear', { turns:6 }), true);
+  assert.equal(f.p.statusTurns, 2);
+  assert.equal(f.ctx.applyStatus(f.p, 'poison'), true);
+  f.ctx.saveSnapshot();
+  f.ctx.cleanseAbnormalStatuses(f.p);
+  assert.equal(f.p.poisoned, false);
+  f.ctx.restoreSnapshot(3);
+  assert.match(f.e.sandbox.renderAbnormalBadges(f.p), /恐惧 2回合.*中毒/);
+  const hp = f.p.hp;
+  f.e.sandbox.applyEndOfTurnEffects(f.p);
+  assert.equal(f.p.hp, hp - Math.floor(f.p.maxHp / 8));
+  assert.equal(f.p.statusTurns, 2);
+});
+
+test('被防控挡住的新异常不会清除同组已有异常', () => {
+  const f = fixture('pet_jydm', []);
+  assert.equal(f.ctx.applyStatus(f.p, 'poison'), true);
+  f.ctx.grantStatusImmunity(f.p, '测试免疫寄生', 2, { statuses: ['leech_seed'] });
+  assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), false);
+  assert.equal(f.p.poisoned, true);
+});
+
 if (failed) { console.error(`${failed} regression(s) failed`); process.exitCode=1; }

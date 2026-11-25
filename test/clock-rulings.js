@@ -122,3 +122,25 @@ test('重衍携带减输出实时随PP切换，也作用于固伤', () => {
   ctx.doFixedDamage(foe, 100, owner);
   assert.equal(hp - foe.hp, 100);
 });
+
+test('逆流付掉末点PP后即使回溯恢复，也能由下一招普通威力技能终结', () => {
+  const { api, sandbox, owner, foe, state, ctx } = fixture(['sk_nlex', 'sk_mszw']);
+  foe.hp = foe.maxHp = 100000;
+  foe.skills[0].immuneToPP = true;
+  owner.skills[1].name = '普通威力招';
+  owner.skills[1].id = 'ordinary-power';
+  owner.skills[1].onUse = undefined;
+  ctx.saveSnapshot();
+  owner.skills[0].pp = 1;
+  state.turnCount = 1;
+  state.pendingFirstMove = 'player';
+  api.executeSkillTurn(owner, foe, owner.skills[0], 'player');
+  assert.equal(owner.skills[0].pp, 2, '回溯仍恢复历史PP');
+  assert.equal(owner.element, null);
+  assert.equal(owner.pendingNilex.cnt, 1);
+  const before = foe.hp;
+  api.executeSkillTurn(owner, foe, owner.skills[1], 'player');
+  assert.ok(before - foe.hp >= 9999);
+  assert.ok(foe.skills.every(skill => skill.pp === 0), '终结强制清空免删招');
+  assert.equal(owner.pendingNilex, null);
+});

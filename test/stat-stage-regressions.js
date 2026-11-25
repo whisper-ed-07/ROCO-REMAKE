@@ -60,12 +60,13 @@ test('七项能力等级均限制在正负六级，锁定和白名单阻止修�
     assert.equal(player[key], -6, label);
   }
 
-  player.statLocked = true;
+  ctx.resetAndLockStages(player, 6);
+  api.gameState.turnCount = 6;
   changeStages(ctx, player, stats.map(() => 1));
-  assert.deepEqual(stages(player), stats.map(() => -6));
-  player.statLocked = false;
-  changeStages(ctx, player, stats.map(() => 6));
   assert.deepEqual(stages(player), neutral);
+  api.gameState.turnCount = 7;
+  changeStages(ctx, player, stats.map(() => 1));
+  assert.deepEqual(stages(player), stats.map(() => 1));
 
   for (const invalid of ['hp', 'toString', 'constructor']) {
     const key = invalid + 'Stage';
@@ -114,7 +115,7 @@ test('清念沉脉强制清除双方七项能力等级，治疗量计入命中�
   const { api, player, opponent, ctx } = fixture();
   changeStages(ctx, player, [1, -1, 1, -1, 1, -2, 3]);
   changeStages(ctx, opponent, [-1, 1, -1, 1, -1, 4, -5]);
-  player.statLocked = opponent.statLocked = true;
+  player.statLockedThrough = opponent.statLockedThrough = 5;
   player.bloodline = null; // 隔离清念翼系的额外治疗，只测沉脉。
   opponent.maxHp = 5000;
   opponent.hp = 1000;

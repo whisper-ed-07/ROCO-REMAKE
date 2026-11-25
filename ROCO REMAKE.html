@@ -1411,8 +1411,7 @@ const DEFAULT_SKILLS = [
         var self = u.skills.find(function(s){ return s.id === "sk_jydm_5"; });
         if (self) {
           self.pp = 0;
-          self.noPPRecover = true;
-          ctx.addTurnEffect(u, "炽光禁回", 12, null, function(){ self.noPPRecover = false; });
+          self.noPPRecoverThrough = gameState.turnCount + 11;
         }
         // R14：清空对方同格技能（不按技能 id 匹配）
         var mySlot = u.skills.findIndex(function(s){ return s.id === "sk_jydm_5"; });
@@ -1421,7 +1420,6 @@ const DEFAULT_SKILLS = [
       }
       // 4回合召唤锁定瞬华环境
       ctx.setField("shunhua", 4, { locked: true });
-      ctx.msg("召唤锁定瞬华环境4回合！光系+15%速度、先手出招回100精力、被抵抗追加30%固伤");
     } },
 { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
     passiveLabel: "携带被动",
@@ -1466,6 +1464,8 @@ const DEFAULT_SKILLS = [
       // 威力伤害
       var r = ctx.doDamage(user, target, 135, "physical", "water");
       ctx.msg("造成 " + r.damage + " 点伤害！");
+      const nlexSkill = user.skills.find(skill => skill.id === "sk_nlex");
+      const spentLastPP = nlexSkill?.pp === 0 || (ctx.sourceSkill === nlexSkill && ctx.skillPPAfter === 0);
       // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
       var hpDiff = ctx.restoreSnapshot(3);
       if (hpDiff > 0) {
@@ -1484,8 +1484,7 @@ const DEFAULT_SKILLS = [
       if (!user.skillUseCounts) user.skillUseCounts = {};
       var nlexCount = ctx.sourceSkill?.useCount ?? ((user.skillUseCounts["sk_nlex"] || 0) + 1);
       // 当PP=0: 失去属系
-      var nlexSkill = user.skills.find(function(s) { return s.id === "sk_nlex"; });
-      if (nlexSkill && nlexSkill.pp === 0) {
+      if (spentLastPP || nlexSkill?.pp === 0) {
         if (!user.elementLost) {
           user.elementOriginal = user.element;
           user.element = null;
@@ -1499,11 +1498,8 @@ const DEFAULT_SKILLS = [
       }
       // 若创世之能PP=0: 清除并锁定强化6回合
       if (cszn && cszn.pp === 0) {
-        STAGE_FIELDS.forEach(function(s) { user[s]=0; target[s]=0; });
-        user.statLocked = true;
-        target.statLocked = true;
-        ctx.addTurnEffect(user, "锁定强化", 6, null, function(p) { p.statLocked = false; });
-        ctx.addTurnEffect(target, "锁定强化", 6, null, function(p) { p.statLocked = false; });
+        ctx.resetAndLockStages(user, 6);
+        ctx.resetAndLockStages(target, 6);
         ctx.msg("创世之能PP=0：清除并锁定双方强化6回合！");
       }
     }
@@ -1888,7 +1884,8 @@ const DEFAULT_SKILLS = [
       ctx.msg("回复150精力，6回合内免疫异常状态！");
       if (isFirst) {
         ctx.doFixedDamage(t, Math.floor(dealt * 0.3), u);
-        [u, t].forEach(function(p){ STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
+        ctx.transformStages(u, () => 0);
+        ctx.transformStages(t, () => 0);
         ctx.msg("先手：追加" + Math.floor(dealt * 0.3) + "固伤并强制重置双方强化！");
       } else {
         var healAmt = Math.floor(power * 1.1);
@@ -1929,7 +1926,7 @@ const DEFAULT_SKILLS = [
       u.immuneBackhandEffects = true;
       const slot = getRoundSkillSlot(t);
       if (slot >= 0) ctx.deletePP(t, slot, 1);
-      t.qlSealMark = true;
+      ctx.markQinglingSeal(t);
       ctx.msg("首回合：免疫对方后手，给予封灵印记（换下失效）！");
       var stage = 0;
       ctx.addTurnEffect(u, "封灵千噬连击", 2, function(p) {
@@ -1999,7 +1996,8 @@ const DEFAULT_SKILLS = [
       var wjPower = getWannenPower(u);
       var ok = ctx.setWeather("mist", 12);
       if (!ok) {
-        [u, t].forEach(function(p){ STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
+        ctx.transformStages(u, () => 0);
+        ctx.transformStages(t, () => 0);
         ctx.msg("环境在场，迷雾无法降临！强制重置双方强化！");
       } else {
         var fd = Math.min(349, Math.floor(wjPower - 20));
@@ -2009,12 +2007,13 @@ const DEFAULT_SKILLS = [
       var r = ctx.doDamage(u, t, 20, "physical", "ghost");
       ctx.msg("造成 " + r.damage + " 点伤害！");
       var ml = bd.microLing || 0;
-      if (ml > 300) {
+      const healTarget = ml > 300 ? skillEffectTarget(ctx, t, "heal") : null;
+      if (healTarget) {
         gameState.wanguHeals.push({
           castTurn: gameState.turnCount,
           owner: u,
           opponent: t,
-          targetSide: gameState.playerActive === u ? "aiActive" : "playerActive"
+          targetSide: gameState.playerActive === healTarget ? "playerActive" : "aiActive"
         });
       }
     }
@@ -2403,9 +2402,11 @@ class BattlePet {
       });
     }
     this.status = null; this.statusTurns = 0;
+    this.poisoned = false;
     this.leechSeed = false; this.confuseTurns = 0; this.bindTurns = 0;
     // V2 fields
     this.shield = 0; this.marks = {}; this.turnEffects = [];
+    this.qlSealMark = false;
     this.bloodline = petData.bloodline || null; this.bloodlineData = null;
     this.healMod = 1.0; this.dmgMod = 1.0; this.spdMod = 1.0;
     // V3 NEW fields
@@ -2431,7 +2432,7 @@ class BattlePet {
     this.outputReduction = 0;          // 输出降低%
     this.healInvertPct = 0;            // 倒置治疗比例（0-1）
     this.healInvertTurns = 0;         // 倒置治疗剩余回合
-    this.statLocked = false;           // 强化锁定
+    this.statLockedThrough = -1;      // 强化锁定至指定回合
     this.critRateBonus = 0;            // 暴击率加成（0-1）
     // === 极影迪莫明念引擎字段 ===
     this.lastDealtDamage = 0;         // 上回合造成伤害总值
@@ -2601,19 +2602,17 @@ function replayNegativeEffects(owner, opponent, ctx) {
       for (const replay of record.replays) replay(ctx, opponent);
       for (const [effect, version] of record.applied) {
         if (owner.abnormalVersions?.get(effect) !== version) continue;
-        if (effect === "confuse") owner.confuseTurns = 0;
-        else if (effect === "bind") owner.bindTurns = 0;
-        else if (effect === "leech_seed") owner.leechSeed = false;
-        else if (owner.status === effect) { owner.status = null; owner.statusTurns = 0; }
+        clearAbnormalStatus(owner, effect);
       }
       delete owner.lastNegativeSkillEffects;
       return;
     }
     // 独立异常和来自场地的负面状态也能退回。
-    if (owner.status) ctx.applyStatus(opponent, owner.status, { turns: owner.statusTurns, replace: true });
+    if (owner.status) ctx.applyStatus(opponent, owner.status, { turns: owner.statusTurns });
     if (owner.confuseTurns > 0) ctx.applyStatus(opponent, "confuse", { turns: owner.confuseTurns });
     if (owner.bindTurns > 0) ctx.applyStatus(opponent, "bind", { turns: owner.bindTurns });
     if (owner.leechSeed) ctx.applyStatus(opponent, "leech_seed");
+    if (owner.poisoned) ctx.applyStatus(opponent, "poison");
     cleanseAbnormalStatuses(owner);
   } finally {
     ctx.replayingNegativeEffects = false;
@@ -2691,7 +2690,7 @@ function createBattleContext() {
       target = skillEffectTarget(this, target, "damage");
       if (!target) return 0;
       source ||= this.sourceSkillOwner;
-      amount = Math.floor(amount * (source && source !== target ? getOutputMultiplier(source) : 1));
+      amount = Math.floor(amount * (!options.scaled && source && source !== target ? getOutputMultiplier(source) : 1));
       if (amount <= 0) return 0;
       if (source && source !== target) source.outputThisTurn = (source.outputThisTurn || 0) + amount;
       // Bloodline: onBeforeDamage for fixed
@@ -2741,10 +2740,22 @@ function createBattleContext() {
       const target = skillEffectTarget(this, pet, "switch");
       return target ? forceSwitchPet(target) : undefined;
     },
-    transformStages: function(pet, transform) {
+    markQinglingSeal: function(pet) {
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.markQinglingSeal(target));
+      const target = skillEffectTarget(this, pet, "turn");
+      if (target) target.qlSealMark = true;
+    },
+    resetAndLockStages: function(pet, turns) {
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.resetAndLockStages(target, turns));
+      const target = skillEffectTarget(this, pet, "stat");
+      if (!target) return;
+      for (const key of STAGE_FIELDS) target[key] = 0;
+      target.statLockedThrough = gameState.turnCount + turns - 1;
+    },
+    transformStages: function(pet, transform, alreadyChanged) {
       recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.transformStages(target, transform));
       const target = skillEffectTarget(this, pet, "stat");
-      if (target) for (const key of STAGE_FIELDS) target[key] = transform(target[key]);
+      if (target && target !== alreadyChanged) for (const key of STAGE_FIELDS) target[key] = transform(target[key]);
     },
     halveRecovery: function(pet, turns) {
       recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.halveRecovery(target, turns));
@@ -2755,7 +2766,7 @@ function createBattleContext() {
       if (stages < 0) recordAttemptedNegativeEffect(this, target, (ctx, target) => ctx.modifyStat(target, stat, stages));
       target = skillEffectTarget(this, target, "stat");
       if (!target) return;
-      if (!Object.hasOwn(STAGE_LABELS, stat) || target.statLocked) return;
+      if (!Object.hasOwn(STAGE_LABELS, stat) || target.statLockedThrough >= gameState.turnCount) return;
       if (stages < 0 && hasStatDropImmunity(target, stat)) return;
       var key = stat + "Stage";
       if (target[key] !== undefined) {
@@ -2806,7 +2817,8 @@ function createBattleContext() {
             pp: pet.skills.map(function(s){ return s.pp; }),
             stages: STAGE_FIELDS.map(function(key) { return pet[key]; }),
             status: pet.status, statusTurns: pet.statusTurns,
-            confuseTurns: pet.confuseTurns, bindTurns: pet.bindTurns, leechSeed: pet.leechSeed, deepSleepToken: pet.deepSleepToken
+            confuseTurns: pet.confuseTurns, bindTurns: pet.bindTurns, leechSeed: pet.leechSeed,
+            poisoned: pet.poisoned, deepSleepToken: pet.deepSleepToken, abnormalVersions: new Map(pet.abnormalVersions)
           };
         });
       };
@@ -2836,7 +2848,9 @@ function createBattleContext() {
           pet.skills.forEach(function(sk, i){ if (s.pp[i] !== undefined) sk.pp = s.pp[i]; });
           STAGE_FIELDS.forEach(function(k, i){ if (s.stages[i] !== undefined) pet[k] = s.stages[i]; });
           pet.status = s.status; pet.statusTurns = s.statusTurns;
-          pet.confuseTurns = s.confuseTurns || 0; pet.bindTurns = s.bindTurns || 0; pet.leechSeed = !!s.leechSeed; pet.deepSleepToken = s.deepSleepToken;
+          pet.confuseTurns = s.confuseTurns || 0; pet.bindTurns = s.bindTurns || 0;
+          pet.leechSeed = !!s.leechSeed; pet.poisoned = !!s.poisoned; pet.deepSleepToken = s.deepSleepToken;
+          pet.abnormalVersions = new Map(s.abnormalVersions);
         });
       });
       return Math.abs(after - before);
@@ -2926,11 +2940,12 @@ function gainPP(pet, skill, amount, sourceSkillId) {
   if (!skill || amount <= 0) return 0;
   if (isPPRecoveryBlocked(pet)) return 0;
   const allowed = skill.ppRecoverySource;
-  if (skill.noPPRecover || (allowed && ![allowed].flat().includes(sourceSkillId))) return 0;
+  if (skill.noPPRecover || skill.noPPRecoverThrough >= gameState.turnCount || (allowed && ![allowed].flat().includes(sourceSkillId))) return 0;
   if ((skill.id === "sk_qy_2" && pet?.bloodlineData?.qingfengSavedPP !== undefined) ||
       (skill.id === "sk_qy_3" && pet?.bloodlineData?.qy3SavedPP !== undefined)) return 0;
   var before = skill.pp;
-  const recovered = pet?.dimoFrostRecoveryThrough >= gameState.turnCount ? Math.ceil(amount / 2) : amount;
+  const requested = amount === Infinity ? skill.maxPp - before : amount;
+  const recovered = pet?.dimoFrostRecoveryThrough >= gameState.turnCount ? Math.ceil(requested / 2) : requested;
   skill.pp = Math.min(skill.maxPp, skill.pp + recovered);
   return skill.pp - before;
 }
@@ -3042,7 +3057,7 @@ function dimoAttack(u, t, ctx, dodgeResult) {
   if (!t || t.isFainted() || u.isFainted()) return;
   if (dodgeResult === false) {
     ctx.transformStages(u, value => -value);
-    ctx.transformStages(t, value => -value);
+    ctx.transformStages(t, value => -value, u);
     ctx.deletePP(t, -1, 2);
   }
   const damage = ctx.doDamage(u, t, 90, "physical", "fighting", dodgeResult ? { atkStageOverride: 2 } : undefined);
@@ -3621,6 +3636,7 @@ function tickStatusImmunities(pet) {
 
 function clearTurnEffects(pet) {
   pet.turnEffects = [];
+  pet.statLockedThrough = -1;
   if (pet.bloodlineData?.qingnianChannel) delete pet.bloodlineData.qingnianChannel;
   pet.powerDamageImmuneThroughTurn = -1;
   pet.qinglingInvertNext = false;
@@ -3643,6 +3659,15 @@ function cleanseAbnormalStatuses(pet) {
   pet.confuseTurns = 0;
   pet.bindTurns = 0;
   pet.leechSeed = false;
+  pet.poisoned = false;
+}
+
+function clearAbnormalStatus(pet, effect) {
+  if (effect === "confuse") pet.confuseTurns = 0;
+  else if (effect === "bind") pet.bindTurns = 0;
+  else if (effect === "leech_seed") pet.leechSeed = false;
+  else if (effect === "poison") pet.poisoned = false;
+  else if (pet.status === effect) { pet.status = null; pet.statusTurns = 0; }
 }
 
 function wakeFromPowerHit(pet) {
@@ -3678,25 +3703,29 @@ function applyEffect(pet, effect, options = {}) {
     addMessage(pet.name + "免疫了" + STATUS_LABELS[effect] + "！");
     return false;
   }
-  const independent = effect === "confuse" || effect === "bind";
-  // 已有同种主异常时保留原状态与时长，也保留技能原先的成功分支。
-  if (pet.status && !independent && !options.replace) return pet.status === effect;
+  // 页游互斥组：烧伤与控制同组，寄生与中毒同组，束缚独立。
+  if (pet.status === effect || (effect === "confuse" && pet.confuseTurns > 0) ||
+      (effect === "bind" && pet.bindTurns > 0) || (effect === "leech_seed" && pet.leechSeed) ||
+      (effect === "poison" && pet.poisoned)) return true;
   const turns = options.turns ?? (
     effect === "sleep" || effect === "deep_sleep" ? 1 + Math.floor(Math.random() * 6) :
     effect === "fear" ? 1 + Math.floor(Math.random() * 2) :
     effect === "confuse" ? 2 + Math.floor(Math.random() * 3) :
     effect === "bind" ? 2 + Math.floor(Math.random() * 4) : 0
   );
-  if (effect === "confuse") pet.confuseTurns = turns;
-  else if (effect === "bind") pet.bindTurns = turns;
-  else if (effect === "leech_seed") pet.leechSeed = true;
-  else {
-    pet.status = effect;
-    pet.statusTurns = turns;
-    if (effect === "deep_sleep") pet.deepSleepToken = (pet.deepSleepToken || 0) + 1;
+  const version = (pet.abnormalSequence || 0) + 1;
+  pet.abnormalSequence = version;
+  if (effect === "bind") pet.bindTurns = turns;
+  else if (effect === "leech_seed" || effect === "poison") {
+    pet.leechSeed = effect === "leech_seed";
+    pet.poisoned = effect === "poison";
+  } else {
+    pet.status = effect === "confuse" ? null : effect;
+    pet.statusTurns = effect === "confuse" ? 0 : turns;
+    pet.confuseTurns = effect === "confuse" ? turns : 0;
+    if (effect === "deep_sleep") pet.deepSleepToken = version;
   }
-  const versions = pet.abnormalVersions ||= new Map();
-  versions.set(effect, (versions.get(effect) || 0) + 1);
+  (pet.abnormalVersions ||= new Map()).set(effect, version);
   addMessage(options.message || pet.name + " " + STATUS_MESSAGES[effect] + "！");
   return true;
 }
@@ -4277,7 +4306,7 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
   var resistDmg = (ctx && ctx._lastDmg !== undefined) ? ctx._lastDmg : lastDmgVal;
   if (gameState.field === "shunhua" && skill.category !== "status" && resistEff < 1 && resistEff > 0 && resistDmg > 0) {
     var reflect = Math.floor(resistDmg * 0.3);
-    ctx.doFixedDamage(target, reflect, user);
+    ctx.doFixedDamage(target, reflect, user, { scaled: true });
     ctx.msg("【瞬华环境】伤害被抵抗，追加" + reflect + "固伤！");
   }
   // 血脉技能后钩子（清念翼系触发/PP回复/切换期）
@@ -4291,16 +4320,16 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
 
 function applyLegacyStatusSkill(user, target, skill, ctx = createBattleContext()) {
   var name = skill.name;
-  if (name === "祈雨") { user.spatkStage = Math.min(6, user.spatkStage + 2); addMessage(user.name + " 的魔攻大幅提升！"); }
+  if (name === "祈雨") ctx.modifyStat(user, "spatk", 2);
   else if (name === "水流环") { user.heal(Math.floor(user.maxHp / 4)); addMessage(user.name + " 回复了HP！"); }
   else if (name === "光合作用") { user.heal(Math.floor(user.maxHp / 2)); addMessage(user.name + " 回复了大量HP！"); }
-  else if (name === "龙之舞") { user.atkStage = Math.min(6, user.atkStage + 1); user.spdStage = Math.min(6, user.spdStage + 1); addMessage(user.name + " 的物攻和速度提升了！"); }
-  else if (name === "极光幕") { user.defStage = Math.min(6, user.defStage + 1); user.spdefStage = Math.min(6, user.spdefStage + 1); addMessage(user.name + " 的物防和魔防提升了！"); }
+  else if (name === "龙之舞") { ctx.modifyStat(user, "atk", 1); ctx.modifyStat(user, "spd", 1); }
+  else if (name === "极光幕") { ctx.modifyStat(user, "def", 1); ctx.modifyStat(user, "spdef", 1); }
   else if (name === "烟雾") {
-    if (!hasStatDropImmunity(target, "accuracy")) { target.accuracyStage = Math.max(-6, target.accuracyStage - 1); addMessage(target.name + " 的命中降低了！"); }
+    ctx.modifyStat(target, "accuracy", -1);
   }
   else if (name === "冰冻之风") {
-    if (!hasStatDropImmunity(target, "spd")) { target.spdStage = Math.max(-6, target.spdStage - 1); addMessage(target.name + " 的速度降低了！"); }
+    ctx.modifyStat(target, "spd", -1);
     var res = ctx.doDamage(user, target, 55, "special", skill.element); addMessage("造成 " + res.damage + " 点伤害！"); }
   else if (name === "寄生种子") { if (Math.random() * 100 < 90) ctx.applyStatus(target, "leech_seed"); }
   else if (skill.effect && skill.effectChance > 0 && Math.random() * 100 < skill.effectChance) ctx.applyStatus(target, skill.effect);
@@ -4309,7 +4338,12 @@ function applyLegacyStatusSkill(user, target, skill, ctx = createBattleContext()
 // ---------- SWITCH ----------
 function applyEndOfTurnEffects(pet) {
   if (!pet || pet.isFainted()) return;
-  if (pet.status === "burn" || pet.status === "poison") { var dmg = pet.status === "burn" ? Math.floor(pet.maxHp / 16) : Math.floor(pet.maxHp / 8); createBattleContext().doFixedDamage(pet, dmg); addMessage(pet.name + " 因" + (pet.status === "burn" ? "烧伤" : "中毒") + "受到 " + dmg + " 点伤害！"); }
+  for (const [affected, status, divisor] of [[pet.status === "burn", "烧伤", 16], [pet.poisoned, "中毒", 8]]) {
+    if (!affected || pet.isFainted()) continue;
+    const damage = Math.floor(pet.maxHp / divisor);
+    createBattleContext().doFixedDamage(pet, damage);
+    addMessage(pet.name + " 因" + status + "受到 " + damage + " 点伤害！");
+  }
   if (pet.bindTurns > 0) { pet.bindTurns--; if (pet.bindTurns <= 0) addMessage(pet.name + " 解除了束缚！"); }
   if (pet.leechSeed) { var drain = Math.floor(pet.maxHp / 8); pet.takeDamage(drain); var opp = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive; if (opp && !opp.isFainted()) opp.heal(drain); addMessage(pet.name + " 被寄生种子吸取了 " + drain + " HP！"); }
 }
@@ -4730,18 +4764,24 @@ function renderStages(pet) {
   return h + "</div>";
 }
 
-function renderStatusBadges(pet) {
+function renderAbnormalBadges(pet) {
   var h = "";
   if (pet.status) {
     var label = STATUS_LABELS[pet.status] || pet.status;
     // 有时限状态：显示剩余回合
     if (["sleep", "deep_sleep", "fear"].includes(pet.status) && pet.statusTurns > 0) label += " " + pet.statusTurns + "回合";
     if (pet.status === "freeze") label += "（待解冻）";
-    h += "<span class=status-badge " + pet.status + ">" + label + "</span>";
+    h += '<span class="status-badge ' + pet.status + '">' + label + "</span>";
   }
-  if (pet.confuseTurns > 0) h += "<span class=status-badge confuse>混乱 " + pet.confuseTurns + "回合</span>";
-  if (pet.bindTurns > 0) h += "<span class=status-badge bind>束缚 " + pet.bindTurns + "回合</span>";
-  if (pet.leechSeed) h += "<span class=status-badge poison>寄生</span>";
+  if (pet.confuseTurns > 0) h += '<span class="status-badge confuse">混乱 ' + pet.confuseTurns + "回合</span>";
+  if (pet.bindTurns > 0) h += '<span class="status-badge bind">束缚 ' + pet.bindTurns + "回合</span>";
+  if (pet.leechSeed) h += '<span class="status-badge poison">寄生</span>';
+  if (pet.poisoned) h += '<span class="status-badge poison">中毒</span>';
+  return h;
+}
+
+function renderStatusBadges(pet) {
+  let h = renderAbnormalBadges(pet);
   const immunityBadges = new Map();
   for (const { source, statuses, turnsLeft } of activeStatusImmunities(pet)) {
     const key = statuses.slice().sort().join(",");
@@ -5216,7 +5256,7 @@ function renderBattleActions() { if (!canSubmitPlayerAction()) return; var conta
   skillList.scrollLeft = battleVisual.skillScroll || 0;
 }
 
-function showSwitchPanel() { if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return; var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = pet.status ? '<span class="status-badge ' + pet.status + '">' + ({burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"}[pet.status] || pet.status) + '</span>' : ""; btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
+function showSwitchPanel() { if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return; var panel = document.querySelector("#switch-panel"), list = document.querySelector("#switch-list"); if (!panel || !list) return; gameState.waitingForSwitch = true; stopTurnTimer(); if (panel.closeLayer) panel.closeLayer(true); prepareLayer(panel, function() { panel.classList.remove("show", "closing"); }); document.querySelector("#switch-cancel").disabled = false; panel.classList.add("show"); list.innerHTML = ""; gameState.playerParty.forEach(function(pet, idx) { if (pet === gameState.playerActive) return; var btn = document.createElement("button"); btn.className = "switch-pet-btn" + (pet.isFainted() ? " fainted" : ""); btn.disabled = pet.isFainted(); var hpPct = Math.max(0, (pet.hp / pet.maxHp) * 100); var hpCls = hpPct < 25 ? " critical" : hpPct < 50 ? " low" : ""; var stBadges = renderAbnormalBadges(pet); btn.innerHTML = '<span class="switch-emoji">' + pet.emoji + '</span><div class="switch-pet-info"><span style="font-weight:700">' + pet.name + ' <span style="font-size: 12px;color:var(--text2)">Lv.' + pet.level + '</span></span><div class="switch-pet-hpwrap"><div class="switch-pet-hpbar"><div class="switch-pet-hpfill' + hpCls + '" style="width:' + hpPct + '%"></div></div><span style="font-size: 12px;color:var(--text2)">' + pet.hp + '/' + pet.maxHp + '</span></div><div class="switch-pet-status">' + stBadges + '</div></div>'; btn.addEventListener("click", function() { playerSwitch(idx); }); list.appendChild(btn); }); }
 
 // ---------- SKILL DETAIL (完整机制展示) ----------
 function renderSkillPassiveTag(skill) {

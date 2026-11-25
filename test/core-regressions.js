@@ -34,7 +34,7 @@ test('E02 双方睡一回合后醒来并继续出招', () => {
 });
 test('E03 跨回合致死保护复位', () => {
   const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'attacker',skill('first-lethal',(u,t,c)=>{if(e.api.gameState.turnCount===1)c.doFixedDamage(t,10,u);}),200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a);
-  turn(e); assert.strictEqual(p.hp,1); p.status='poison'; turn(e); assert.ok(p.hp>0); assert.strictEqual(e.api.gameState.battleOver,false);
+  turn(e); assert.strictEqual(p.hp,1); p.poisoned=true; turn(e); assert.ok(p.hp>0); assert.strictEqual(e.api.gameState.battleOver,false);
 });
 test('先手施加睡眠使后手本回合不能行动', () => {
   const e=env(); let actions=0; const p=pet(e,'p',skill('sleep',(u,t,c)=>c.applyStatus(t,'sleep'),15)); const a=pet(e,'a',skill('queued',()=>actions++)); setup(e,p,a); turn(e); assert.strictEqual(actions,0); assert.strictEqual(a.skills[0].pp,4);
