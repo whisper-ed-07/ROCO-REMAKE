@@ -123,16 +123,31 @@ test('清羽 PP 封存和跨形态恢复单独记录，普通模式沿用原有�
   assert.equal(ppLog(), prior);
 });
 
-test('血脉回 PP 记录触发技能，沉脉分别记录两种跳过原因', () => {
-  const { api, engine, p, a, state, ppLog } = fixture(['sk_ql_4'], ['sk_qy_5']);
-  const taixu = p.skills[0];
-  taixu.pp = 5;
+test('清念灵体②只恢复威力技能的 PP，日志记录触发技能', () => {
+  const { api, p, a, state, ppLog } = fixture(['sk_ql_4', 'sk_ql_2', 'sk_ql_3', 'sk_ql_5'], []);
+  const [taixu, protectedMove, specialMove, physicalMove] = p.skills;
+  taixu.pp = 6;
+  protectedMove.pp = specialMove.pp = physicalMove.pp = 3;
   state.turnCount = 1;
   api.executeSkillTurn(p, a, taixu, 'player');
-  assert.equal(taixu.pp, 6);
-  assert.match(ppLog(), /太虚灵威」 5 → 4[^\n]*选招扣费/);
-  assert.match(ppLog(), /太虚灵威」 4 → 6[^\n]*清念灵体·变化招（太虚灵威）/);
+  assert.deepEqual([taixu.pp, protectedMove.pp, specialMove.pp, physicalMove.pp], [5, 3, 3, 3]);
+  assert.equal(a.healInvertTurns, 0);
 
+  p.hp = 250;
+  state.turnCount++;
+  api.executeSkillTurn(p, a, taixu, 'player');
+  assert.deepEqual([taixu.pp, protectedMove.pp, specialMove.pp, physicalMove.pp], [4, 3, 5, 5]);
+  assert.equal(p.hp, 450);
+  assert.equal(a.healInvertTurns, 2);
+  assert.match(ppLog(), /太虚灵威」 5 → 4[^\n]*选招扣费/);
+  assert.doesNotMatch(ppLog(), /太虚灵威」[^\n]*清念灵体·变化招/);
+  assert.match(ppLog(), /封灵千噬」 3 → 5[^\n]*清念灵体·变化招（太虚灵威）/);
+  assert.match(ppLog(), /万古遗恨」 3 → 5[^\n]*清念灵体·变化招（太虚灵威）/);
+});
+
+test('沉脉分别记录两种血脉回复的跳过原因', () => {
+  const { api, engine, p, a, state, ppLog } = fixture([], ['sk_qy_5']);
+  state.turnCount = 1;
   engine.enterQingyuMode(a, '清念');
   a.bloodlineData.qfzn = 1;
   api.executeSkillTurn(a, p, a.skills[0], 'ai');

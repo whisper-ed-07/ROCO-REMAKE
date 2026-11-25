@@ -2086,9 +2086,13 @@ const DEFAULT_PETS = [
           ctx.msg("【清念灵体】使用变化技：回复200精力！");
           if (skill.pp <= 4) {
             const source = "清念灵体·变化招（" + skill.name + "）";
-            pet.skills.forEach(function(s){ gainPP(pet, s, 2, undefined, source); });
+            for (const move of pet.skills) {
+              if (move.category === "physical" || move.category === "special") {
+                gainPP(pet, move, 2, undefined, source);
+              }
+            }
             ctx.invertHealing(target, 1.0, 2);
-            ctx.msg("【清念灵体】技能PP≤4：全体+2PP，倒置对方治疗2回合！");
+            ctx.msg("【清念灵体】技能PP≤4：恢复威力技能2PP，倒置对方治疗2回合！");
           }
         } else {
           var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === pet ? "player" : "ai"));
@@ -4734,7 +4738,7 @@ const BLOODLINE_ORIGINALS = {
 ⑶若使用技能后手
 倒置对方下次治疗（多段治疗取最高），并且删除对方先手使用技能3PP
 ②.每次使用变化技能后
-额外回复200点精力值.若使用技能PP≤4，则回复全体技能2PP，额外倒置对方治疗2回合`,
+额外回复200点精力值.若使用技能PP≤4，则恢复威力技能2PP，额外倒置对方治疗2回合`,
   pet_jydm: `（1）：携带技能分别使用1次后（若极尽降华PP为空，则分别使用其余技能1次即可触发），标记对方4回合并将自身技能使用次数清零。若标记回合内再次触发，则重新标记且标记回合增加1回合（无上限，每次叠加回合后自身获得一层光明之印）（标记光明之印数量为m）
 （2）：标记回合内，获得（15m+50）点精力上限增幅与15%治疗与输出加成，增加5%速度能力值，并且免疫控制效果以及魔攻与速度类负面强化，每回合恢复全体技能1PP,每次造成伤害都会追加（40+15*双方所有强化数）点固定伤害
 （3）“降华”回合内，携带的技能使用1次即可触发“明念”，（2）的精力上限增幅额外增加100点.处于降华的第1回合时，自身免疫一切伤害与效果（正/负面效果）.期间场上锁定为无天气/环境效果，对强行召唤3次的敌方宠物造成999点固伤`,
