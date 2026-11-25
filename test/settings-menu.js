@@ -312,6 +312,7 @@ async function test(browserConnection, origin) {
     click('.skill-btn');
     stopTurnTimer();
     eq(gameState.turnCount, 1, '正常选招并结算对手');
+    eq(gameState.messages.some(({ text }) => /^【PP】我方场上.*选招扣费/.test(text)), true, '实战逐格 PP 日志已记入');
     gameState.logFilter = 'system';
     gameState.logCollapsed[1] = true;
     for (let i = 0; i < 1205; i++) addMessage('回归记录 ' + i, i % 2 ? 'action' : 'system');

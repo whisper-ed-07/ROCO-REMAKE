@@ -1446,7 +1446,7 @@ const DEFAULT_SKILLS = [
       } else {
         var self = u.skills.find(function(s){ return s.id === "sk_jydm_5"; });
         if (self) {
-          self.pp = 0;
+          setSkillPP(u, self, 0, "清空自身 PP", "炽光若焰·烧伤失败");
           self.noPPRecoverThrough = gameState.turnCount + 11;
         }
         // R14：清空对方同格技能（不按技能 id 匹配）
@@ -1636,7 +1636,7 @@ const DEFAULT_SKILLS = [
       if (gameState.weather || gameState.field) {
         ctx.addTurnEffect(user, "覆体天气", 4, function(p) {
           ctx.doHeal(p, 120);
-          p.skills.forEach(function(s){ gainPP(p, s, 1); });
+          p.skills.forEach(function(s){ gainPP(p, s, 1, undefined, "覆体魂衣·场地回复"); });
           ctx.msg("【覆体魂衣】天气/环境回复120精力与全体1PP！");
         }, null);
         ctx.msg("场上存在天气/环境：防控回合内每回合回复120HP与全体1PP！");
@@ -1744,7 +1744,7 @@ const DEFAULT_SKILLS = [
       if (bd.mode === "残脉") {
         if (self) {
           bd.qingfengSavedPP = ctx.skillPPAfter ?? self.pp;
-          self.pp = 0;
+          setSkillPP(u, self, 0, "封存 PP", "轻风散魂·残脉", "记录 " + bd.qingfengSavedPP + " PP");
         }
         ctx.msg("残脉：封存轻风散魂PP，进入清念时恢复。");
         return;
@@ -1813,7 +1813,13 @@ const DEFAULT_SKILLS = [
           ctx.msg("沉睡失败：删除对方上次技能3PP与全体1PP！");
         }
       }
-      if (bd.mode === "清念") { var self = u.skills.find(function(s){ return s.id === "sk_qy_3"; }); if (self) { bd.qy3SavedPP = self.pp; self.pp = 0; } }
+      if (bd.mode === "清念") {
+        const self = u.skills.find(skill => skill.id === "sk_qy_3");
+        if (self) {
+          bd.qy3SavedPP = self.pp;
+          setSkillPP(u, self, 0, "封存 PP", "残念余梦·清念", "记录 " + bd.qy3SavedPP + " PP");
+        }
+      }
     } },
   { id: "sk_qy_4", ppRecoverySource: "sk_qy_1", name: "残风临霜", element: "ice", power: 0, pp: 4, maxPp: 4, accuracy: 100, category: "status", priority: 12, immuneToPP: true,
     passiveLabel: "血脉联动",
@@ -1855,10 +1861,10 @@ const DEFAULT_SKILLS = [
       ctx.doHeal(t, healAmt);
       ctx.msg("清除双方强化，对敌方治疗" + healAmt + "！");
       if (healAmt < 240) { var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; }); if (last) ctx.deletePP(t, t.skills.indexOf(last), 5); ctx.msg("治疗<240：额外删对方上次技能5PP！"); }
-      u.skills.forEach(function(s){ gainPP(u, s, 3); });
+      u.skills.forEach(function(s){ gainPP(u, s, 3, undefined, "清念沉脉·发动"); });
       var self = u.skills.find(function(s){ return s.id === "sk_qy_5"; });
       var cp = self ? self.pp : 0;
-      if (self) self.pp = 0;
+      if (self) setSkillPP(u, self, 0, "清空自身 PP", "清念沉脉·进入清念");
       // 玩家裁定：本次常规出招消耗 + 本技能清空消耗，不计其他技能 PP。
       cp += ctx.skillPPCost || 0;
       enterQingyuMode(u, "清念");
@@ -1980,7 +1986,7 @@ const DEFAULT_SKILLS = [
         } else {
           strike(p);
           ctx.doHeal(p, Math.floor((p.maxHp + (p.maxHpBonus || 0)) * 0.3));
-          p.skills.forEach(function(s){ gainPP(p, s, 1); });
+          p.skills.forEach(function(s){ gainPP(p, s, 1, undefined, "封灵千噬·末回合"); });
           ctx.msg("封灵千噬末回合：回复30%精力与全体技能1PP！");
           var txw = p.skills.find(function(s){ return s.id === "sk_ql_4"; });
           if (txw && txw.pp === txw.maxPp) {
@@ -1991,7 +1997,7 @@ const DEFAULT_SKILLS = [
               ctx.deletePP(opp2, opp2.skills.indexOf(victim), victim.pp);
               ctx.msg("太虚灵威联动：清空对方「" + victim.name + "」的PP！");
             }
-            txw.pp = 0;
+            setSkillPP(p, txw, 0, "联动清空 PP", "封灵千噬·末回合");
             ctx.msg("太虚灵威剩余PP已清空。");
           } else { ctx.msg("太虚灵威PP未满，联动未触发。"); }
         }
@@ -2078,14 +2084,14 @@ const DEFAULT_PETS = [
           ctx.doHeal(pet, 200);
           ctx.msg("【清念灵体】使用变化技：回复200精力！");
           if (skill.pp <= 4) {
-            pet.skills.forEach(function(s){ gainPP(pet, s, 2); });
+            pet.skills.forEach(function(s){ gainPP(pet, s, 2, undefined, "清念灵体·变化招"); });
             ctx.invertHealing(target, 1.0, 2);
             ctx.msg("【清念灵体】技能PP≤4：全体+2PP，倒置对方治疗2回合！");
           }
         } else {
           var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === pet ? "player" : "ai"));
           if (isFirst) {
-            ctx.deletePP(target, -1, 1);
+            ctx.deletePP(target, -1, 1, "清念灵体·威力招先手");
             var stages = 0;
             [pet, target].forEach(function(p){ STAGE_FIELDS.forEach(function(k){ stages += Math.abs(p[k] || 0); }); });
             var fd = 30 + stages * 20 + Math.floor(pet.maxHp * 0.08);
@@ -2095,7 +2101,7 @@ const DEFAULT_PETS = [
             const healTarget = skillEffectTarget(ctx, target, "heal");
             if (healTarget) healTarget.qinglingInvertNext = true;
             const slot = getRoundSkillSlot(target, true);
-            if (slot >= 0) { ctx.deletePP(target, slot, 3); ctx.msg("【清念灵体】威力技后手：倒置对方下个获得治疗回合的最高一段，删除对方先手技能3PP！"); }
+            if (slot >= 0) { ctx.deletePP(target, slot, 3, "清念灵体·威力招后手"); ctx.msg("【清念灵体】威力技后手：倒置对方下个获得治疗回合的最高一段，删除对方先手技能3PP！"); }
             else ctx.msg("【清念灵体】威力技后手：倒置对方下个获得治疗回合的最高一段！");
           }
         }
@@ -2122,7 +2128,7 @@ const DEFAULT_PETS = [
           return;
         }
         bd.markTurns = bd.markThrough - gameState.turnCount + 1;
-        for (const skill of pet.skills) gainPP(pet, skill, 1);
+        for (const skill of pet.skills) gainPP(pet, skill, 1, undefined, "明念·标记期间");
         ctx.msg("【明念】全体技能回复1PP，标记剩余" + (bd.markThrough - gameState.turnCount + 1) + "回合！");
       }
     }
@@ -2220,7 +2226,7 @@ const DEFAULT_PETS = [
           if (skill.pp < 8) {
             ctx.cleanseAbnormalStatuses(pet);
             STAGE_FIELDS.forEach(function(s){ if (pet[s] < 0) pet[s] = 0; });
-            pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1") gainPP(pet, s, 1); });
+            pet.skills.forEach(function(s){ if (s.id !== "sk_qy_1") gainPP(pet, s, 1, undefined, "清念·翼系招式"); });
             ctx.msg("【清念】净化自身，其他技能回复1PP！");
           }
           // (2) 3回合速度-25%
@@ -2255,12 +2261,12 @@ const DEFAULT_PETS = [
             ctx.msg("【冰系】净化自身，回复" + iceHeal + "精力" + (iceHeal < 300 ? "（间隔惩罚-30%）" : "") + "！");
           }
           // (2) 删除对方全体1PP；技能PP=1时额外删(3+双方强化数×2)PP并清除双方强化
-          ctx.deletePP(opp, -1, 1);
+          ctx.deletePP(opp, -1, 1, "残脉·冰系招式");
           if (skill.pp === 1) {
             var iceStages = 0;
             [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ iceStages += Math.abs(p[k]||0); }); });
             var extraPP = 3 + iceStages * 2;
-            ctx.deletePP(opp, -1, extraPP);
+            ctx.deletePP(opp, -1, extraPP, "残脉·冰系招式额外删除");
             [pet, opp].forEach(function(p){ if (!p) return; STAGE_FIELDS.forEach(function(k){ p[k] = 0; }); });
             ctx.msg("【冰系】技能PP=1：额外删除对方" + extraPP + "PP并清除双方强化！");
           } else {
@@ -2770,10 +2776,14 @@ function createBattleContext() {
       const target = skillEffectTarget(this, pet, "turn");
       if (target) clearTurnEffects(target);
     },
-    forceClearPP: function(pet) {
+    forceClearPP: function(pet, source = this.sourceSkill?.name) {
       recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.forceClearPP(target));
       const target = skillEffectTarget(this, pet, "pp");
-      if (target) for (const skill of target.skills) skill.pp = 0;
+      if (!target) {
+        traceBlockedPPSlots(pet, -1, "强制清空失败", source, "技能效果被免疫");
+        return;
+      }
+      for (const skill of target.skills) setSkillPP(target, skill, 0, "强制清空 PP", source, target !== pet ? "效果被反弹" : undefined);
     },
     forceSwitchPet: function(pet) {
       recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.forceSwitchPet(target));
@@ -2815,17 +2825,32 @@ function createBattleContext() {
         addMessage(target.name + " 的" + STAGE_LABELS[stat] + " " + (target[key]>=0?"+":"") + target[key] + "级（" + (before>=0?"+":"") + before + "→" + (target[key]>=0?"+":"") + target[key] + "）！");
       }
     },
-    deletePP: function(pet, slot, amount) {
+    deletePP: function(pet, slot, amount, source = this.sourceSkill?.name) {
       const requested = Math.floor(amount);
       if (requested > 0) recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.deletePP(target, slot, requested));
       const target = skillEffectTarget(this, pet, "pp");
-      if (!target || !(requested > 0)) return [];
+      const requestLabel = requested === Infinity ? "请求清空" : "请求删除 " + requested + " PP";
+      if (!target || !(requested > 0)) {
+        traceBlockedPPSlots(target || pet, slot, "删 PP 无变化", source,
+          !target ? requestLabel + "，技能效果被免疫" : "计算后无 PP 可扣除");
+        return [];
+      }
       const changed = [];
       for (const [index, skill] of target.skills.entries()) {
-        if ((slot >= 0 && index !== slot) || skill.immuneToPP || skill.ppLocked || skill.pp <= 0 ||
-            (skill.id === "sk_jydm_1" && target.bloodlineData?.jianghuaDeleteProtectedThrough >= gameState.turnCount)) continue;
+        if (slot >= 0 && index !== slot) continue;
+        let blocked;
+        if (skill.immuneToPP) blocked = "技能免疫常规删 PP";
+        else if (skill.ppLocked) blocked = "技能 PP 受到保护";
+        else if (skill.pp <= 0) blocked = "PP 已空";
+        else if (skill.id === "sk_jydm_1" && target.bloodlineData?.jianghuaDeleteProtectedThrough >= gameState.turnCount) blocked = "极尽降华上场保护";
+        const detail = requestLabel + (target !== pet ? "，效果被反弹" : "");
+        if (blocked) {
+          traceSkillPP(target, skill, skill.pp, skill.pp, "删 PP 失败", source, detail + "，" + blocked);
+          continue;
+        }
         const amount = Math.min(skill.pp, requested);
-        skill.pp -= amount;
+        setSkillPP(target, skill, skill.pp - amount, "删除 PP", source,
+          amount < requested && requested !== Infinity ? detail + "，剩余 PP 不足" : detail);
         changed.push({ skill, slot: index, amount });
       }
       if (changed.length > 0) {
@@ -2835,12 +2860,18 @@ function createBattleContext() {
       }
       return changed;
     },
-    restorePP: function(target, slot, amount) {
-      target = skillEffectTarget(this, target, "pp");
-      if (!target || isPPRecoveryBlocked(target)) return;
-      var amt = Math.floor(amount);
-      if (slot < 0) target.skills.forEach(skill => gainPP(target, skill, amt, this.sourceSkill?.id));
-      else gainPP(target, target.skills[slot], amt, this.sourceSkill?.id);
+    restorePP: function(pet, slot, amount) {
+      const target = skillEffectTarget(this, pet, "pp");
+      const amt = Math.floor(amount);
+      if (!target) {
+        const requestLabel = amt === Infinity ? "请求回满" : "请求回复 " + amt + " PP";
+        traceBlockedPPSlots(pet, slot, "回 PP 失败", this.sourceSkill?.name, requestLabel + "，技能效果被免疫");
+        return;
+      }
+      const source = this.sourceSkill?.name || this.sourceSkill?.id;
+      const logSource = target === pet ? source : (source ? source + "（反弹）" : "技能效果反弹");
+      if (slot < 0) target.skills.forEach(skill => gainPP(target, skill, amt, this.sourceSkill?.id, logSource));
+      else gainPP(target, target.skills[slot], amt, this.sourceSkill?.id, logSource);
     },
     addMark: function(target, name, amount) { if (!target.marks[name]) target.marks[name] = 0; target.marks[name] += amount; },
     getMark: function(target, name) { return target.marks[name] || 0; },
@@ -2885,7 +2916,9 @@ function createBattleContext() {
           var s = saved[slot];
           if (!s) return;
           pet.hp = Math.min(pet.maxHp + (pet.maxHpBonus || 0), s.hp);
-          pet.skills.forEach(function(sk, i){ if (s.pp[i] !== undefined) sk.pp = s.pp[i]; });
+          pet.skills.forEach(function(skill, i) {
+            if (s.pp[i] !== undefined) setSkillPP(pet, skill, s.pp[i], "回溯到第" + snap.turn + "回合", "逆流而行");
+          });
           STAGE_FIELDS.forEach(function(k, i){ if (s.stages[i] !== undefined) pet[k] = s.stages[i]; });
           pet.status = s.status; pet.statusTurns = s.statusTurns;
           pet.confuseTurns = s.confuseTurns || 0; pet.bindTurns = s.bindTurns || 0;
@@ -2909,7 +2942,12 @@ function createBattleContext() {
       var lowest = history.reduce(function(a,b) { return !a || b.total < a.total ? b : a; }, null);
       if (!lowest) return;
       [[gameState.playerParty, lowest.player], [gameState.aiParty, lowest.ai]].forEach(function(pair) {
-        pair[0].forEach(function(pet, i) { pet.skills.forEach(function(sk, j) { if (pair[1][i]?.[j] !== undefined) sk.pp = pair[1][i][j]; }); });
+        pair[0].forEach(function(pet, i) {
+          pet.skills.forEach(function(skill, j) {
+            const value = pair[1][i]?.[j];
+            if (value !== undefined) setSkillPP(pet, skill, value, "回溯到第" + lowest.turn + "回合", "重衍纪元");
+          });
+        });
       });
     },
     setDamageCap: function(pet, threshold, cap, turns) {
@@ -2971,23 +3009,73 @@ function createBattleContext() {
   };
 }
 
+// 测试模式记录单个技能槽的 PP 结算，普通战斗仍用原有事件说明。
+function ppSourceName(source) { return DEFAULT_SKILLS.find(item => item.id === source)?.name || source; }
+
+function traceSkillPP(pet, skill, before, after, action, source, detail) {
+  if (!isDeveloperBattle() || !pet) return;
+  const player = gameState.playerActive === pet || gameState.playerParty.includes(pet);
+  const ai = !player && (gameState.aiActive === pet || gameState.aiParty.includes(pet));
+  const active = pet === gameState.playerActive || pet === gameState.aiActive;
+  const position = (player ? "我方" : ai ? "对方" : "") + (player || ai ? (active ? "场上" : "场下") : "");
+  const slot = pet.skills.indexOf(skill);
+  const delta = after - before;
+  const change = delta > 0 ? "+" + delta + " PP" : delta < 0 ? "−" + -delta + " PP" : "无变化";
+  const label = source && ppSourceName(source);
+  addMessage("【PP】" + position + pet.name + (slot < 0 ? "" : "第" + (slot + 1) + "格") + "「" + skill.name + "」 " +
+    before + " → " + after + "（" + change + "）｜" + action +
+    (label ? " · " + label : "") + (detail ? "｜" + detail : ""), "action", player ? "player" : ai ? "ai" : "system");
+}
+
+function traceBlockedPPSlots(pet, slot, action, source, detail) {
+  if (!isDeveloperBattle() || !pet) return;
+  for (const [index, skill] of pet.skills.entries()) {
+    if (slot < 0 || index === slot) traceSkillPP(pet, skill, skill.pp, skill.pp, action, source, detail);
+  }
+}
+
+function setSkillPP(pet, skill, value, action, source, detail) {
+  const before = skill.pp;
+  skill.pp = value;
+  if (before !== value || detail) traceSkillPP(pet, skill, before, value, action, source, detail);
+  return value - before;
+}
+
 // PP 回复封锁与技能指定来源在此判定。
 function isPPRecoveryBlocked(pet) {
   return !!pet && (pet.blockPPRecovery || pet.blockPPRecoveryOnTurn === gameState.turnCount);
 }
 
-function gainPP(pet, skill, amount, sourceSkillId) {
-  if (!skill || amount <= 0) return 0;
-  if (isPPRecoveryBlocked(pet)) return 0;
+function gainPP(pet, skill, amount, sourceSkillId, logSource = sourceSkillId) {
+  if (!skill) return 0;
+  if (amount <= 0) {
+    traceSkillPP(pet, skill, skill.pp, skill.pp, "回 PP 无变化", logSource, "计算后的回复量为 " + amount + " PP");
+    return 0;
+  }
   const allowed = skill.ppRecoverySource;
-  if (skill.noPPRecover || skill.noPPRecoverThrough >= gameState.turnCount || (allowed && ![allowed].flat().includes(sourceSkillId))) return 0;
-  if ((skill.id === "sk_qy_2" && pet?.bloodlineData?.qingfengSavedPP !== undefined) ||
-      (skill.id === "sk_qy_3" && pet?.bloodlineData?.qy3SavedPP !== undefined)) return 0;
-  var before = skill.pp;
-  const requested = amount === Infinity ? skill.maxPp - before : amount;
-  const recovered = pet?.dimoFrostRecoveryThrough >= gameState.turnCount ? Math.ceil(requested / 2) : requested;
-  skill.pp = Math.min(skill.maxPp, skill.pp + recovered);
-  return skill.pp - before;
+  let blocked;
+  if (isPPRecoveryBlocked(pet)) blocked = "目标本回合禁止回复 PP";
+  else if (skill.noPPRecover) blocked = "技能免疫常规 PP 回复";
+  else if (skill.noPPRecoverThrough >= gameState.turnCount) blocked = "技能禁回至第" + skill.noPPRecoverThrough + "回合结束";
+  else if (allowed && ![allowed].flat().includes(sourceSkillId)) {
+    blocked = isDeveloperBattle() ? "仅可由" + [allowed].flat().map(ppSourceName).join("、") + "回复" : "仅可由指定来源回复";
+  }
+  else if ((skill.id === "sk_qy_2" && pet?.bloodlineData?.qingfengSavedPP !== undefined) ||
+      (skill.id === "sk_qy_3" && pet?.bloodlineData?.qy3SavedPP !== undefined)) blocked = "PP 处于封存状态";
+  const requestLabel = amount === Infinity ? "请求回满" : "请求回复 " + amount + " PP";
+  if (blocked) {
+    traceSkillPP(pet, skill, skill.pp, skill.pp, "回 PP 失败", logSource, requestLabel + "，" + blocked);
+    return 0;
+  }
+  const requested = amount === Infinity ? skill.maxPp - skill.pp : amount;
+  const reduced = pet?.dimoFrostRecoveryThrough >= gameState.turnCount;
+  const recovered = reduced ? Math.ceil(requested / 2) : requested;
+  const value = Math.min(skill.maxPp, skill.pp + recovered);
+  let detail = requestLabel;
+  if (reduced && requested > 0) detail += "，瞬华若霜减半后为 " + recovered + " PP";
+  if (skill.pp === skill.maxPp) detail += "，PP 已满";
+  else if (value < skill.pp + recovered) detail += "，受最大 PP 限制";
+  return setSkillPP(pet, skill, value, "回复 PP", logSource, detail);
 }
 
 // ---------- BLOODLINE & TURN EFFECT PROCESSING ----------
@@ -3024,12 +3112,12 @@ function enterQingyuMode(pet, mode) {
   if (pet.bloodline?.name === "清念/残脉") setQingyuOriginalBloodline(pet, false);
   if (mode === "清念" && bd.qingfengSavedPP !== undefined) {
     const skill = pet.skills.find(item => item.id === "sk_qy_2");
-    if (skill) skill.pp = Math.min(skill.maxPp, bd.qingfengSavedPP);
+    if (skill) setSkillPP(pet, skill, Math.min(skill.maxPp, bd.qingfengSavedPP), "恢复封存 PP", "轻风散魂·进入清念");
     delete bd.qingfengSavedPP;
   }
   if (previous === "残脉" && mode === "清念" && bd.qy3SavedPP !== undefined) {
     var skill = pet.skills.find(function(s) { return s.id === "sk_qy_3"; });
-    if (skill) skill.pp = Math.min(skill.maxPp, bd.qy3SavedPP);
+    if (skill) setSkillPP(pet, skill, Math.min(skill.maxPp, bd.qy3SavedPP), "恢复封存 PP", "残念余梦·残脉转清念");
     delete bd.qy3SavedPP;
   }
 }
@@ -3242,8 +3330,13 @@ function resolveJianghuaDeletions() {
     ctx.sourceSkill = skill;
     ctx.sourceSkillOwner = pet;
     ctx.isPassive = true;
-    const extra = getRequiredPPCost(pet, skill) - 1;
-    if (extra > 0) skill.pp = Math.max(0, skill.pp - extra);
+    const breakdown = isDeveloperBattle() ? {} : null;
+    const extra = getRequiredPPCost(pet, skill, breakdown) - 1;
+    if (extra > 0) {
+      const value = Math.max(0, skill.pp - extra);
+      setSkillPP(pet, skill, value, "被动发动额外扣费", "极尽降华",
+        breakdown ? describePPCost(breakdown, extra, skill.pp - value) : undefined);
+    }
     recordRoundSkillUse({ user: pet, skill, effectivePriority: getSkillPriority(skill) }, target);
     recordDimoSkillRound(pet, skill);
     applyQingnianSuppression(pet, skill);
@@ -3257,11 +3350,11 @@ function resolveNilexFollowup(user, target, ctx, pending) {
   if (user.pendingNilex === pending) user.pendingNilex = null;
   if (pending.cnt === 1) {
     ctx.doFixedDamage(target, 9999, user);
-    ctx.forceClearPP(target);
-    for (const skill of user.skills) gainPP(user, skill, 1, "sk_nlex");
+    ctx.forceClearPP(target, "逆流而行·终结");
+    for (const skill of user.skills) gainPP(user, skill, 1, "sk_nlex", "逆流而行·终结");
     ctx.msg("【逆流而行】终结：9999固伤，强制清空对方PP，自身全体回复1PP！");
   } else if (pending.cnt === 2) {
-    for (const skill of user.skills) gainPP(user, skill, 3, "sk_nlex");
+    for (const skill of user.skills) gainPP(user, skill, 3, "sk_nlex", "逆流而行·后续回复");
     ctx.doHeal(user, Math.floor((user.maxHp + (user.maxHpBonus || 0)) * 0.3));
     ctx.msg("【逆流而行】回溯：自身全体回复3PP与30%精力！");
   }
@@ -3282,8 +3375,8 @@ function endCreation(pet) {
 
 function creationPP(pet, opponent, ctx) {
   if (!opponent || opponent.isFainted()) return;
-  for (const { slot, amount } of ctx.deletePP(opponent, -1, 2)) {
-    gainPP(pet, pet.skills[slot], amount, "sk_cszn");
+  for (const { slot, amount } of ctx.deletePP(opponent, -1, 2, "创世之能·吸取")) {
+    gainPP(pet, pet.skills[slot], amount, "sk_cszn", "创世之能·吸取");
   }
 }
 
@@ -3301,12 +3394,12 @@ function processCreationRounds() {
     if (gameState.turnCount === data.creationThrough - 1) {
       ctx.transformStages(owner, () => 0);
       ctx.transformStages(opponent, () => 0);
-      gainPP(owner, owner.skills[0], Infinity, "sk_cszn");
+      gainPP(owner, owner.skills[0], Infinity, "sk_cszn", "创世之能·次回合");
     } else {
       const cap = owner.maxHp + (owner.maxHpBonus || 0);
       if (owner.hp < cap * 0.3) ctx.doHeal(owner, Math.floor((cap - owner.hp) * 0.7));
       const skill = owner.skills.find(item => item.id === "sk_cszn");
-      if (skill) skill.pp = 0;
+      if (skill) setSkillPP(owner, skill, 0, "清空自身 PP", "创世之能·末回合", "当前精力 " + owner.hp + "/" + cap);
     }
   }
 }
@@ -3381,7 +3474,7 @@ function finishQingnianChannel(owner, useCurrentPP) {
     const change = sample.first === undefined ? 0 : sample.first - (useCurrentPP ? totalSkillPP(pet) : sample.last);
     loss += Math.abs(sample.net + change);
   }
-  const restored = gainPP(owner, owner.skills.find(skill => skill.id === "sk_qy_5"), Math.round(loss / 2));
+  const restored = gainPP(owner, owner.skills.find(skill => skill.id === "sk_qy_5"), Math.round(loss / 2), undefined, "清念沉脉·期满");
   const targetSide = channel.attackingPlayer ? "aiActive" : "playerActive";
   const until = gameState.turnCount + 3;
   gameState.qingnianWindows[targetSide] = until;
@@ -3476,7 +3569,7 @@ function postDamageProcessing() {
     if (pet.lethalHitThisTurn && pet.bloodline.name === "不灭魂体" && !pet.lethalHandled) {
       pet.lethalHandled = true;
       pet.hp = 1;
-      createBattleContext().deletePP(pet, -1, 4);
+      createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
       addMessage(pet.name + " 被致命一击！不灭魂体保留1点精力！全体技能-4PP！");
       // Force switch
       forceSwitchPet(pet);
@@ -3963,14 +4056,25 @@ function setPPCostEffect(pet, source, turns, options) {
   effects.set(source, { ...options, throughTurn: gameState.turnCount + turns - 1 });
 }
 
-function getRequiredPPCost(pet, skill) {
-  if (skill.noExtraPPCost) return 1;
+function getPPCostSourceLabel(source) {
+  if (typeof source !== "string") return source?.skill;
+  return source.startsWith("光幕三损:") ? "极影光幕·三损" : source;
+}
+
+function getRequiredPPCost(pet, skill, breakdown) {
+  if (skill.noExtraPPCost) {
+    if (breakdown) breakdown.noExtra = true;
+    return 1;
+  }
   const turn = gameState.turnCount + (gameState.resolvingTurn ? 0 : 1);
   let extra = skill.extraPPCost || 0;
   let multiplier = pet.skillPPCostMult || 1;
+  if (breakdown && extra > 0) breakdown.extraSource = "技能自身";
   const opponent = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive;
   if (opponent?.lightWindThroughTurn >= turn) {
-    extra = Math.max(extra, getEffectiveSkillElement(pet, skill.element) === "flying" ? 1 : 2);
+    const lightWind = getEffectiveSkillElement(pet, skill.element) === "flying" ? 1 : 2;
+    if (breakdown && lightWind > extra) breakdown.extraSource = "轻风散魂";
+    extra = Math.max(extra, lightWind);
   }
   for (const [source, effect] of pet.ppCostEffects || []) {
     if (effect.throughTurn < turn) {
@@ -3978,11 +4082,26 @@ function getRequiredPPCost(pet, skill) {
       continue;
     }
     if (effect.skill && effect.skill !== skill) continue;
-    multiplier = Math.max(multiplier, effect.multiplier || 1);
+    const factor = effect.multiplier || 1;
+    if (breakdown && factor > multiplier) breakdown.multiplierSource = getPPCostSourceLabel(source);
+    multiplier = Math.max(multiplier, factor);
     const amount = effect.extraFor ? effect.extraFor(skill, getEffectiveSkillElement(pet, skill.element)) : effect.extra;
+    if (breakdown && (amount || 0) > extra) breakdown.extraSource = getPPCostSourceLabel(source);
     extra = Math.max(extra, amount || 0);
   }
+  if (breakdown) { breakdown.multiplier = multiplier; breakdown.extra = extra; }
   return Math.max(1, Math.round(multiplier + extra));
+}
+
+function describePPCost(breakdown, requested, paid) {
+  const parts = ["应扣 " + requested + " PP"];
+  if (breakdown.noExtra) parts.push("免疫额外 PP 消耗");
+  if (breakdown.multiplier > 1) parts.push("基础消耗 ×" + breakdown.multiplier +
+    (breakdown.multiplierSource ? "（" + breakdown.multiplierSource + "）" : ""));
+  if (breakdown.extra > 0) parts.push("额外 +" + breakdown.extra + " PP" +
+    (breakdown.extraSource ? "（" + breakdown.extraSource + "）" : ""));
+  if (paid < requested) parts.push("剩余 PP 不足，实扣 " + paid + " PP");
+  return parts.join("，");
 }
 
 function isSkillSealed(skill, turn) {
@@ -3994,11 +4113,17 @@ function canSelectSkill(skill) {
 }
 
 function reserveSkillAction(user, skill, turn = gameState.turnCount) {
-  if (!skill || skill.pp <= 0 || isSkillSealed(skill, turn)) return null;
+  if (!skill) return null;
+  if (skill.pp <= 0 || isSkillSealed(skill, turn)) {
+    traceSkillPP(user, skill, skill.pp, skill.pp, "第" + turn + "回合选招失败", undefined, skill.pp <= 0 ? "PP 已空" : "技能被封禁");
+    return null;
+  }
   const ppBefore = skill.pp;
-  const requestedCost = getRequiredPPCost(user, skill);
+  const breakdown = isDeveloperBattle() ? {} : null;
+  const requestedCost = getRequiredPPCost(user, skill, breakdown);
   const ppCost = Math.min(ppBefore, requestedCost);
-  skill.pp -= ppCost;
+  setSkillPP(user, skill, ppBefore - ppCost, "第" + turn + "回合选招扣费", undefined,
+    breakdown ? describePPCost(breakdown, requestedCost, ppCost) : undefined);
   return { kind: "skill", user, skill, ppBefore, ppAfter: skill.pp, ppCost, requestedCost };
 }
 
