@@ -3,8 +3,9 @@ const path = require('node:path');
 const root = path.join(__dirname, '..', '..');
 const { loadEngine } = require(path.join(root, 'test/lib/harness.js'));
 
-function battle(player, opponent) {
-  const { api, sandbox: engine } = loadEngine(path.join(root, 'ROCO REMAKE.html'), {seed: 231});
+function battle(player, opponent, seed = 231) {
+  const { api, sandbox: engine } = loadEngine(path.join(root, 'ROCO REMAKE.html'), {seed});
+  const renderActions = engine.renderBattleActions;
   const state = api.gameState;
   for (const name of ['renderBattle', 'renderBattleActions', 'updateBattleUI',
     'spawnFloatText', 'showScreen', 'startTurnTimer']) engine[name] = () => {};
@@ -23,7 +24,7 @@ function battle(player, opponent) {
     else api.playerUseSkill(used);
     assert.equal(state.turnCount, start + 1);
   }
-  return { api, engine, state, round };
+  return { api, engine, state, round, renderActions };
 }
 
 function creationLastTick() {
@@ -81,5 +82,8 @@ function replacementEffectTiming() {
   return { reproduced: replaced && durations.every(value => value === 2), replaced, durations };
 }
 
-console.log(JSON.stringify({ creationLastTick: creationLastTick(),
-  turnEffectPurge: turnEffectPurge(), replacementEffectTiming: replacementEffectTiming() }, null, 2));
+if (require.main === module) {
+  console.log(JSON.stringify({ creationLastTick: creationLastTick(),
+    turnEffectPurge: turnEffectPurge(), replacementEffectTiming: replacementEffectTiming() }, null, 2));
+}
+module.exports = { battle };

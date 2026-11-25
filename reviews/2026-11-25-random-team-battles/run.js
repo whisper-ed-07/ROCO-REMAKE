@@ -8,7 +8,6 @@ const html = path.join(root, 'ROCO REMAKE.html');
 const defaultPets = loadEngine(html).api.DEFAULT_PETS;
 const stages = ['atk', 'def', 'spatk', 'spdef', 'spd', 'accuracy', 'evasion'];
 const preventSelection = new Set(['sleep', 'deep_sleep', 'freeze', 'fear']);
-const maxTurns = Number(process.argv[5] ?? 150);
 
 function rng(seed) {
   return (max) => {
@@ -49,7 +48,7 @@ function checkState(gs) {
     '双方仍有可出战宠物却判定结束');
 }
 
-function run(seed, randomOpponent) {
+function run(seed, randomOpponent, maxTurns = 150) {
   const random = rng(seed), e = loadEngine(html, { seed: seed ^ 0x1c6f29ab });
   const { api, sandbox: engine, clock } = e;
   const gs = api.gameState;
@@ -150,34 +149,41 @@ function run(seed, randomOpponent) {
     id: pet.id, hp: pet.hp, status: pet.status, pp: pet.skills.map(skill => skill.pp)
   })));
   return { seed, mode: randomOpponent ? 'random' : 'ai', teams, loadouts,
-    outcome, issue, turn: gs.turnCount, switched, forced, used, roster, lastRounds };
+    outcome, issue, turn: gs.turnCount, switched, forced, used, roster, lastRounds,
+    active: [gs.playerActive.id, gs.aiActive.id] };
 }
 
-const first = Number(process.argv[2] ?? 2026112500);
-const count = Number(process.argv[3] ?? 256);
-const modes = process.argv[4] ? [process.argv[4]] : ['ai', 'random'];
-assert.ok(modes.every(mode => ['ai', 'random'].includes(mode)), '对手策略为 ai 或 random');
-assert.ok(Number.isSafeInteger(first) && Number.isInteger(count) && count > 0 &&
-  Number.isInteger(maxTurns) && maxTurns > 0, '种子、场数和测试回合上限必须是整数');
-const rows = modes.flatMap(mode => Array.from({ length: count }, (_, index) => run(first + index, mode === 'random')));
-if (count === 1) console.log(JSON.stringify(rows, null, 2));
-else {
-  const result = Object.fromEntries(modes.map(mode => {
-    const byMode = rows.filter(row => row.mode === mode);
-    const atLimit = byMode.filter(row => row.outcome === 'round-limit');
-    const issues = byMode.filter(row => row.issue);
-    return [mode, {
-      battles: byMode.length, finished: byMode.filter(row => row.outcome === 'finished').length,
-      issues: issues.length, roundLimit: atLimit.length,
-      turns: byMode.reduce((total, row) => total + row.turn, 0),
-      switched: byMode.reduce((total, row) => total + row.switched, 0),
-      forced: byMode.reduce((total, row) => total + row.forced, 0),
-      skills: [...new Set(byMode.flatMap(row => Object.keys(row.used)))].sort(),
-      problemSamples: issues.slice(0, 10).map(row => ({ seed: row.seed, issue: row.issue, turn: row.turn })),
-      limitSeeds: atLimit.slice(0, 12).map(row => row.seed),
-    }];
-  }));
-  console.log(JSON.stringify(result, null, 2));
+function main() {
+  const maxTurns = Number(process.argv[5] ?? 150);
+  const first = Number(process.argv[2] ?? 2026112500);
+  const count = Number(process.argv[3] ?? 256);
+  const modes = process.argv[4] ? [process.argv[4]] : ['ai', 'random'];
+  assert.ok(modes.every(mode => ['ai', 'random'].includes(mode)), '对手策略为 ai 或 random');
+  assert.ok(Number.isSafeInteger(first) && Number.isInteger(count) && count > 0 &&
+    Number.isInteger(maxTurns) && maxTurns > 0, '种子、场数和测试回合上限必须是整数');
+  const rows = modes.flatMap(mode => Array.from({ length: count }, (_, index) => run(first + index, mode === 'random', maxTurns)));
+  if (count === 1) console.log(JSON.stringify(rows, null, 2));
+  else {
+    const result = Object.fromEntries(modes.map(mode => {
+      const byMode = rows.filter(row => row.mode === mode);
+      const atLimit = byMode.filter(row => row.outcome === 'round-limit');
+      const issues = byMode.filter(row => row.issue);
+      return [mode, {
+        battles: byMode.length, finished: byMode.filter(row => row.outcome === 'finished').length,
+        issues: issues.length, roundLimit: atLimit.length,
+        turns: byMode.reduce((total, row) => total + row.turn, 0),
+        switched: byMode.reduce((total, row) => total + row.switched, 0),
+        forced: byMode.reduce((total, row) => total + row.forced, 0),
+        skills: [...new Set(byMode.flatMap(row => Object.keys(row.used)))].sort(),
+        problemSamples: issues.slice(0, 10).map(row => ({ seed: row.seed, issue: row.issue, turn: row.turn })),
+        limitSeeds: atLimit.slice(0, 12).map(row => row.seed),
+      }];
+    }));
+    console.log(JSON.stringify(result, null, 2));
+  }
+
+  if (rows.some(row => row.issue)) process.exitCode = 1;
 }
 
-if (rows.some(row => row.issue)) process.exitCode = 1;
+if (require.main === module) main();
+module.exports = { run };
