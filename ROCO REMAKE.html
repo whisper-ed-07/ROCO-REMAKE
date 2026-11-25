@@ -1279,8 +1279,7 @@ const DEFAULT_SKILLS = [
         bd.jianghuaUsed = true;
         ctx.doHeal(u, u.maxHp + (u.maxHpBonus||0));
         u.skills.forEach(function(s){ s.pp = s.maxPp; });
-        u.damageCap = 300; u.damageCapThreshold = 0; u.damageCapTurns = 1;
-        ctx.addTurnEffect(u, "降华限伤", 99, function(p){ p.damageCap = 300; p.damageCapThreshold = 0; }, null);
+        ctx.setDamageCap(u, 0, 300, 1);
         ctx.msg("血脉觉醒首用：回满HP与PP，每回合限伤300！");
       }
       // (3) 仅能特殊效果回复PP（immuneToPP 已排除普通回复，标记）
@@ -1784,7 +1783,7 @@ const DEFAULT_SKILLS = [
         ctx.addTurnEffect(u, "清翎同调", dur, null, function(){ [u, t].forEach(function(p){ p.skillElementOverride = null; }); });
         ctx.msg("首次使用：双方技能视为" + (ELEMENTS[u.element] || { name: u.element }).name + "系，持续" + dur + "回合！");
         if (inQ) ctx.invertHealing(t, 1.0, 2);
-        else if (bd.mode === "残脉") u.reflectBackhand = true;
+        else if (bd.mode === "残脉" && !gameState.banEffects?.reflect) u.reflectBackhand = true;
       } else {
         var cap2 = u.maxHp + (u.maxHpBonus || 0);
         var lostRatio = Math.min(1, 1 - u.hp / cap2);
@@ -1938,8 +1937,8 @@ const DEFAULT_SKILLS = [
   // ============ 清灵（清念灵体） ============
   { id: "sk_ql_1", name: "微灵封体", element: "ghost", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     passiveLabel: "PP保护",
-    desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队的同类效果。永久防控，发动起至下回合结束免疫威力伤害。后续6回合向双方赋予微灵印记。",
-    detail: "本技能免疫常规 PP 删除。\n① 净化自身的异常状态与负面强化，回复全部精力。自身携带的每个技能回复（3 + 施放前当前精力 ÷ 最大精力）点 PP，向上取整。（这次回复也适用于万念俱灰）\n② 解除当前在场双方已有的限伤、减伤、护盾和反弹（含技能效果反弹与伤害反弹）。本局剩余时间内，双方队伍的所有宠物都无法再获得这四类效果。\n③ 本局永久免疫异常状态与负面强化。从发动起至下回合结束，免疫威力伤害。\n④ 后续 6 回合内，每回合按施放者当时的已损精力计算微灵印记。双方各获得（5 + 已损精力 ÷ 50）点，向上取整，每次最多 15 点。",
+    desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队再次获得同类效果，固有能力除外。永久防控，发动起至下回合结束免疫威力伤害。留场时，后续6回合向当时在场双方赋予微灵印记。",
+    detail: "本技能免疫常规 PP 删除。\n① 净化自身的异常状态与负面强化，回复全部精力。自身携带的每个技能回复（3 + 施放前当前精力 ÷ 最大精力）点 PP，向上取整。（这次回复也适用于万念俱灰）\n② 解除当前在场双方已有的限伤、减伤、护盾和反弹（含技能效果反弹与伤害反弹）。本局剩余时间内，双方队伍的所有宠物都无法再获得这四类效果。血脉与技能被动自带的固有效果仍生效。\n③ 本局永久免疫异常状态与负面强化。从发动起至下回合结束，免疫威力伤害。\n④ 后续 6 回合内，每回合按施放者当时的已损精力计算微灵印记。当前在场双方各获得（5 + 已损精力 ÷ 50）点，向上取整，每次最多 15 点。清灵离场时停止发放。",
     onUse: function(u, t, ctx) {
       ctx.msg(u.name + " 释放了微灵封体！");
       var cap = u.maxHp + (u.maxHpBonus || 0);
@@ -1951,19 +1950,20 @@ const DEFAULT_SKILLS = [
       u.skills.forEach(function(s){ gainPP(u, s, ppHeal, "sk_ql_1"); });
       ctx.msg("净化并回复全部精力，全体技能+" + ppHeal + "PP！");
       gameState.banEffects = { shield: true, dmgReduction: true, damageCap: true, reflect: true };
-      [u, t].forEach(function(p){ p.shield = 0; p.damageReduction = 0; p.damageReductionTurns = 0; p.damageCap = Infinity; p.damageCapTurns = 0; p.damageCapThreshold = 0; p.immuneBackhand = false; p.reflectBackhand = false; });
+      [u, t].forEach(clearGrantedDefenses);
       ctx.msg("本局全局屏蔽：限伤/减伤/护盾/反弹效果！");
       ctx.grantStatusImmunity(u, "微灵封体", Infinity, { stats: true });
       u.powerDamageImmuneThroughTurn = gameState.turnCount + 1;
       ctx.msg("永久免疫异常与负面强化，威力伤害免疫持续至下回合结束！");
-      [u, t].forEach(function(p){
-        ctx.addTurnEffect(p, "微灵封体印", 6, function(pp){
-          var lost = (u.maxHp + (u.maxHpBonus || 0)) - u.hp;
-          var add = Math.min(15, Math.ceil(5 + lost / 50));
-          pp.bloodlineData = pp.bloodlineData || {};
-          pp.bloodlineData.microLing = (pp.bloodlineData.microLing || 0) + add;
-          ctx.msg("微灵封体：" + pp.name + " 获得" + add + "点微灵印记！");
-        }, null);
+      ctx.addTurnEffect(u, "微灵封体印", 6, function(owner) {
+        var lost = Math.max(0, owner.maxHp + (owner.maxHpBonus || 0) - owner.hp);
+        var add = Math.min(15, Math.ceil(5 + lost / 50));
+        for (const pet of [ctx.playerActive, ctx.aiActive]) {
+          if (!pet || pet.isFainted()) continue;
+          pet.bloodlineData = pet.bloodlineData || {};
+          pet.bloodlineData.microLing = (pet.bloodlineData.microLing || 0) + add;
+          ctx.msg("微灵封体：" + pet.name + " 获得" + add + "点微灵印记！");
+        }
       });
     }
   },
@@ -2150,7 +2150,8 @@ const DEFAULT_PETS = [
         var dead = [gameState.playerParty, gameState.aiParty].reduce(function(s, party){ return s + party.filter(function(p){ return p.isFainted(); }).length; }, 0);
         var alive = [gameState.playerParty, gameState.aiParty].reduce(function(s, party){ return s + party.filter(function(p){ return !p.isFainted(); }).length; }, 0);
         var dr = Math.min(5 * dead, 60 - alive);
-        if (dr > 0) { pet.damageReduction = dr; pet.damageReductionTurns = 1; ctx.msg("【清念灵体】减伤" + dr + "%（阵亡" + dead + "，存活" + alive + "）！"); }
+        pet.passiveDamageReduction = Math.max(0, dr);
+        if (dr > 0) ctx.msg("【清念灵体】减伤" + dr + "%（阵亡" + dead + "，存活" + alive + "）！");
       },
       onSkillUse: function(pet, target, ctx, skill) {
         var bd = pet.bloodlineData = pet.bloodlineData || {};
@@ -2278,7 +2279,7 @@ const DEFAULT_PETS = [
         } else if (bd.mode === "残脉") {
           if (opp && !opp.isFainted()) {
             var emptySkills = pet.skills.filter(function(s) { return s.pp === 0; }).length;
-            var oppHasMit = opp.getDamageReduction() > 0 || ((opp.damageCap || Infinity) < Infinity && (opp.damageCapTurns || 0) > 0);
+            var oppHasMit = opp.getDamageReduction() > 0 || opp.hasDamageCap();
             if (oppHasMit) {
               // 对方有减伤/限伤：改为治疗对方（0.3×上回合受伤总值 + 30 + 50×本回合使用技能次数）
               var healAmt = Math.ceil(0.3 * (pet.lastTakenTotal || 0) + 30 + 50 * (pet.skillsUsedThisTurn || 0));
@@ -2343,9 +2344,10 @@ const DEFAULT_PETS = [
           // 30%减伤4回合；清翎覆尘PP=0时可叠加（最多60%）
           var ql = pet.skills.find(function(s){ return s.id === "sk_qy_1"; });
           var canStack = ql && ql.pp === 0;
-          pet.damageReduction = canStack ? Math.min(60, (pet.damageReduction || 0) + 30) : Math.max(30, pet.damageReduction || 0);
-          pet.damageReductionTurns = 4;
-          ctx.msg("【清念】速度-25%（3回合），减伤" + pet.damageReduction + "%（4回合）" + (canStack?"（可叠加）":"") + "！");
+          var reduction = canStack ? Math.min(60, (pet.damageReduction || 0) + 30) : Math.max(30, pet.damageReduction || 0);
+          if (ctx.setDamageReduction(pet, reduction, 4)) {
+            ctx.msg("【清念】速度-25%（3回合），减伤" + reduction + "%（4回合）" + (canStack?"（可叠加）":"") + "！");
+          } else ctx.msg("【清念】速度-25%（3回合）！");
           // (3) 4回合每回合回复10%最大精力
           ctx.addTurnEffect(pet, "清念翼愈", 4, function(p){ ctx.doHeal(p, Math.floor(p.maxHp * 0.1)); ctx.msg("【清念】回复10%最大精力！"); }, null);
           // 对敌方治疗：0.2×双方已损精力之和
@@ -2414,7 +2416,7 @@ const DEFAULT_PETS = [
         if (dmgType === "power") {
           var el = attacker.skills.find(function(s) { return s.pp < s.maxPp; })?.element || attacker.element;
           var eff = getEffectiveness(el, pet.element);
-          if (eff >= 2 && !(gameState.banEffects && gameState.banEffects.dmgReduction)) {
+          if (eff >= 2) {
             dmg = Math.floor(dmg * 0.6);
             ctx.msg("【不灭魂体】受到克制伤害，降低40%！");
             return dmg;
@@ -2617,9 +2619,11 @@ class BattlePet {
     return v;
   }
   getDamageReduction() {
-    if (gameState.banEffects && gameState.banEffects.dmgReduction) return 0;
-    const timedReduction = this.damageReductionTurns > 0 ? this.damageReduction : 0;
+    const timedReduction = !gameState.banEffects?.dmgReduction && this.damageReductionTurns > 0 ? this.damageReduction : 0;
     return Math.max(this.passiveDamageReduction, timedReduction);
+  }
+  hasDamageCap() {
+    return !gameState.banEffects?.damageCap && this.damageCapTurns > 0 && this.damageCap < Infinity;
   }
   takeDamage(dmg) {
     // 免疫一切伤害（降华第1回合）
@@ -2631,14 +2635,14 @@ class BattlePet {
       return 0;
     }
     // 限伤检查
-    if (!(gameState.banEffects && gameState.banEffects.damageCap) && this.damageCapTurns > 0 && this.damageCap < Infinity) {
+    if (this.hasDamageCap()) {
       if (dmg > this.damageCapThreshold) dmg = Math.min(dmg, this.damageCap);
     }
     // 伤害减免
     const reduction = this.getDamageReduction();
     if (reduction > 0) dmg = Math.floor(dmg * (100 - reduction) / 100);
     // 护盾吸收（带日志+飘字）
-    if (this.shield > 0) {
+    if (!gameState.banEffects?.shield && this.shield > 0) {
       if (this.shield >= dmg) { this.shield -= dmg; addMessage(this.name + " 的护盾吸收了" + dmg + "点伤害！"); spawnFloatText(this, dmg, "shield"); return 0; }
       addMessage(this.name + " 的护盾吸收了" + this.shield + "点伤害，剩余" + (dmg - this.shield) + "点穿透！");
       spawnFloatText(this, this.shield, "shield");
@@ -2860,8 +2864,19 @@ function createBattleContext() {
         });
       });
     },
-    setDamageCap: function(pet, threshold, cap, turns) { pet.damageCapThreshold = threshold; pet.damageCap = cap; pet.damageCapTurns = turns; },
-    setDamageReduction: function(pet, pct) { pet.damageReduction = pct; pet.damageReductionTurns = 1; },
+    setDamageCap: function(pet, threshold, cap, turns) {
+      if (gameState.banEffects?.damageCap) return false;
+      pet.damageCapThreshold = threshold;
+      pet.damageCap = cap;
+      pet.damageCapTurns = turns;
+      return true;
+    },
+    setDamageReduction: function(pet, pct, turns = 1) {
+      if (gameState.banEffects?.dmgReduction) return false;
+      pet.damageReduction = pct;
+      pet.damageReductionTurns = turns;
+      return true;
+    },
     setCritPrevention: function(pet) { pet.preventCritNext = true; },
     setWeather: function(type, turns) { if (gameState.field) { addMessage("环境在场，天气无法降临！"); return false; } gameState.weather = type; gameState.weatherTurns = turns; addMessage("天气变更为" + (WEATHER_DISPLAY[type]?.[1] || type) + "！持续"+turns+"回合"); return true; },
     setField: function(type, turns) { gameState.field = type; gameState.fieldTurns = turns; addMessage("环境变更为" + ({"dream":"梦境","shunhua":"瞬华"}[type]||type) + "！持续"+turns+"回合"); },
@@ -2982,8 +2997,8 @@ function forceSwitchPet(pet) {
   var candidates = party.filter(function(p) { return !p.isFainted() && p !== pet; });
   if (!candidates.length) return;
   var next = candidates[Math.floor(Math.random() * candidates.length)];
+  leaveBattlefield(pet);
   if (gameState.playerActive === pet) {
-    if (gameState.playerActive) gameState.playerActive.qlSealMark = false;
     addMessage(pet.name + " 被迫换下！"); gameState.playerActive = next; callBloodlineEnter(next); addMessage("换上 " + next.name + "！");
   } else {
     addMessage(pet.name + " 被迫换下！"); gameState.aiActive = next; callBloodlineEnter(next); addMessage("对手换上 " + next.name + "！");
@@ -3687,7 +3702,7 @@ function executeSkillTurn(user, target, skill, who, action) {
   user.lastUsedSkillId = skill.id;
   if (skill.power > 0) user.lastPowerSkillId = skill.id;
   // 后手伤害免疫（清翎覆尘护盾分支）
-  if (target.immuneBackhand && !(gameState.banEffects && gameState.banEffects.reflect) && isPlayer !== (gameState.pendingFirstMove === "player")) {
+  if (target.immuneBackhand && isPlayer !== (gameState.pendingFirstMove === "player")) {
     if (skill.category !== "status") {
       addMessage(target.name + " 免疫了后手伤害！");
       updateBattleUI(); checkFaints(); return;
@@ -3806,8 +3821,25 @@ function applyEndOfTurnEffects(pet) {
   if (pet.leechSeed) { var drain = Math.floor(pet.maxHp / 8); pet.takeDamage(drain); var opp = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive; if (opp && !opp.isFainted()) opp.heal(drain); addMessage(pet.name + " 被寄生种子吸取了 " + drain + " HP！"); }
 }
 
+function clearGrantedDefenses(pet) {
+  pet.shield = 0;
+  pet.damageReduction = 0;
+  pet.damageReductionTurns = 0;
+  pet.damageCap = Infinity;
+  pet.damageCapTurns = 0;
+  pet.damageCapThreshold = 0;
+  pet.reflectBackhand = false;
+}
+
+function leaveBattlefield(pet) {
+  pet.qlSealMark = false;
+  pet.turnEffects = pet.turnEffects.filter(effect => effect.name !== "微灵封体印");
+}
+
 function callBloodlineEnter(pet) {
-  if (pet && pet.bloodline && pet.bloodline.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
+  if (!pet) return;
+  if (gameState.banEffects) clearGrantedDefenses(pet);
+  if (pet.bloodline?.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
 }
 
 function canSwitchPet(user) {
@@ -3832,7 +3864,7 @@ function executeSwitchAction(action, who) {
   const activeKey = who === "player" ? "playerActive" : "aiActive";
   if (gameState[activeKey] !== user || user.isFainted() || incoming.isFainted() || !canSwitchPet(user)) return null;
   addMessage(who === "player" ? "回来吧，" + user.name + "！" : "对手收回了 " + user.name + "！");
-  user.qlSealMark = false;
+  leaveBattlefield(user);
   gameState[activeKey] = incoming;
   incoming.lastDealtDamage = incoming.currentDealt || 0; incoming.currentDealt = 0;
   callBloodlineEnter(incoming);
@@ -3846,8 +3878,8 @@ function checkFaints() {
   postDamageProcessing();
   if (gameState.battleOver) return false;
   var player = gameState.playerActive, ai = gameState.aiActive;
-  if (player && player.isFainted()) { addMessage(player.name + " 倒下了！"); var np = gameState.playerParty.find(function(p) { return !p.isFainted() && p !== player; }); if (np) { gameState.playerActive = np; callBloodlineEnter(np); addMessage("上吧，" + np.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(false); return true; } }
-  if (ai && ai.isFainted()) { addMessage(ai.name + " 倒下了！"); var na = gameState.aiParty.find(function(p) { return !p.isFainted() && p !== ai; }); if (na) { gameState.aiActive = na; callBloodlineEnter(na); addMessage("对手派出了 " + na.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(true); return true; } }
+  if (player && player.isFainted()) { leaveBattlefield(player); addMessage(player.name + " 倒下了！"); var np = gameState.playerParty.find(function(p) { return !p.isFainted() && p !== player; }); if (np) { gameState.playerActive = np; callBloodlineEnter(np); addMessage("上吧，" + np.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(false); return true; } }
+  if (ai && ai.isFainted()) { leaveBattlefield(ai); addMessage(ai.name + " 倒下了！"); var na = gameState.aiParty.find(function(p) { return !p.isFainted() && p !== ai; }); if (na) { gameState.aiActive = na; callBloodlineEnter(na); addMessage("对手派出了 " + na.name + "！"); renderBattle(document.querySelector("#app")); } else { endBattle(true); return true; } }
   return false;
 }
 

@@ -233,7 +233,7 @@ test('R17 原初血脉：从上场起减免威力伤害与固伤，限时减伤�
   e.sandbox.tickEnvironments();
   assert.equal(fixedLoss(primary), 80, '限时减伤到期后回到原初血脉的 20%');
   e.api.gameState.banEffects = { dmgReduction: true };
-  assert.equal(fixedLoss(primary), 100, '全局禁减伤可封锁原初血脉减伤');
+  assert.equal(fixedLoss(primary), 80, '全局封锁期间保留原初血脉的固有减伤');
 });
 
 test('R18 残脉：识别对方清羽的原初血脉减伤', () => {
@@ -466,6 +466,59 @@ test('微灵封体只用自己的 PP 回复例外，万念俱灰仍受禁回 PP 
     assert.equal(wannen.pp, recoveryBlocked ? 1 : 5);
     assert.equal(seal.pp, recoveryBlocked ? 0 : 1);
   }
+});
+
+test('微灵封体发放给在场双方，施放者离场后终止', () => {
+  const e = env();
+  const qingling = built(e, 'pet_qingling', ['sk_ql_1']);
+  const original = pet(e, 'original');
+  const next = pet(e, 'next');
+  const ally = pet(e, 'ally');
+  setup(e, qingling, original);
+  const game = e.api.gameState;
+  game.aiParty.push(next);
+  game.playerParty.push(ally);
+  e.api.executeSkillTurn(qingling, original, qingling.skills[0], 'player');
+  e.sandbox.executeSwitchAction({ user: original, incoming: next }, 'ai');
+
+  qingling.hp -= 60;
+  game.turnCount++;
+  e.sandbox.processTurnEffects(qingling);
+  assert.equal(qingling.bloodlineData.microLing, 7);
+  assert.equal(next.bloodlineData.microLing, 7);
+  assert.equal(original.bloodlineData?.microLing ?? 0, 0);
+
+  e.sandbox.executeSwitchAction({ user: qingling, incoming: ally }, 'player');
+  e.sandbox.executeSwitchAction({ user: ally, incoming: qingling }, 'player');
+  game.turnCount++;
+  e.sandbox.processTurnEffects(qingling);
+  assert.equal(qingling.bloodlineData.microLing, 7);
+  assert.equal(next.bloodlineData.microLing, 7);
+});
+
+test('微灵封体封锁获得的防御，保留血脉的固有减伤', () => {
+  const e = env();
+  const qingling = built(e, 'pet_qingling', ['sk_ql_1']);
+  const opponent = pet(e, 'opponent');
+  const incoming = built(e, 'pet_qy', ['sk_qy_1']);
+  setup(e, qingling, opponent);
+  e.api.gameState.aiParty.push(incoming);
+  const ctx = e.api.createBattleContext();
+  ctx.addShield(incoming, 70);
+  ctx.setDamageCap(incoming, 0, 50, 4);
+  ctx.setDamageReduction(incoming, 60, 4);
+  incoming.reflectBackhand = true;
+
+  e.api.executeSkillTurn(qingling, opponent, qingling.skills[0], 'player');
+  e.sandbox.executeSwitchAction({ user: opponent, incoming }, 'ai');
+  assert.equal(incoming.shield, 0);
+  assert.equal(incoming.hasDamageCap(), false);
+  assert.equal(incoming.reflectBackhand, false);
+  assert.equal(incoming.getDamageReduction(), 20);
+  assert.equal(ctx.setDamageReduction(incoming, 70, 4), false);
+  assert.equal(ctx.setDamageCap(incoming, 0, 50, 4), false);
+  ctx.addShield(incoming, 70);
+  assert.equal(incoming.shield, 0);
 });
 
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
