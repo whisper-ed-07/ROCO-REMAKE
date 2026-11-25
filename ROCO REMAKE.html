@@ -300,7 +300,7 @@ button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visi
 .status-badge.freeze { background: linear-gradient(135deg,#98d8d8,#68b8b8); color:#1a1a2e; }
 .status-badge.paralyze { background: linear-gradient(135deg,#f8d030,#e0b010); color:#1a1a2e; }
 .status-badge.poison { background: linear-gradient(135deg,#a040a0,#802080); color:#fff; }
-.status-badge.sleep { background: linear-gradient(135deg,#7060a0,#504080); color:#fff; }
+.status-badge.sleep, .status-badge.deep_sleep { background: linear-gradient(135deg,#7060a0,#504080); color:#fff; }
 .status-badge.confuse { background: linear-gradient(135deg,#e0c068,#c0a040); color:#1a1a2e; }
 .status-badge.fear { background: linear-gradient(135deg,#8b0000,#5a0000); color:#fff; }
 .status-badge.bind { background: linear-gradient(135deg,#666,#444); color:#fff; }
@@ -1250,7 +1250,7 @@ const WEATHER_DISPLAY = {
 };
 
 // ---------- DEFAULT SKILLS ----------
-const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、混乱、恐惧、寄生，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
+const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清翎覆尘或残风临霜，或首格并非这两招之一时，自上场起永久免疫烧伤、冰冻、麻痹、中毒、睡眠、沉睡、混乱、恐惧、寄生，所受威力伤害和固定伤害降低 20%。进入清念或残脉时，原初血脉的免疫和减伤一并解除。";
 const DEFAULT_SKILLS = [
   { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15, passiveLabel: "被动发动", desc: "光衍至极点，满天降光华。6回合内全场技能视为光系（标记目标翻倍），全场+100%回复与输出，自身免疫异常与负面强化；觉醒首用回满+限伤300；本技能PP被删空时回合末被动发动。", detail: "被动发动：极影迪莫携带本技能时，常规删PP将其从有PP删至0，回合末自动发动。原文规定每次上场后3回合免疫删PP，且仅特殊效果可回复本技能PP。这两项限制待实现。\n① 6回合内全场及场下所有技能视为光系，双方全部宠物回复与输出+100%；对方被明念标记时持续12回合。\n② 发动后自身免疫异常与负面强化，持续6回合。\n③ 血脉觉醒后首次使用：回复全部精力与全体PP，并在之后每回合限伤300。",
     onUse: function(u, t, ctx) {
@@ -1772,7 +1772,7 @@ const DEFAULT_SKILLS = [
         STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
         ctx.doHeal(u, (u.maxHp + (u.maxHpBonus || 0)) - u.hp);
         u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3), "sk_qy_1"); });
-        clearTurnEffects(t);
+        ctx.clearTurnEffects(t);
         ctx.grantStatusImmunity(u, "清翎覆尘", 12, { stats: true });
         ctx.msg("清念：净化回满，其他技能+30%PP，清除对方回合效果，12回合免疫！");
       }
@@ -1854,21 +1854,17 @@ const DEFAULT_SKILLS = [
       }
     } },
   { id: "sk_qy_3", name: "残念余梦", element: "ice", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 7,
-    desc: "清天气/环境并召唤梦境，返还伤害与负面状态（受对方防控）；先手删PP，后手沉睡锁换宠。清念下记录出招扣费后的PP并清零，经历残脉再入清念时恢复一次。",
-    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 返还上次所受伤害（等量固伤），并把自身当前的负面状态退回给对方，异常施加受对方防控判定。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡，自身换宠锁定直到对方苏醒；睡眠失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用：记录本次出招扣费后的剩余PP，再清零。必须先进入残脉、再进入清念，才恢复记录的PP一次；重复进入原清念不能恢复。",
+    desc: "清天气/环境并召唤梦境，返还最近一段承伤和对方尝试施加的负面效果；先手删PP，后手沉睡锁换宠。清念下记录出招扣费后的PP并清零，经历残脉再入清念时恢复一次。",
+    detail: "① 强制清除场上天气与环境，召唤梦境1回合。\n② 以等量固伤返还最近一段实际承伤，并返还最近一次对手招式尝试施加的负面效果。即使当时被挡下，也会返还。\n③ 追加（0.3×双方速度差×残风临霜已损PP×自身空PP数）固伤，上限600；残脉状态下增幅为（1.8+当前精力比例）倍，上限1000。对手具有限伤时，追加固伤分四段。\n④ 先手：额外删除对方全体3PP。\n⑤ 后手：令对方沉睡并限制自身换宠。沉睡独立于普通睡眠，持续1–6回合且威力招命中也不会唤醒。对方阵亡或解除沉睡时才解锁。沉睡失败则删除对方上次使用技能3PP与全体1PP。\n⑥ 清念状态下使用：记录本次出招扣费后的剩余PP，再清零。必须先进入残脉、再进入清念，才恢复记录的PP一次；重复进入原清念不能恢复。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
       gameState.weather = null; gameState.weatherTurns = 0;
       gameState.field = null; gameState.fieldTurns = 0;
       ctx.setField("dream", 1);
-      var returned = u.lastTakenTotal || 0;
-      if (returned > 0) { ctx.doFixedDamage(t, returned, u); ctx.msg("返还上次所受伤害" + returned + "点！"); }
-      if (u.status && ["burn","freeze","paralyze","poison","sleep","fear","bind","confuse"].indexOf(u.status) >= 0) {
-        var st = u.status, stTurns = u.statusTurns;
-        u.status = null; u.statusTurns = 0;
-        ctx.applyStatus(t, st, { turns: stTurns, replace: true, message: "将负面状态退回给对方！" });
-      }
+      const returned = u.lastDamageSegment || 0;
+      if (returned > 0) { ctx.doFixedDamage(t, returned, u); ctx.msg("返还最近一段所受伤害" + returned + "点！"); }
+      replayNegativeEffects(u, t, ctx);
       var cf = u.skills.find(function(s){ return s.id === "sk_qy_4"; });
       var lostCf = cf ? cf.maxPp - cf.pp : 0;
       var empty = u.skills.filter(function(s){ return s.pp === 0; }).length;
@@ -1876,18 +1872,25 @@ const DEFAULT_SKILLS = [
       var extra = Math.floor(0.3 * spdDiff * lostCf * empty);
       if (bd.mode === "残脉") extra = Math.floor(extra * (1.8 + u.hp / u.maxHp));
       extra = Math.min(bd.mode === "残脉" ? 1000 : 600, extra);
-      if (extra > 0) { ctx.doFixedDamage(t, extra, u); ctx.msg("追加" + extra + "点固伤！"); }
+      if (extra > 0) {
+        const segments = bd.mode === "残脉" && t.hasDamageCap() ? 4 : 1;
+        for (let index = 0; index < segments; index++) {
+          const amount = Math.floor((index + 1) * extra / segments) - Math.floor(index * extra / segments);
+          if (amount > 0) ctx.doFixedDamage(t, amount, u);
+        }
+        ctx.msg("追加" + extra + "点固伤" + (segments === 4 ? "，分4段" : "") + "！");
+      }
       if (isFirst) { ctx.deletePP(t, -1, 3); ctx.msg("先手：额外删除对方全体3PP！"); }
       else {
-        if (ctx.applyStatus(t, "sleep")) {
-          u.switchLocked = true;
-          ctx.addTurnEffect(u, "残念锁足", 99, function(p){ if (!t || t.status !== "sleep") p.switchLocked = false; }, function(p){ p.switchLocked = false; });
+        if (ctx.applyStatus(t, "deep_sleep")) {
+          const sleeping = skillEffectTarget(ctx, t, "status");
+          u.deepSleepLock = { target: sleeping, token: sleeping.deepSleepToken };
           ctx.msg("后手：对方沉睡，自身换宠锁定！");
         } else {
           var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; });
-          if (last) last.pp = Math.max(0, last.pp - 3);
+          if (last) ctx.deletePP(t, t.skills.indexOf(last), 3);
           ctx.deletePP(t, -1, 1);
-          ctx.msg("睡眠失败：删除对方上次技能3PP与全体1PP！");
+          ctx.msg("沉睡失败：删除对方上次技能3PP与全体1PP！");
         }
       }
       if (bd.mode === "清念") { var self = u.skills.find(function(s){ return s.id === "sk_qy_3"; }); if (self) { bd.qy3SavedPP = self.pp; self.pp = 0; } }
@@ -1900,7 +1903,7 @@ const DEFAULT_SKILLS = [
     onUse: function(u, t, ctx) {
       var spdDiff = Math.abs(u.getStat("spd") - t.getStat("spd"));
       if (ctx.applyStatus(t, "freeze")) {
-        var next = forceSwitchPet(t);
+        var next = ctx.forceSwitchPet(t);
         if (next && !ctx.applyStatus(next, "sleep")) {
           for (var i = 0; i < 3; i++) ctx.doFixedDamage(next, 333, u);
           ctx.msg("睡眠失败：999固伤分3段！");
@@ -1911,7 +1914,7 @@ const DEFAULT_SKILLS = [
         t.skills.forEach(function(s, index) {
           if ((s.useCount || 0) > 6) ctx.deletePP(t, index, cut);
         });
-        if (t.skills.filter(function(s){ return s.pp === 0; }).length >= 2) forceSwitchPet(t);
+        if (t.skills.filter(function(s){ return s.pp === 0; }).length >= 2) ctx.forceSwitchPet(t);
         ctx.msg("冰冻失败：按使用次数删除对方PP！");
       }
       u.spdMod = (u.spdMod || 1) * 0.7;
@@ -1923,15 +1926,15 @@ const DEFAULT_SKILLS = [
     } },
   { id: "sk_qy_5", name: "清念沉脉", element: "flying", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 11,
     desc: "清除双方强化并治疗对方，自身全体+3PP；消耗本技能PP进入清念。持续期结束回PP，再开启4回合窗口：敌方所用技能永久降威力或先手。",
-    detail: "① 强制清除双方全部强化，对敌方治疗（清空总级数×60）。\n② 若治疗量<240，额外删除对方上次使用技能5PP。\n③ 回复自身全体技能3PP。\n④ 清空本技能PP，进入清念状态，持续1+本次出招实际扣除PP+随后清空本技能PP的回合数，不计其他技能PP损失。\n⑤ 整段持续期结束后一次性回复本技能PP（双方当前缺失PP总数×0.5，向上取整）。\n⑥ 回复结算后开启4回合窗口：对方使用威力招时，只将该招按未削弱威力累计削弱30%，上限50%；使用变化招时，只将该招先手永久减1。削弱当次生效，当前行动的先后顺序不重排。窗口结束后不再新增，已造成的削弱永久保留。",
+    detail: "① 强制清除双方全部强化，对敌方治疗（清空总级数×60）。\n② 若治疗量<240，额外删除对方上次使用技能5PP。\n③ 回复自身全体技能3PP。\n④ 清空本技能PP，进入清念状态，持续1+本次出招实际扣除PP+随后清空本技能PP的回合数，不计其他技能PP损失。\n⑤ 仅统计双方在场期间的 PP。分别取各宠物期初与期末差值的绝对值，相加后乘0.5，四舍五入，期满一次性回复本技能。清羽离场暂停，重复发动重置持续期和 PP 初值。提前离开清念视为期满。\n⑥ 回复结算后开启4回合窗口，跟随当前在场对手：对方使用威力招时，只将该招按未削弱威力累计削弱30%，上限50%；使用变化招时，只将该招先手永久减1。削弱当次生效，当前行动的先后顺序不重排。窗口结束后不再新增，已造成的削弱永久保留。",
     onUse: function(u, t, ctx) {
-      var bd = u.bloodlineData || {};
       var total = 0;
-      [u, t].forEach(function(p) { STAGE_FIELDS.forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
+      const recipient = skillEffectTarget(ctx, t, "stat");
+      [...new Set([u, recipient].filter(Boolean))].forEach(function(p) { STAGE_FIELDS.forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
       var healAmt = total * 60;
       ctx.doHeal(t, healAmt);
       ctx.msg("清除双方强化，对敌方治疗" + healAmt + "！");
-      if (healAmt < 240) { var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; }); if (last) last.pp = Math.max(0, last.pp - 5); ctx.msg("治疗<240：额外删对方上次技能5PP！"); }
+      if (healAmt < 240) { var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; }); if (last) ctx.deletePP(t, t.skills.indexOf(last), 5); ctx.msg("治疗<240：额外删对方上次技能5PP！"); }
       u.skills.forEach(function(s){ gainPP(u, s, 3); });
       var self = u.skills.find(function(s){ return s.id === "sk_qy_5"; });
       var cp = self ? self.pp : 0;
@@ -1939,14 +1942,7 @@ const DEFAULT_SKILLS = [
       // 玩家裁定：本次常规出招消耗 + 本技能清空消耗，不计其他技能 PP。
       cp += ctx.skillPPCost || 0;
       enterQingyuMode(u, "清念");
-      ctx.addTurnEffect(u, "清念沉脉", 1 + cp, null, function(p) {
-        var lost = 0;
-        [p, t].forEach(function(pt){ pt.skills.forEach(function(s){ lost += s.maxPp - s.pp; }); });
-        gainPP(p, p.skills.find(function(s){ return s.id === "sk_qy_5"; }), Math.ceil(lost * 0.5));
-        // 在回合开始结算完回复后开启；本回合及随后3回合内的出招可触发。
-        t.qingnianWindowEnd = gameState.turnCount + 3;
-        ctx.msg("清念沉脉结束：回复本技能PP，开启4回合出招削弱窗口；削弱永久保留！");
-      });
+      startQingnianChannel(u, t, 1 + cp, ctx);
       ctx.msg("进入清念" + (1 + cp) + "回合！");
     } },
 
@@ -2040,7 +2036,7 @@ const DEFAULT_SKILLS = [
         perTurn(owner);
       };
       ctx.grantStatusImmunity(u, "封灵千噬", 3, { statuses: ABNORMAL_WITHOUT_BIND });
-      setPPCostEffect(skillEffectTarget(ctx, t, "pp"), "封灵千噬", 3, { extra: 1 });
+      ctx.setPPCostEffect(t, "封灵千噬", 3, { extra: 1 });
       strike(u, isFirst);
       u.immuneBackhandEffects = true;
       const slot = getRoundSkillSlot(t);
@@ -2091,12 +2087,8 @@ const DEFAULT_SKILLS = [
       ctx.msg(u.name + " 释放了太虚灵威！");
       if (!ctx.applyStatus(t, "fear")) {
         ctx.deletePP(t, -1, 2);
-        const recipient = skillEffectTarget(ctx, t, "pp");
-        if (recipient) {
-          setPPCostEffect(recipient, "太虚灵威", 3, { extra: 1 });
-          const locks = recipient.switchLockSources ||= new Map();
-          locks.set("太虚灵威", gameState.turnCount + 2);
-        }
+        ctx.setPPCostEffect(t, "太虚灵威", 3, { extra: 1 });
+        ctx.lockSwitch(t, "太虚灵威", 3);
         ctx.msg("恐惧失败：删对方全体2PP，3回合内对方使用额外消耗1PP且无法换宠！");
       } else { ctx.msg("太虚灵威：对方陷入恐惧！"); }
       var bd = u.bloodlineData || {};
@@ -2306,6 +2298,7 @@ const DEFAULT_PETS = [
       // 上场钩子：按首格技能决定初始形态，并重置形态计时
       onEnter: function(pet, ctx) {
         var bd = pet.bloodlineData = pet.bloodlineData || {};
+        if (bd.qingnianChannel) return;
         const mode = getQingyuStartingMode(pet);
         if (mode) enterQingyuMode(pet, mode);
         else {
@@ -2631,7 +2624,7 @@ class BattlePet {
   isFainted() { return this.hp <= 0; }
   canAct() {
     // 控制状态即时复查；只缓存麻痹随机数，不能缓存尚未受控时的 true。
-    if (this.isFainted() || this.status === "freeze" || this.status === "sleep" || this.status === "fear") return false;
+    if (this.isFainted() || this.status === "freeze" || this.status === "sleep" || this.status === "deep_sleep" || this.status === "fear") return false;
     if (this.status !== "paralyze") return true;
     var turn = gameState.turnCount || 0;
     if (this.__canActTurn === turn && this.__canActValue !== undefined) return this.__canActValue;
@@ -2680,7 +2673,9 @@ class BattlePet {
       this.lethalHitThisTurn = true;
       this.preDeathHP = this.hp;
     }
+    const received = Math.min(this.hp, dmg);
     this.hp = Math.max(0, this.hp - dmg);
+    if (received > 0) this.lastDamageSegment = received;
     if (dmg > 0) { this.damageTakenThisTurn.push(dmg); spawnFloatText(this, dmg, "dmg"); }
     this.segmentIdx++;
     return dmg;
@@ -2719,11 +2714,51 @@ var gameState = {
   selectedTeamIds: [], opponentTeamIds: [],
   turnCount: 0, weather: null, weatherTurns: 0, field: null, fieldTurns: 0, banEffects: null, logFilter: "all", logCollapsed: {},
   wanguHeals: [],      // 万古遗恨施放回合的输出及下一回合的治疗
+  qingnianWindows: {},
   snapshots: [],       // 状态快照历史
   ppHistory: []        // 全局PP历史 [{turn, pets: [{id,pp}]}]
 };
 
 // ---------- BATTLE CONTEXT (V3 extended) ----------
+function recordAttemptedNegativeEffect(ctx, pet, replay) {
+  const action = ctx.skillAction;
+  if (!action || ctx.replayingNegativeEffects || pet === action.user) return;
+  let record = pet.lastNegativeSkillEffects;
+  if (!record || record.action !== action) {
+    record = { action, replays: [], applied: new Map() };
+    pet.lastNegativeSkillEffects = record;
+  }
+  record.replays.push(replay);
+  return record;
+}
+
+function replayNegativeEffects(owner, opponent, ctx) {
+  ctx.replayingNegativeEffects = true;
+  try {
+    const record = owner.lastNegativeSkillEffects;
+    if (record) {
+      for (const replay of record.replays) replay(ctx, opponent);
+      for (const [effect, version] of record.applied) {
+        if (owner.abnormalVersions?.get(effect) !== version) continue;
+        if (effect === "confuse") owner.confuseTurns = 0;
+        else if (effect === "bind") owner.bindTurns = 0;
+        else if (effect === "leech_seed") owner.leechSeed = false;
+        else if (owner.status === effect) { owner.status = null; owner.statusTurns = 0; }
+      }
+      delete owner.lastNegativeSkillEffects;
+      return;
+    }
+    // 独立异常和来自场地的负面状态也能退回。
+    if (owner.status) ctx.applyStatus(opponent, owner.status, { turns: owner.statusTurns, replace: true });
+    if (owner.confuseTurns > 0) ctx.applyStatus(opponent, "confuse", { turns: owner.confuseTurns });
+    if (owner.bindTurns > 0) ctx.applyStatus(opponent, "bind", { turns: owner.bindTurns });
+    if (owner.leechSeed) ctx.applyStatus(opponent, "leech_seed");
+    cleanseAbnormalStatuses(owner);
+  } finally {
+    ctx.replayingNegativeEffects = false;
+  }
+}
+
 function skillEffectTarget(ctx, target, kind) {
   const action = ctx?.skillAction;
   if (!action || target === action.user) return target;
@@ -2755,6 +2790,7 @@ function createBattleContext() {
       opts = opts || {};
       power = getSkillPower(this.sourceSkillOwner === att ? this.sourceSkill : null, power);
       el = getEffectiveSkillElement(att, el);
+      if (power > 0) wakeFromPowerHit(def);
       if (power > 0 && hasPowerDamageImmunity(def)) { this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0; return { damage: 0, effectiveness: 1, isCrit: false }; }
       var isPhysical = cat === "physical";
       var atkStat = isPhysical ? (opts.atkStageOverride ? att.atk * ((2+opts.atkStageOverride)/2) : att.getStat("atk")) : att.getStat("spatk");
@@ -2818,16 +2854,33 @@ function createBattleContext() {
     addShield: function(target, amount) { if (gameState.banEffects && gameState.banEffects.shield) { addMessage("护盾已被微灵封体永久限制！"); return; } var amt = Math.floor(amount); target.shield += amt; if (amt > 0) spawnFloatText(target, amt, "shield"); },
     grantStatusImmunity: grantStatusImmunity,
     revokeStatusImmunity: revokeStatusImmunity,
-    applyStatus: function(target, effect, options) {
-      target = skillEffectTarget(this, target, "status");
-      return target ? applyEffect(target, effect, options) : false;
+    applyStatus: function(pet, effect, options) {
+      const record = recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.applyStatus(target, effect, options));
+      const target = skillEffectTarget(this, pet, "status");
+      if (!target) return false;
+      const before = target.abnormalVersions?.get(effect);
+      const applied = applyEffect(target, effect, options);
+      const version = target.abnormalVersions?.get(effect);
+      if (record && target === pet && version !== before) record.applied.set(effect, version);
+      return applied;
     },
     cleanseAbnormalStatuses: function(target) {
       target = skillEffectTarget(this, target, "cleanse");
       if (target) cleanseAbnormalStatuses(target);
     },
     fear: function(target) { return this.applyStatus(target, "fear"); },
+    clearTurnEffects: function(pet) {
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.clearTurnEffects(target));
+      const target = skillEffectTarget(this, pet, "turn");
+      if (target) clearTurnEffects(target);
+    },
+    forceSwitchPet: function(pet) {
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.forceSwitchPet(target));
+      const target = skillEffectTarget(this, pet, "switch");
+      return target ? forceSwitchPet(target) : undefined;
+    },
     modifyStat: function(target, stat, stages) {
+      if (stages < 0) recordAttemptedNegativeEffect(this, target, (ctx, target) => ctx.modifyStat(target, stat, stages));
       target = skillEffectTarget(this, target, "stat");
       if (!target) return;
       if (!Object.hasOwn(STAGE_LABELS, stat) || target.statLocked) return;
@@ -2840,8 +2893,9 @@ function createBattleContext() {
       }
     },
     deletePP: function(pet, slot, amount) {
-      const target = skillEffectTarget(this, pet, "pp");
       const requested = Math.floor(amount);
+      if (requested > 0) recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.deletePP(target, slot, requested));
+      const target = skillEffectTarget(this, pet, "pp");
       if (!target || !(requested > 0)) return [];
       const changed = [];
       for (const [index, skill] of target.skills.entries()) {
@@ -2960,7 +3014,31 @@ function createBattleContext() {
     setWeather: function(type, turns) { if (gameState.field) { addMessage("环境在场，天气无法降临！"); return false; } gameState.weather = type; gameState.weatherTurns = turns; addMessage("天气变更为" + (WEATHER_DISPLAY[type]?.[1] || type) + "！持续"+turns+"回合"); return true; },
     setField: function(type, turns) { gameState.field = type; gameState.fieldTurns = turns; addMessage("环境变更为" + ({"dream":"梦境","shunhua":"瞬华"}[type]||type) + "！持续"+turns+"回合"); },
     addCritBonus: function(target, amount, turns) { target.critRateBonus = (target.critRateBonus || 0) + amount; var self = this; setTimeout(function() { target.critRateBonus = Math.max(0, (target.critRateBonus || 0) - amount); }, turns * 1000 || 2000); },
-    invertHealing: function(target, pct, turns) { target = skillEffectTarget(this, target, "heal"); if (!target) return; target.healInvertPct = pct; target.healInvertTurns = turns; addMessage(target.name + "的治疗被倒置"+Math.round(pct*100)+"%持续"+turns+"回合！"); },
+    invertHealing: function(target, pct, turns) {
+      if (pct > 0) recordAttemptedNegativeEffect(this, target, (ctx, target) => ctx.invertHealing(target, pct, turns));
+      target = skillEffectTarget(this, target, "heal");
+      if (!target) return;
+      target.healInvertPct = pct;
+      target.healInvertTurns = turns;
+      addMessage(target.name + "的治疗被倒置" + Math.round(pct * 100) + "%持续" + turns + "回合！");
+    },
+    setPPCostEffect: function(pet, source, turns, options) {
+      const slot = options.skill ? pet.skills.indexOf(options.skill) : -1;
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => {
+        if (slot < 0 || target.skills[slot]) {
+          ctx.setPPCostEffect(target, source, turns, { ...options, skill: slot < 0 ? undefined : target.skills[slot] });
+        }
+      });
+      const target = skillEffectTarget(this, pet, "pp");
+      if (target && (slot < 0 || target.skills[slot])) {
+        setPPCostEffect(target, source, turns, { ...options, skill: slot < 0 ? undefined : target.skills[slot] });
+      }
+    },
+    lockSwitch: function(pet, source, turns) {
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.lockSwitch(target, source, turns));
+      const target = skillEffectTarget(this, pet, "switch");
+      if (target) (target.switchLockSources ||= new Map()).set(source, gameState.turnCount + turns - 1);
+    },
     msg: function(text) { addMessage(text); },
     get playerActive() { return gameState.playerActive; },
     get aiActive() { return gameState.aiActive; },
@@ -3010,6 +3088,7 @@ function setQingyuOriginalBloodline(pet, active) {
 function enterQingyuMode(pet, mode) {
   var bd = pet.bloodlineData || (pet.bloodlineData = { turnCount: 0, qfzn: 0, healCount: 0 });
   var previous = bd.mode;
+  if (previous === "清念" && mode !== "清念" && bd.qingnianChannel) finishQingnianChannel(pet, true);
   bd.mode = mode;
   bd.modeEntered = true;
   if (pet.bloodline?.name === "清念/残脉") setQingyuOriginalBloodline(pet, false);
@@ -3022,6 +3101,85 @@ function enterQingyuMode(pet, mode) {
     var skill = pet.skills.find(function(s) { return s.id === "sk_qy_3"; });
     if (skill) skill.pp = Math.min(skill.maxPp, bd.qy3SavedPP);
     delete bd.qy3SavedPP;
+  }
+}
+
+function totalSkillPP(pet) {
+  return pet.skills.reduce((sum, skill) => sum + skill.pp, 0);
+}
+
+function startQingnianChannel(owner, opponent, turns, ctx) {
+  const data = owner.bloodlineData ||= {};
+  const samples = new Map();
+  const channel = data.qingnianChannel = { samples, attackingPlayer: gameState.playerActive === owner };
+  for (const pet of [owner, opponent]) {
+    const total = totalSkillPP(pet);
+    const first = gameState.roundStartPP?.get(pet) ?? total + (pet === owner ? ctx.skillPPCost || 0 : 0);
+    samples.set(pet, { net: 0, first, last: total });
+  }
+  owner.turnEffects = owner.turnEffects.filter(effect => effect.name !== "清念沉脉");
+  ctx.addTurnEffect(owner, "清念沉脉", turns, null, () => {
+    if (data.qingnianChannel === channel) finishQingnianChannel(owner, false);
+  });
+}
+
+function beginQingnianSample(channel, pet) {
+  if (!pet) return;
+  const total = totalSkillPP(pet);
+  const sample = channel.samples.get(pet) || { net: 0 };
+  if (sample.first !== undefined) return;
+  sample.first = sample.last = total;
+  channel.samples.set(pet, sample);
+}
+
+function closeQingnianSample(sample, pet) {
+  if (sample.first === undefined) return;
+  sample.net += sample.first - totalSkillPP(pet);
+  delete sample.first;
+}
+
+function sampleQingnianEndOfRound() {
+  for (const owner of [gameState.playerActive, gameState.aiActive]) {
+    const data = owner?.bloodlineData?.qingnianChannel;
+    if (!data) continue;
+    for (const [pet, sample] of data.samples) {
+      if (sample.first !== undefined) sample.last = totalSkillPP(pet);
+    }
+  }
+}
+
+function finishQingnianChannel(owner, useCurrentPP) {
+  const data = owner.bloodlineData;
+  const channel = data.qingnianChannel;
+  if (!channel) return;
+  delete data.qingnianChannel;
+  owner.turnEffects = owner.turnEffects.filter(effect => effect.name !== "清念沉脉");
+  let loss = 0;
+  for (const [pet, sample] of channel.samples) {
+    const change = sample.first === undefined ? 0 : sample.first - (useCurrentPP ? totalSkillPP(pet) : sample.last);
+    loss += Math.abs(sample.net + change);
+  }
+  const restored = gainPP(owner, owner.skills.find(skill => skill.id === "sk_qy_5"), Math.round(loss / 2));
+  const targetSide = channel.attackingPlayer ? "aiActive" : "playerActive";
+  const until = gameState.turnCount + 3;
+  gameState.qingnianWindows[targetSide] = until;
+  if (gameState[targetSide]) gameState[targetSide].qingnianWindowEnd = until;
+  addMessage("清念沉脉结束，回复" + restored + "PP，开启4回合出招削弱窗口。");
+}
+
+function trackQingnianSwitch(pet, leaving) {
+  const active = [gameState.playerActive, gameState.aiActive];
+  for (const owner of active) {
+    const channel = owner?.bloodlineData?.qingnianChannel;
+    if (!channel) continue;
+    if (leaving) {
+      for (const [samplePet, sample] of channel.samples) {
+        if (owner === pet || samplePet === pet) closeQingnianSample(sample, samplePet);
+      }
+    } else {
+      const involved = owner === pet ? active : [pet];
+      for (const entrant of involved) beginQingnianSample(channel, entrant);
+    }
   }
 }
 
@@ -3058,7 +3216,9 @@ function getSkillPriority(skill) {
 }
 
 function applyQingnianSuppression(pet, skill) {
-  if (pet.qingnianWindowEnd === undefined || gameState.turnCount > pet.qingnianWindowEnd) return;
+  const side = pet === gameState.playerActive ? "playerActive" : "aiActive";
+  const until = gameState.qingnianWindows[side] ?? pet.qingnianWindowEnd;
+  if (until === undefined || gameState.turnCount > until) return;
   if (skill.category === "status") {
     skill.qingnianPriorityLoss = (skill.qingnianPriorityLoss || 0) + 1;
     addMessage("【清念沉脉】" + pet.name + " 的" + skill.name + "先手永久-1！");
@@ -3103,6 +3263,7 @@ function postDamageProcessing() {
 }
 
 function forceSwitchPet(pet) {
+  if (pet !== gameState.playerActive && pet !== gameState.aiActive) return;
   if (pet.immuneEject) { addMessage(pet.name + " 免疫了驱逐效果！"); return; }
   var party = gameState.playerActive === pet ? gameState.playerParty : gameState.aiParty;
   var candidates = party.filter(function(p) { return !p.isFainted() && p !== pet; });
@@ -3257,12 +3418,12 @@ function calcDamage(attacker, defender, skill) {
 }
 
 // 防控按宠物与来源登记，由同一处负责刷新、累加和到期。
-const ABNORMAL_WITHOUT_BIND = ["burn", "freeze", "paralyze", "poison", "sleep", "confuse", "fear", "leech_seed"];
+const ABNORMAL_WITHOUT_BIND = ["burn", "freeze", "paralyze", "poison", "sleep", "deep_sleep", "confuse", "fear", "leech_seed"];
 const ABNORMAL_STATUSES = ABNORMAL_WITHOUT_BIND.concat("bind");
 const STATUS_LABELS = { burn: "烧伤", freeze: "冰冻", paralyze: "麻痹", poison: "中毒",
-  sleep: "睡眠", fear: "恐惧", confuse: "混乱", bind: "束缚", leech_seed: "寄生" };
+  sleep: "睡眠", deep_sleep: "沉睡", fear: "恐惧", confuse: "混乱", bind: "束缚", leech_seed: "寄生" };
 const STATUS_MESSAGES = { burn: "烧伤了", freeze: "被冰冻了", paralyze: "麻痹了", poison: "中毒了",
-  sleep: "睡着了", fear: "被恐惧了", confuse: "混乱了", bind: "被束缚了", leech_seed: "被寄生种子缠住了" };
+  sleep: "睡着了", deep_sleep: "陷入沉睡", fear: "被恐惧了", confuse: "混乱了", bind: "被束缚了", leech_seed: "被寄生种子缠住了" };
 
 function grantStatusImmunity(pet, source, turns, options = {}) {
   const sources = pet.statusImmunitySources;
@@ -3308,6 +3469,7 @@ function tickStatusImmunities(pet) {
 
 function clearTurnEffects(pet) {
   pet.turnEffects = [];
+  if (pet.bloodlineData?.qingnianChannel) delete pet.bloodlineData.qingnianChannel;
   pet.powerDamageImmuneThroughTurn = -1;
   pet.qinglingInvertNext = false;
   pet.qinglingInvertThrough = -1;
@@ -3328,6 +3490,33 @@ function cleanseAbnormalStatuses(pet) {
   pet.leechSeed = false;
 }
 
+function wakeFromPowerHit(pet) {
+  if (pet.status !== "sleep") return;
+  pet.status = null;
+  pet.statusTurns = 0;
+  addMessage(pet.name + " 被威力技能击中后醒来！");
+}
+
+function tickUnableToAct(pet) {
+  if (["sleep", "deep_sleep", "fear"].includes(pet.status)) {
+    const status = pet.status;
+    pet.statusTurns--;
+    if (pet.statusTurns <= 0) {
+      pet.status = null;
+      pet.statusTurns = 0;
+      addMessage(pet.name + " 解除了" + STATUS_LABELS[status] + "！");
+    } else addMessage(pet.name + " 因" + STATUS_LABELS[status] + "无法行动！");
+  } else if (pet.status === "freeze") {
+    if (Math.random() < 0.2) {
+      pet.status = null;
+      pet.statusTurns = 0;
+      addMessage(pet.name + " 解冻了！");
+    } else addMessage(pet.name + " 被冰冻了，无法行动！");
+  } else if (pet.status === "paralyze") {
+    addMessage(pet.name + " 因麻痹无法行动！");
+  }
+}
+
 function applyEffect(pet, effect, options = {}) {
   if (!Object.hasOwn(STATUS_MESSAGES, effect)) return false;
   if (hasStatusImmunity(pet, effect)) {
@@ -3338,7 +3527,7 @@ function applyEffect(pet, effect, options = {}) {
   // 已有同种主异常时保留原状态与时长，也保留技能原先的成功分支。
   if (pet.status && !independent && !options.replace) return pet.status === effect;
   const turns = options.turns ?? (
-    effect === "sleep" ? 1 + Math.floor(Math.random() * 3) :
+    effect === "sleep" || effect === "deep_sleep" ? 1 + Math.floor(Math.random() * 6) :
     effect === "fear" ? 1 + Math.floor(Math.random() * 2) :
     effect === "confuse" ? 2 + Math.floor(Math.random() * 3) :
     effect === "bind" ? 2 + Math.floor(Math.random() * 4) : 0
@@ -3346,7 +3535,13 @@ function applyEffect(pet, effect, options = {}) {
   if (effect === "confuse") pet.confuseTurns = turns;
   else if (effect === "bind") pet.bindTurns = turns;
   else if (effect === "leech_seed") pet.leechSeed = true;
-  else { pet.status = effect; pet.statusTurns = turns; }
+  else {
+    pet.status = effect;
+    pet.statusTurns = turns;
+    if (effect === "deep_sleep") pet.deepSleepToken = (pet.deepSleepToken || 0) + 1;
+  }
+  const versions = pet.abnormalVersions ||= new Map();
+  versions.set(effect, (versions.get(effect) || 0) + 1);
   addMessage(options.message || pet.name + " " + STATUS_MESSAGES[effect] + "！");
   return true;
 }
@@ -3582,6 +3777,7 @@ function resolveTurn() {
   } finally {
     gameState.resolvingTurn = false;
     gameState.roundActions = null;
+    gameState.roundStartPP = null;
     gameState.qinglingHealBatches = null;
     gameState.afterActions = null;
     gameState.pendingPlayerAction = null;
@@ -3594,6 +3790,7 @@ function resolveTurn() {
 function resolveTurnActions() {
   var player = gameState.playerActive, ai = gameState.aiActive;
   const selected = gameState.pendingPlayerAction;
+  gameState.roundStartPP = new Map([[player, totalSkillPP(player) + (selected?.ppCost || 0)], [ai, totalSkillPP(ai)]]);
   gameState.turnCount++;
   // 在任何天气、异常或回合效果伤害前复位；场下宠物本回合也可能被换上。
   gameState.playerParty.concat(gameState.aiParty).forEach(function(pet) {
@@ -3613,40 +3810,8 @@ function resolveTurnActions() {
   gameState.qinglingHealBatches = new Map();
   gameState.afterActions = [];
 
-  // 玩家无法行动：推进状态（睡眠/冰冻/恐惧/麻痹回合递减），本回合不出招
-  if (!playerCanAct) {
-    if (player.status === "sleep") {
-      player.statusTurns--;
-      if (player.statusTurns <= 0) { player.status = null; addMessage(player.name + " 醒过来了！"); }
-      else { addMessage(player.name + " 正在睡觉..."); }
-    } else if (player.status === "freeze") {
-      if (Math.random() < 0.2) { player.status = null; addMessage(player.name + " 解冻了！"); }
-      else { addMessage(player.name + " 被冰冻了，无法行动！"); }
-    } else if (player.status === "fear") {
-      player.statusTurns--;
-      if (player.statusTurns <= 0) { player.status = null; addMessage(player.name + " 从恐惧中恢复！"); }
-      else { addMessage(player.name + " 被恐惧了，无法行动！"); }
-    } else if (player.status === "paralyze") {
-      addMessage(player.name + " 因麻痹无法行动！");
-    }
-  }
-  // AI无法行动：推进状态，本回合不出招
-  if (!aiCanAct) {
-    if (ai.status === "sleep") {
-      ai.statusTurns--;
-      if (ai.statusTurns <= 0) { ai.status = null; addMessage(ai.name + " 醒过来了！"); }
-      else { addMessage(ai.name + " 正在睡觉..."); }
-    } else if (ai.status === "freeze") {
-      if (Math.random() < 0.2) { ai.status = null; addMessage(ai.name + " 解冻了！"); }
-      else { addMessage(ai.name + " 被冰冻了，无法行动！"); }
-    } else if (ai.status === "fear") {
-      ai.statusTurns--;
-      if (ai.statusTurns <= 0) { ai.status = null; addMessage(ai.name + " 从恐惧中恢复！"); }
-      else { addMessage(ai.name + " 被恐惧了，无法行动！"); }
-    } else if (ai.status === "paralyze") {
-      addMessage(ai.name + " 因麻痹无法行动！");
-    }
-  }
+  if (!playerCanAct) tickUnableToAct(player);
+  if (!aiCanAct) tickUnableToAct(ai);
   // 双方空过也走完整回合管线，持续效果和计时均正常推进。
   var pPrio = pAction?.kind === "switch" ? 8 : pSkill ? (player.priorityOverride ?? pSkill.priority ?? 8) : 0;
   var aPrio = aSkill ? (ai.priorityOverride ?? aSkill.priority ?? 8) : 0;
@@ -3726,6 +3891,7 @@ function resolveTurnActions() {
     }
   }
   resolveQinglingHealBatches();
+  sampleQingnianEndOfRound();
   postDamageProcessing();
   updateBattleUI();
   checkFaints();
@@ -3959,7 +4125,10 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
     var result = recipient ? calcDamage(user, recipient, skill) : { damage: 0, effectiveness: 1, isCrit: false };
     lastEff = result.effectiveness; lastDmgVal = result.damage;
     user.lastOutputDmg = result.damage;
-    if (recipient) recipient.takeDamage(result.damage);
+    if (recipient) {
+      if (skill.power > 0) wakeFromPowerHit(recipient);
+      recipient.takeDamage(result.damage);
+    }
     addMessage("造成 " + result.damage + " 点伤害！" + getEffLabel(result.effectiveness) + (result.isCrit ? " 命中要害！" : ""));
     if (skill.effect && skill.effectChance > 0 && Math.random() * 100 < skill.effectChance) {
       var eff = getEffectiveness(getEffectiveSkillElement(user, skill.element), target.element);
@@ -4024,6 +4193,7 @@ function clearGrantedDefenses(pet) {
 }
 
 function leaveBattlefield(pet) {
+  trackQingnianSwitch(pet, true);
   pet.qlSealMark = false;
   pet.turnEffects = pet.turnEffects.filter(effect => effect.name !== "微灵封体印");
 }
@@ -4032,10 +4202,16 @@ function callBloodlineEnter(pet) {
   if (!pet) return;
   if (gameState.banEffects) clearGrantedDefenses(pet);
   if (pet.bloodline?.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
+  trackQingnianSwitch(pet, false);
 }
 
 function hasSwitchLock(pet) {
   if (pet.switchLocked) return true;
+  if (pet.deepSleepLock) {
+    const { target, token } = pet.deepSleepLock;
+    if (!target.isFainted() && target.status === "deep_sleep" && target.deepSleepToken === token) return true;
+    delete pet.deepSleepLock;
+  }
   const turn = gameState.turnCount + (gameState.resolvingTurn ? 0 : 1);
   for (const [name, throughTurn] of pet.switchLockSources || []) {
     if (throughTurn >= turn) return true;
@@ -4420,10 +4596,9 @@ function renderStages(pet) {
 function renderStatusBadges(pet) {
   var h = "";
   if (pet.status) {
-    var labels = {burn:"烧伤",freeze:"冰冻",paralyze:"麻痹",poison:"中毒",sleep:"睡眠",fear:"恐惧"};
-    var label = labels[pet.status] || pet.status;
+    var label = STATUS_LABELS[pet.status] || pet.status;
     // 有时限状态：显示剩余回合
-    if ((pet.status === "sleep" || pet.status === "fear") && pet.statusTurns > 0) label += " " + pet.statusTurns + "回合";
+    if (["sleep", "deep_sleep", "fear"].includes(pet.status) && pet.statusTurns > 0) label += " " + pet.statusTurns + "回合";
     if (pet.status === "freeze") label += "（待解冻）";
     h += "<span class=status-badge " + pet.status + ">" + label + "</span>";
   }
@@ -4702,6 +4877,7 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   gameState.forceSkillElement = null; gameState.forceSkillElementTurns = 0;
   gameState.jianghuaBuff = null; gameState.pendingJianghua = null;
   gameState.wanguHeals = [];
+  gameState.qingnianWindows = {};
   [gameState.playerParty, gameState.aiParty].forEach(function(party) {
     (party || []).forEach(function(pet) { pet.pendingNilex = null; });
   });
@@ -4845,8 +5021,8 @@ function showFleeConfirm() {
 function renderBattleActions() { if (!canSubmitPlayerAction()) return; var container = document.querySelector("#battle-actions"); if (!container) return; var oldList = container.querySelector(".battle-skill-list"); if (oldList) battleVisual.skillScroll = oldList.scrollLeft; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
   // 检查是否被控制（仅异常状态自动跳过；PP归零改为等待读秒）
   var allPPEmpty = player.skills.every(function(s){return s.pp<=0;});
-  if (["sleep", "freeze", "fear"].indexOf(player.status) >= 0 && !allPPEmpty) {
-    var reason = (player.status==="sleep"?"正在睡觉":player.status==="freeze"?"被冰冻":player.status==="fear"?"被恐惧":player.status==="paralyze"?"麻痹无法行动":"无法行动");
+  if (["sleep", "deep_sleep", "freeze", "fear"].includes(player.status) && !allPPEmpty) {
+    var reason = (player.status==="sleep"?"正在睡觉":player.status==="deep_sleep"?"正在沉睡":player.status==="freeze"?"被冰冻":player.status==="fear"?"被恐惧":player.status==="paralyze"?"麻痹无法行动":"无法行动");
     document.querySelector("#battle-actions").innerHTML = "<div style=text-align:center;padding:20px;color:var(--text2);font-size:14px>"+player.name+reason+"<br>自动跳过...</div>";
     stopTurnTimer();
     const battleId = gameState.battleId;

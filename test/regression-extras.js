@@ -343,6 +343,7 @@ test('R22 清羽：技能进入清念或残脉时同步撤掉原初的两个效�
     assert.equal(p.statusImmunitySources.has('独立防控'), true);
     assert.equal(e.sandbox.hasStatusImmunity(p, 'sleep'), true);
 
+    delete p.bloodlineData.qingnianChannel;
     p.bloodline.onEnter(p, ctx);
     assert.equal(p.bloodlineData.mode, null, '重新上场重新判定首格');
     assert.equal(p.statusImmunitySources.has('清羽原初血脉'), true);
@@ -650,6 +651,109 @@ test('双损、三损分别计时，源到期后只撤自己的扣费', () => {
   move.noExtraPPCost = true;
   e.sandbox.setPPCostEffect(p, 'another', 3, { extra: 2 });
   assert.equal(e.sandbox.getRequiredPPCost(p, move), 1);
+});
+
+test('普通睡眠和沉睡均为1至6回合，命中只唤醒普通睡眠', () => {
+  const e = env();
+  const p = pet(e, 'owner');
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  e.myMath.random = () => 0;
+  ctx.applyStatus(a, 'sleep');
+  assert.equal(a.statusTurns, 1);
+  ctx.doFixedDamage(a, 20, p);
+  assert.equal(a.status, 'sleep');
+  ctx.doDamage(p, a, 40, 'physical', 'normal');
+  assert.equal(a.status, null);
+  e.myMath.random = () => 0.99;
+  ctx.applyStatus(a, 'deep_sleep');
+  assert.equal(a.statusTurns, 6);
+  assert.equal(a.canAct(), false);
+  ctx.doDamage(p, a, 40, 'physical', 'normal');
+  assert.equal(a.status, 'deep_sleep');
+  for (let index = 0; index < 6; index++) e.sandbox.tickUnableToAct(a);
+  assert.equal(a.status, null);
+});
+
+test('残念的换宠锁跟随沉睡目标，换下不解除，净化或阵亡解除', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_3']);
+  const old = pet(e, 'old');
+  const next = pet(e, 'next');
+  setup(e, p, old);
+  const state = e.api.gameState;
+  state.aiParty.push(next);
+  state.pendingFirstMove = 'ai';
+  e.api.executeSkillTurn(p, old, p.skills[0], 'player');
+  assert.equal(old.status, 'deep_sleep');
+  assert.equal(e.sandbox.hasSwitchLock(p), true);
+  e.sandbox.executeSwitchAction({ user: old, incoming: next }, 'ai');
+  assert.equal(e.sandbox.hasSwitchLock(p), true);
+  e.api.createBattleContext().cleanseAbnormalStatuses(old);
+  assert.equal(e.sandbox.hasSwitchLock(p), false);
+  e.api.executeSkillTurn(p, next, p.skills[0], 'player');
+  assert.equal(e.sandbox.hasSwitchLock(p), true);
+  next.hp = 0;
+  assert.equal(e.sandbox.hasSwitchLock(p), false);
+});
+
+test('残念返还最近一段承伤及上次被防控挡住的负面效果', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_3']);
+  const a = pet(e, 'enemy', skill('attack', (u, t, ctx) => {
+    ctx.doFixedDamage(t, 70, u);
+    ctx.doFixedDamage(t, 20, u);
+    ctx.applyStatus(t, 'poison');
+    ctx.modifyStat(t, 'def', -2);
+    ctx.deletePP(t, 0, 2);
+  }));
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  ctx.grantStatusImmunity(p, 'test', Infinity, {stats:true});
+  e.api.executeSkillTurn(a, p, a.skills[0], 'ai');
+  assert.equal(p.status, null);
+  assert.equal(p.defStage, 0);
+  const hp = a.hp;
+  e.api.gameState.pendingFirstMove = 'player';
+  e.api.executeSkillTurn(p, a, p.skills[0], 'player');
+  assert.equal(a.hp, hp - 16, '仅返还减伤后的最近一段');
+  assert.equal(a.status, 'poison');
+  assert.equal(a.defStage, -2);
+});
+
+test('沉脉按每只在场宠物的期初期末差值，暂停并让削弱跟随当前对手', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_5', 'sk_qy_3']);
+  const a = pet(e, 'enemy', { ...skill('move'), pp: 2, maxPp: 9 });
+  const bench = pet(e, 'bench');
+  const foe = pet(e, 'incoming');
+  setup(e,p,a);
+  const state = e.api.gameState;
+  state.playerParty.push(bench);
+  state.aiParty.push(foe);
+  p.bloodlineData = { mode:'清念' };
+  p.skills[0].pp = 0;
+  state.roundStartPP = new Map([[p, 10], [a, 2]]);
+  e.sandbox.startQingnianChannel(p, a, 2, e.api.createBattleContext());
+  a.skills[0].pp = 6;
+  e.sandbox.sampleQingnianEndOfRound();
+  // 清羽在场合计4点损失，对手合计增加4点。
+  // 换下后后备环境中的PP变化不应加进这段差值。
+  e.sandbox.executeSwitchAction({user:p,incoming:bench}, 'player');
+  state.turnCount = 4;
+  a.skills[0].pp = 2;
+  e.sandbox.executeSwitchAction({user:bench,incoming:p}, 'player');
+  assert.equal(p.bloodlineData.mode,'清念');
+  assert.equal(p.turnEffects.find(effect => effect.name === '清念沉脉').turnsLeft,2);
+  e.sandbox.enterQingyuMode(p, '残脉');
+  assert.equal(p.skills[0].pp,4);
+  e.sandbox.executeSwitchAction({user:a,incoming:foe}, 'ai');
+  e.sandbox.applyQingnianSuppression(foe, foe.skills[0]);
+  assert.equal(foe.skills[0].qingnianPriorityLoss,1);
+  state.turnCount += 4;
+  e.sandbox.applyQingnianSuppression(foe, foe.skills[0]);
+  assert.equal(foe.skills[0].qingnianPriorityLoss,1);
 });
 
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
