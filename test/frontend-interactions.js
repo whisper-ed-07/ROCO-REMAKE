@@ -39,8 +39,8 @@ const body = new Element('body'), actions = new Element(); actions.id = 'battle-
 document.body = body; document.createElement = tag => new Element(tag); document.querySelector = sel => body.querySelector(sel); document.getElementById = id => body.querySelector('#' + id); document.querySelectorAll = sel => body.querySelectorAll(sel);
 const docListeners = {}; document.addEventListener = (t, f) => (docListeners[t] ||= []).push(f); document.removeEventListener = (t, f) => { docListeners[t] = (docListeners[t] || []).filter(x => x !== f); };
 const keys = (key, extra = {}) => { const event = { key, preventDefault() { this.prevented = true; }, stopPropagation() {}, ...extra }; for (const fn of [...(docListeners.keydown || [])]) fn(event); return event; };
-let slots = [], switches = 0, struggles = 0;
-s.playerUseSkill = i => slots.push(i); s.showSwitchPanel = () => switches++; s.aiDecideAndResolve = () => struggles++; s.startTurnTimer = () => {}; s.stopTurnTimer = () => {};
+let slots = [], switches = 0, passes = 0;
+s.playerUseSkill = i => slots.push(i); s.showSwitchPanel = () => switches++; s.aiDecideAndResolve = () => passes++; s.startTurnTimer = () => {}; s.stopTurnTimer = () => {};
 const skills = api.DEFAULT_SKILLS.slice(0, 4).map((skill, i) => ({ ...skill, pp: i === 0 ? 0 : skill.maxPp }));
 api.gameState.playerActive = { skills, isFainted: () => false }; api.gameState.switchPending = false;
 s.renderBattleActions();
@@ -54,7 +54,7 @@ infos[0].click(); overlay = document.getElementById('skill-detail-overlay'); ove
 buttons.slice(1).forEach(b => b.click()); assert.deepEqual(slots, [1,2,3]);
 skills[0].pp = skills[0].maxPp; s.renderBattleActions(); actions.querySelectorAll('.skill-card')[0].querySelector('.skill-btn').click(); assert.deepEqual(slots, [1,2,3,0]);
 actions.querySelector('.battle-utility-list').querySelector('.action-btn').click(); assert.equal(switches, 1);
-skills.forEach(x => x.pp = 0); s.renderBattleActions(); actions.querySelector('.struggle-btn').click(); assert.equal(struggles, 1);
+skills.forEach(x => x.pp = 0); s.renderBattleActions(); const pass = actions.querySelector('#battle-pass'); assert.equal(pass.textContent, '跳过回合'); pass.click(); assert.equal(passes, 1);
 
 
 // 选宠使用原生按钮，键盘激活由浏览器提供。

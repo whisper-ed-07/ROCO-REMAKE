@@ -33,7 +33,7 @@ test('E02 双方睡一回合后醒来并继续出招', () => {
   turn(e); assert.ok(e.api.gameState.turnCount>=2); assert.strictEqual(p.skills[0].pp,4); assert.strictEqual(a.skills[0].pp,4);
 });
 test('E03 跨回合致死保护复位', () => {
-  const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'struggle',null,200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a);
+  const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'attacker',skill('first-lethal',(u,t,c)=>{if(e.api.gameState.turnCount===1)c.doFixedDamage(t,10,u);}),200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a);
   turn(e); assert.strictEqual(p.hp,1); p.status='poison'; turn(e); assert.ok(p.hp>0); assert.strictEqual(e.api.gameState.battleOver,false);
 });
 test('先手施加睡眠使后手本回合不能行动', () => {
@@ -73,7 +73,7 @@ test('R05 驱逐后离场宠物不能行动', () => {
   const e=env(); let count=0; const p=built(e,'pet_qy',['sk_qy_1','sk_qy_2','sk_qy_3','sk_qy_4']), a=pet(e,'a',skill('queued',()=>count++)), b=pet(e,'bench'); setup(e,p,a); e.api.gameState.aiParty.push(b); turn(e,3); assert.strictEqual(e.api.gameState.aiActive,b); assert.strictEqual(count,0);
 });
 test('R06 单次致死保护先于判负', () => {
-  const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'struggle',null,200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a); turn(e); assert.strictEqual(p.hp,1); assert.strictEqual(e.api.gameState.battleOver,false);
+  const e=env(), p=built(e,'pet_bmhs',[]), a=pet(e,'attacker',skill('first-lethal',(u,t,c)=>{if(e.api.gameState.turnCount===1)c.doFixedDamage(t,10,u);}),200); p.hp=1; p.skills=[skill('idle')]; setup(e,p,a); turn(e); assert.strictEqual(p.hp,1); assert.strictEqual(e.api.gameState.battleOver,false);
 });
 test('R07 新局清除降华全局状态', () => {
   const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); e.api.findSkill('sk_jydm_1').onUse(p,a,e.api.createBattleContext()); e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); assert.strictEqual(e.api.gameState.forceSkillElement,null); assert.strictEqual(e.api.gameState.jianghuaBuff,null); assert.strictEqual(e.api.gameState.pendingJianghua,null);

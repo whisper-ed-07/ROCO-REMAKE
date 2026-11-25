@@ -521,5 +521,82 @@ test('微灵封体封锁获得的防御，保留血脉的固有减伤', () => {
   assert.equal(incoming.shield, 0);
 });
 
+test('轻风散魂在残脉封存选招扣费后的 PP，再进清念恢复一次', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_4', 'sk_qy_1', 'sk_qy_2']);
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  p.bloodline.onEnter(p, e.api.createBattleContext());
+  const lightWind = p.skills[2];
+  lightWind.pp = 6;
+  const action = e.sandbox.reserveSkillAction(p, lightWind);
+  lightWind.pp -= 2;
+  e.api.executeSkillTurn(p, a, lightWind, 'player', action);
+  assert.equal(lightWind.pp, 0);
+  assert.equal(e.sandbox.gainPP(p, lightWind, 3), 0);
+  e.sandbox.enterQingyuMode(p, '清念');
+  assert.equal(lightWind.pp, 5);
+  lightWind.pp--;
+  e.sandbox.enterQingyuMode(p, '清念');
+  assert.equal(lightWind.pp, 4);
+});
+
+test('清翎与残风按裁定校验回复来源，清念只可回满清翎', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4', 'sk_qy_2']);
+  const a = pet(e, 'enemy');
+  setup(e, p, a);
+  const ctx = e.api.createBattleContext();
+  p.bloodline.onEnter(p, ctx);
+  const [qingling, residualWind] = p.skills;
+  qingling.pp = 0;
+  residualWind.pp = 0;
+  assert.equal(e.sandbox.gainPP(p, qingling, 3), 0);
+  assert.equal(e.sandbox.gainPP(p, residualWind, 4, '清念PP回复'), 0);
+  p.bloodlineData.qfzn = 4;
+  p.bloodline.onSkillUse(p, a, ctx, qingling);
+  assert.equal(qingling.pp, 3);
+  assert.equal(residualWind.pp, 0);
+  p.bloodlineData.qfzn = 3;
+  e.api.executeSkillTurn(p, a, qingling, 'player');
+  assert.equal(residualWind.pp, 2);
+  qingling.pp = 0;
+  assert.equal(e.sandbox.gainPP(p, qingling, 2, 'sk_qy_2'), 2);
+});
+
+test('清翎首次变系各按携带者主系，仅实际变系计入持续期', () => {
+  const e = env();
+  const p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4', 'sk_qy_2']);
+  const a = pet(e, 'enemy', { ...skill('ice'), element: 'ice' });
+  a.element = 'fire';
+  a.skills.push({ ...skill('flame'), element: 'fire' });
+  setup(e, p, a);
+  const game = e.api.gameState;
+  game.turnCount = 1;
+  e.api.executeSkillTurn(p, a, p.skills[0], 'player');
+  assert.equal(e.sandbox.getEffectiveSkillElement(p, 'ice'), 'flying');
+  assert.equal(e.sandbox.getEffectiveSkillElement(a, 'ice'), 'fire');
+  game.turnCount = 6;
+  assert.equal(e.sandbox.getEffectiveSkillElement(a, 'ice'), 'fire');
+  game.turnCount = 7;
+  assert.equal(e.sandbox.getEffectiveSkillElement(a, 'ice'), 'ice');
+});
+
+test('全空 PP 只空过，不凭空攻击、掉精力或在 150 回合判负', () => {
+  const e = env();
+  const p = pet(e, 'p', skill('empty-p', undefined, 8, 0));
+  const a = pet(e, 'a', skill('empty-a', undefined, 8, 0));
+  setup(e, p, a);
+  for (let i = 0; i < 151; i++) {
+    e.api.gameState.pendingPlayerSkill = 0;
+    e.api.gameState.pendingAISkill = 0;
+    e.sandbox.resolveTurn();
+  }
+  assert.equal(e.api.gameState.turnCount, 151);
+  assert.equal(e.api.gameState.battleOver, false);
+  assert.equal(p.hp, p.maxHp);
+  assert.equal(a.hp, a.maxHp);
+});
+
 console.log('\n汇总：' + passed + ' 通过 / ' + failed + ' 失败（共 ' + (passed + failed) + ' 条）');
 if (failed) process.exitCode = 1;
