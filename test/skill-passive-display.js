@@ -38,13 +38,13 @@ test('战斗中空 PP 的技能仍标记携带被动，详情可查看免疫条�
   assert.match(dialog, /PP恢复后保留原有四种免疫/);
 });
 
-test('换装技能列表显示可用被动和原文中待实装的被动', () => {
+test('换装技能列表显示已实装的携带被动', () => {
   const { api, sandbox } = loadEngine(game);
   const list = makeEl();
   sandbox.document.querySelector = () => list;
   sandbox.openSkillSwap(api.findPet('pet_bmhs'));
   assert.match(list.innerHTML, /skill-swap-item equipped" data-skill-id="sk_cszn"[^]*?skill-passive-tag">携带被动/);
-  assert.match(list.innerHTML, /skill-swap-item" data-skill-id="sk_cyjy"[^]*?skill-passive-tag">原文被动/);
+  assert.match(list.innerHTML, /skill-swap-item" data-skill-id="sk_cyjy"[^]*?skill-passive-tag">携带被动/);
 
   sandbox.openSkillSwap(api.findPet('pet_qy'));
   assert.equal((list.innerHTML.match(/skill-passive-tag">血脉联动/g) || []).length, 2);

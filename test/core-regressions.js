@@ -131,8 +131,12 @@ test('创世神钟受威力伤害后封锁攻击者下一回合血脉与回合�
   p.skills[0].pp=2; const seen=[]; const ctx=e.api.createBattleContext();
   p.bloodline={onTurnStart(u) { seen.push(['bloodline',e.sandbox.gainPP(u,u.skills[0],1),u.skills[0].pp]); }};
   ctx.addTurnEffect(p,'测试回复',1,u=>seen.push(['effect',e.sandbox.gainPP(u,u.skills[0],1),u.skills[0].pp]));
-  ctx.doDamage(p,a,40,'physical','normal'); assert.strictEqual(p.blockPPRecovery,true);
-  turn(e); assert.deepStrictEqual(seen,[['bloodline',0,1],['effect',0,1]]);
+  ctx.doDamage(p,a,40,'physical','normal'); assert.strictEqual(p.blockPPRecoveryOnTurn,1);
+  assert.equal(e.sandbox.isPPRecoveryBlocked(p),false, '命中当回合仍可回复');
+  p.skills[0].onUse = (u,t,c) => seen.push(['action',e.sandbox.gainPP(u,u.skills[0],1),u.skills[0].pp]);
+  turn(e); assert.deepStrictEqual(seen,[['bloodline',0,1],['effect',0,1],['action',0,1]]);
+  e.api.gameState.turnCount++;
+  assert.equal(e.sandbox.gainPP(p,p.skills[0],1),1);
 });
 
 // 让持续期在第二个提交回合开场结束：第一回合在窗口前，第二至第五回合为窗口。

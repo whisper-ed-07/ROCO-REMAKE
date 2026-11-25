@@ -247,6 +247,8 @@ test('灵3 · 封灵标记在神钟保命并被驱逐时消失', () => {
   const clock = new api.BattlePet({ ...api.findPet('pet_bmhs'), skillIds: [] });
   clock.skills.push(slot('wait-clock'));
   clock.hp = 1;
+  clock.element = "ghost";
+  q.spatk = 2000;
   Object.assign(state, { aiActive: clock, aiParty: [clock, bench] });
   round();
   assert.equal(state.aiActive, bench);
