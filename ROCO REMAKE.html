@@ -1139,8 +1139,11 @@ function abilityToBase(ability, level, isHp) {
 
 const ELEMENTS = {
   // Element emojis for UI display
-  // 端游风格属系图标（自制 SVG：属性色圆底 + 白色符号，18 系含石系）
+  // 端游风格属系图标（自制 SVG：属性色圆底 + 白色符号，含三种神系）
   _icon: {
+    divine_fire: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0iI2FkNGUyOSIvPjxwYXRoIGQ9Ik01MCAxNiBDNjAgMzQgNzYgNDIgNzYgNTggQzc2IDczIDY0IDg0IDUwIDg0IEMzNiA4NCAyNCA3MyAyNCA1OCBDMjQgNDYgMzMgNDAgMzkgMzEgQzQxIDQwIDQ1IDQ1IDUwIDQ3IEM0NyAzOCA0NyAyNyA1MCAxNloiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZkYTgzIiBzdHJva2Utd2lkdGg9IjUiLz48L3N2Zz4=",
+    divine_grass: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0iIzNkODEzNyIvPjxwYXRoIGQ9Ik01MCA4NiBDMzAgODYgMjAgNjkgMjIgNDkgQzI0IDMwIDM4IDE3IDUwIDE0IEM2MiAxNyA3NiAzMCA3OCA0OSBDODAgNjkgNzAgODYgNTAgODZaIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTUwIDIyIFY4MiIgc3Ryb2tlPSIjNzhjODUwIiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQzIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmRhODMiIHN0cm9rZS13aWR0aD0iNSIvPjwvc3ZnPg==",
+    divine_water: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0iIzM2NmJiOSIvPjxwYXRoIGQ9Ik01MCAxNCBDNTAgMTQgNzYgNDQgNzYgNjEgQzc2IDc1IDY0IDg2IDUwIDg2IEMzNiA4NiAyNCA3NSAyNCA2MSBDMjQgNDQgNTAgMTQgNTAgMTRaIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZGE4MyIgc3Ryb2tlLXdpZHRoPSI1Ii8+PC9zdmc+",
     normal: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0iI2E4YTg3OCIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjE1IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSIyMiIgcj0iNyIgZmlsbD0iI2ZmZiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNzgiIHI9IjciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIyMiIgY3k9IjUwIiByPSI3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNzgiIGN5PSI1MCIgcj0iNyIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==",
     fire: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0iI2YwODAzMCIvPjxwYXRoIGQ9Ik01MCAxNiBDNjAgMzQgNzYgNDIgNzYgNTggQzc2IDczIDY0IDg0IDUwIDg0IEMzNiA4NCAyNCA3MyAyNCA1OCBDMjQgNDYgMzMgNDAgMzkgMzEgQzQxIDQwIDQ1IDQ1IDUwIDQ3IEM0NyAzOCA0NyAyNyA1MCAxNloiIGZpbGw9IiNmZmYiLz48L3N2Zz4=",
     water: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0iIzY4OTBmMCIvPjxwYXRoIGQ9Ik01MCAxNCBDNTAgMTQgNzYgNDQgNzYgNjEgQzc2IDc1IDY0IDg2IDUwIDg2IEMzNiA4NiAyNCA3NSAyNCA2MSBDMjQgNDQgNTAgMTQgNTAgMTRaIiBmaWxsPSIjZmZmIi8+PC9zdmc+",
@@ -1165,7 +1168,8 @@ const ELEMENTS = {
     fire: '🔥', water: '💧', grass: '🌿', ice: '❄️',
     electric: '⚡', earth: '⛰️', rock: '🪨', normal: '⭐', fighting: '👊',
     poison: '☠️', flying: '🕊️', bug: '🐛', dragon: '🐉',
-    ghost: '👻', dark: '😈', steel: '⚙️', fairy: '🌸', light: '✨'
+    ghost: '👻', dark: '😈', steel: '⚙️', fairy: '🌸', light: '✨',
+    divine_fire: '🔥', divine_grass: '🌿', divine_water: '💧'
   },
   fire:    { name: "火",   color: "#f08030", bg: "rgba(240,128,48,0.2)" },
   water:   { name: "水",   color: "#6890f0", bg: "rgba(104,144,240,0.2)" },
@@ -1184,12 +1188,17 @@ const ELEMENTS = {
   steel:   { name: "机械", color: "#b8b8d0", bg: "rgba(184,184,208,0.2)" },
   fairy:   { name: "萌",   color: "#ee99ac", bg: "rgba(238,153,172,0.2)" },
   light:   { name: "光",   color: "#ffd700", bg: "rgba(255,215,0,0.2)" },
-  rock:    { name: "石",   color: "#b8a038", bg: "rgba(184,160,56,0.2)" }
+  rock:    { name: "石",   color: "#b8a038", bg: "rgba(184,160,56,0.2)" },
+  divine_fire: { name: "神火", color: "#ad4e29", bg: "rgba(173,78,41,0.22)" },
+  divine_grass: { name: "神草", color: "#3d8137", bg: "rgba(61,129,55,0.22)" },
+  divine_water: { name: "神水", color: "#366bb9", bg: "rgba(54,107,185,0.22)" }
 };
 
 // ---------- TYPE CHART ----------
 const TYPE_CHART = {};
-Object.keys(ELEMENTS).forEach(k => { TYPE_CHART[k] = {}; });
+const DIVINE_ELEMENTS = new Set(["divine_fire", "divine_grass", "divine_water"]);
+const elementKeys = Object.keys(ELEMENTS).filter(key => !key.startsWith("_"));
+elementKeys.forEach(key => { TYPE_CHART[key] = {}; });
 function setEff(atk, def, val) { TYPE_CHART[atk][def] = val; }
 setEff("fire", "grass", 2); setEff("fire", "ice", 2); setEff("fire", "bug", 2); setEff("fire", "steel", 2);
 setEff("fire", "fire", 0.5); setEff("fire", "water", 0.5); setEff("fire", "dragon", 0.5); setEff("fire", "earth", 0.5);
@@ -1230,6 +1239,28 @@ setEff("light", "dark", 2); setEff("light", "ghost", 2); setEff("light", "fighti
 setEff("light", "grass", 0.5); setEff("light", "steel", 0.5);
 setEff("dark", "light", 0.5); setEff("bug", "light", 0.5); setEff("fighting", "light", 0.5); setEff("ghost", "light", 0.5);
 
+// 页游《洛克王国》官方论坛属性克制抵抗表（tid=158387）。
+for (const divine of DIVINE_ELEMENTS) {
+  for (const standard of elementKeys) {
+    if (!DIVINE_ELEMENTS.has(standard)) setEff(divine, standard, 2);
+  }
+}
+for (const [attacker, defender] of [
+  ["divine_water", "divine_fire"],
+  ["divine_fire", "divine_grass"],
+  ["divine_grass", "divine_water"]
+]) {
+  setEff(attacker, defender, 2);
+  setEff(defender, attacker, 0.5);
+}
+for (const [defender, resisted] of [
+  ["divine_fire", ["grass", "ice", "bug", "steel"]],
+  ["divine_grass", ["water", "electric", "grass", "earth"]],
+  ["divine_water", ["fire", "ice", "steel"]]
+]) {
+  for (const attacker of resisted) setEff(attacker, defender, 0.5);
+}
+
 function elemIcon(el, cls) { var src = ELEMENTS._icon && ELEMENTS._icon[el]; return src ? '<img class="' + (cls || 'elem-ico-sm') + '" src="' + src + '" alt="">' : ''; }
 function getElementEmoji(el) { var src = ELEMENTS._icon && ELEMENTS._icon[el]; return src ? '<img class="elem-ico" src="' + src + '" alt="' + el + '">' : (ELEMENTS._emoji[el] || '❓'); }
 
@@ -1254,8 +1285,8 @@ const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清�
 const DEFAULT_SKILLS = [
   { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15,
     ppRecoverySource: ["化念作刃清印", "瞬华若霜冰冻"], passiveLabel: "被动发动",
-    desc: "全场变为光系技能，强化回复和输出。发动回合免疫外来效果，每回合总限伤。上场前三回合免删；删空后在场时回合末被动发动。",
-    detail: "每次上场后的前三个回合内免疫删PP。被从有PP删至0时，仍在场且存活的极影迪莫于回合末被动发动，并触发明念。仅化念作刃清印回第一格、瞬华若霜满足冰冻和印记条件回第一格可回复本技能。\n双方全队技能视为光系6回合，发动时被自身明念标记的目标为12回合。其余增益、异常与负强免疫、封锁天气环境持续6回合。发动当回合免疫外来正负效果，自身技能照常结算。敌方宠物尝试召唤天气或环境累计3次时受到999固伤。\n首次使用回复精力和其他技能PP；后续回复为上次的85%。每回合总限伤初始300，每次再次使用降低20，每限制两段伤害获得一层光明之印。",
+    desc: "全场变为光系技能，强化回复和输出。发动回合免疫外来效果，每回合总限伤，受到原为神系的技能伤害后封该招一回合。上场前三回合免删；删空后在场时回合末被动发动。",
+    detail: "每次上场后的前三个回合内免疫删PP。被从有PP删至0时，仍在场且存活的极影迪莫于回合末被动发动，并触发明念。仅化念作刃清印回第一格、瞬华若霜满足冰冻和印记条件回第一格可回复本技能。\n双方全队技能视为光系6回合，发动时被自身明念标记的目标为12回合。其余增益、异常与负强免疫、封锁天气环境持续6回合。发动当回合免疫外来正负效果，自身技能照常结算。敌方宠物尝试召唤天气或环境累计3次时受到999固伤。\n首次使用回复精力和其他技能PP；后续回复为上次的85%。每回合总限伤初始300，每次再次使用降低20。受到原为神水、神火或神草的技能伤害时，封禁伤害来源技能，下一回合无法使用。限伤和封技合计每触发两次，获得一层光明之印。",
     onUse: function(u, t, ctx) {
       const bd = mingnianData(u);
       const turn = gameState.turnCount;
@@ -1455,15 +1486,15 @@ const DEFAULT_SKILLS = [
       ctx.msg("创世之能发动，持续3回合！");
     }
   },
-  { id: "sk_nlex", name: "逆流而行", element: "water", power: 135, pp: 2, maxPp: 2, accuracy: 100, category: "physical", priority: 12,
-    desc: "时间倒流，逆转法则。135威力水系物理攻击，必中。①回溯3回合前的HP状态，追加差值等量固定伤害。②恢复己方场下第2只宠物全体技能1PP（若创世之能PP为空则恢复2PP）。③本技能PP=0时失去原属系的一切加成与规则，按累计使用次数触发：第1次使用PP=0时，追加9999点固定伤害，清空对方全体PP，回复自身全体1PP；第2次使用PP=0时，回复自身全体3PP和30%HP。④创世之能PP为空时，清除并锁定双方所有强化6回合。本技能免疫PP删除和回复效果。",
+  { id: "sk_nlex", name: "逆流而行", element: "divine_water", power: 135, pp: 2, maxPp: 2, accuracy: 100, category: "physical", priority: 12,
+    desc: "时间倒流，逆转法则。135威力神水系物理攻击，必中。①回溯3回合前的HP状态，追加差值等量固定伤害。②恢复己方场下第2只宠物全体技能1PP（若创世之能PP为空则恢复2PP）。③本技能PP=0时失去原属系的一切加成与规则，按累计使用次数触发：第1次使用PP=0时，追加9999点固定伤害，清空对方全体PP，回复自身全体1PP；第2次使用PP=0时，回复自身全体3PP和30%HP。④创世之能PP为空时，清除并锁定双方所有强化6回合。本技能免疫PP删除和回复效果。",
     detail: "① 135威力神水系物理，必中。\n② 时间回溯：双方全体宠物的精力、PP、强化与异常回到3回合前（不足3回合则回到开战初始），并追加回溯前后双方精力差值的固伤。\n③ 回复己方场下第二格宠物全体技能1PP；创世之能PP为空时改为2PP。\n④ 本技能PP为空后，自身失去原属系的一切加成与规则；下一次使用威力技能时触发：使用1次→9999固伤+清空对方全体PP+自身全体1PP；使用2次→自身全体3PP+回复30%精力。\n⑤ 创世之能PP为0时，清除并锁定双方强化6回合。\n⑥ 本技能免疫常规删回PP。时间回溯可恢复历史值。",
     immuneToPP: true, noPPRecover: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了逆流而行！时间倒流，逆转法则！");
       // 威力伤害
-      var r = ctx.doDamage(user, target, 135, "physical", "water");
-      ctx.msg("造成 " + r.damage + " 点伤害！");
+      var r = ctx.doDamage(user, target, 135, "physical", "divine_water");
+      ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness));
       const nlexSkill = user.skills.find(skill => skill.id === "sk_nlex");
       const spentLastPP = nlexSkill?.pp === 0 || (ctx.sourceSkill === nlexSkill && ctx.skillPPAfter === 0);
       // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
@@ -2499,7 +2530,7 @@ class BattlePet {
       this.bloodlineData?.jianghuaThrough >= gameState.turnCount
     );
   }
-  takeDamage(dmg, source) {
+  takeDamage(dmg, source, sourceSkill) {
     if (this.invincible || (this.externalEffectImmuneTurn === gameState.turnCount && source !== this)) return 0;
     // 致命伤害闪避（极影光幕）
     if (this.dimoLethalDodgeThrough >= gameState.turnCount && this.dodgeLethalLeft > 0 && dmg >= this.hp && this.hp > 0) {
@@ -2534,7 +2565,10 @@ class BattlePet {
     }
     const received = Math.min(this.hp, dmg);
     this.hp = Math.max(0, this.hp - dmg);
-    if (received > 0) this.lastDamageSegment = received;
+    if (received > 0) {
+      this.lastDamageSegment = received;
+      sealDivineSkill(this, source, sourceSkill);
+    }
     if (dmg > 0) { this.damageTakenThisTurn.push(dmg); spawnFloatText(this, dmg, "dmg"); }
     const segmentIndex = this.segmentIdx++;
     if (received > 0) this.bloodline?.onAfterDamageSegment?.(this, segmentIndex, createBattleContext());
@@ -2682,7 +2716,7 @@ function createBattleContext() {
       att.currentDealt += dmg;
       att.outputThisTurn = (att.outputThisTurn || 0) + dmg;
       att.lastOutputDmg = dmg;
-      const received = def.takeDamage(dmg, att);
+      const received = def.takeDamage(dmg, att, this.sourceSkillOwner === att ? this.sourceSkill : null);
       if (received > 0 && isMingnianMarked(att) && att.bloodlineData.markTarget === def && !def.isFainted()) applyMingnianDamage(this, att, def);
       return { damage: dmg, effectiveness: eff, isCrit: isCrit };
     },
@@ -2697,7 +2731,8 @@ function createBattleContext() {
       if (target.bloodline && target.bloodline.onBeforeDamage) {
         amount = target.bloodline.onBeforeDamage(target, amount, "fixed", null, this);
       }
-      const received = target.takeDamage(amount, source);
+      const sourceSkill = !options.skipMingnian && this.sourceSkillOwner === source ? this.sourceSkill : null;
+      const received = target.takeDamage(amount, source, sourceSkill);
       if (received > 0 && source && !options.skipMingnian && isMingnianMarked(source) && source.bloodlineData.markTarget === target && !target.isFainted()) applyMingnianDamage(this, source, target);
       return amount;
     },
@@ -3142,14 +3177,29 @@ function restrictJianghuaDamage(pet, damage) {
   }
   const allowed = Math.min(damage, Math.max(0, bd.jianghuaCap - bd.jianghuaDamage));
   bd.jianghuaDamage += allowed;
-  if (allowed < damage) {
-    bd.jianghuaRestrictions = (bd.jianghuaRestrictions || 0) + 1;
-    if (bd.jianghuaRestrictions % 2 === 0) {
-      bd.marks++;
-      syncMingnianMaxHP(pet);
-    }
-  }
+  if (allowed < damage) countJianghuaRestriction(pet);
   return allowed;
+}
+
+function countJianghuaRestriction(pet) {
+  const bd = pet.bloodlineData;
+  bd.jianghuaRestrictions = (bd.jianghuaRestrictions || 0) + 1;
+  if (bd.jianghuaRestrictions % 2 === 0) {
+    bd.marks++;
+    syncMingnianMaxHP(pet);
+  }
+}
+
+function sealDivineSkill(defender, attacker, skill) {
+  const turn = gameState.turnCount;
+  if (!attacker || attacker === defender || !DIVINE_ELEMENTS.has(skill?.element) ||
+      !(defender.bloodlineData?.jianghuaThrough >= turn) || !attacker.skills.includes(skill)) return;
+  const sealedTurns = skill.jianghuaSealedTurns ||= new Set();
+  for (const previous of sealedTurns) if (previous < turn) sealedTurns.delete(previous);
+  if (sealedTurns.has(turn + 1)) return;
+  sealedTurns.add(turn + 1);
+  countJianghuaRestriction(defender);
+  addMessage("【极尽降华】" + attacker.name + " 的" + skill.name + "在下一回合被封禁！");
 }
 
 function jianghuaBlocksSummon(ctx, kind) {
@@ -3471,7 +3521,7 @@ function startTurnTimer() {
       if (!canSubmitPlayerAction() || gameState.waitingForSwitch || gameState.battleId !== battleId) return;
       const player = gameState.playerActive;
       if (!player || player.isFainted()) return;
-      const skillIdx = player.skills.findIndex(skill => skill.pp > 0);
+      const skillIdx = player.skills.findIndex(canSelectSkill);
       if (skillIdx >= 0) playerUseSkill(skillIdx);
       else submitPlayerAction(null);
     }
@@ -3637,6 +3687,7 @@ function tickStatusImmunities(pet) {
 function clearTurnEffects(pet) {
   pet.turnEffects = [];
   pet.statLockedThrough = -1;
+  for (const skill of pet.skills) skill.jianghuaSealedTurns?.clear();
   if (pet.bloodlineData?.qingnianChannel) delete pet.bloodlineData.qingnianChannel;
   pet.powerDamageImmuneThroughTurn = -1;
   pet.qinglingInvertNext = false;
@@ -3886,8 +3937,16 @@ function getRequiredPPCost(pet, skill) {
   return Math.max(1, Math.round(multiplier + extra));
 }
 
-function reserveSkillAction(user, skill) {
-  if (!skill || skill.pp <= 0) return null;
+function isSkillSealed(skill, turn) {
+  return skill?.jianghuaSealedTurns?.has(turn) === true;
+}
+
+function canSelectSkill(skill) {
+  return skill?.pp > 0 && !isSkillSealed(skill, gameState.turnCount + 1);
+}
+
+function reserveSkillAction(user, skill, turn = gameState.turnCount) {
+  if (!skill || skill.pp <= 0 || isSkillSealed(skill, turn)) return null;
   const ppBefore = skill.pp;
   const requestedCost = getRequiredPPCost(user, skill);
   const ppCost = Math.min(ppBefore, requestedCost);
@@ -3903,7 +3962,7 @@ function playerUseSkill(skillIdx) {
   if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return;
   const player = gameState.playerActive;
   if (!player || player.isFainted()) return;
-  const action = reserveSkillAction(player, player.skills[skillIdx]);
+  const action = reserveSkillAction(player, player.skills[skillIdx], gameState.turnCount + 1);
   if (action) submitPlayerAction(action);
 }
 
@@ -3932,9 +3991,9 @@ function aiDecideAndResolve() {
   
   // 先选招，行动能力统一在本回合结算内判定，选招阶段不抽取麻痹随机数。
   // AI选技能（与旧版相同逻辑）
-  var available = ai.skills.filter(function(s) { return s.pp > 0; });
+  var available = ai.skills.filter(canSelectSkill);
   if (available.length === 0) {
-    addMessage(ai.name + " 所有技能PP耗尽！");
+    addMessage(ai.name + (ai.skills.some(skill => skill.pp > 0) ? " 没有可用技能！" : " 所有技能PP耗尽！"));
     gameState.pendingAISkill = -1; // signal no skill
   } else {
     var bestSkill = available[0], bestScore = -Infinity;
@@ -3951,7 +4010,6 @@ function aiDecideAndResolve() {
   resolveTurn();
 }
 
-// 无技能可用时的兜底动作：不占 PP 槽、普通系物理、25% 反伤
 function resolveTurn() {
   if (gameState.battleOver || gameState.resolvingTurn) return;
   gameState.resolvingTurn = true;
@@ -4182,6 +4240,7 @@ function executeSkillTurn(user, target, skill, who, action) {
   if (user !== gameState.playerActive && user !== gameState.aiActive) { addMessage(user.name + " 已离场，行动取消！"); return; }
   if (target !== gameState.playerActive && target !== gameState.aiActive) { addMessage(target.name + " 已不在场上，本次行动取消！"); return; }
   if (!user.canAct()) { addMessage(user.name + " 无法行动！"); return; }
+  if (isSkillSealed(skill, gameState.turnCount)) { addMessage(user.name + " 的" + skill.name + "被封禁！"); return; }
   action = action || reserveSkillAction(user, skill);
   if (!action) { addMessage(user.name + " 的" + skill.name + "已无PP，行动取消！"); return; }
   const ppChange = "（PP " + action.ppBefore + "→" + action.ppAfter + (action.requestedCost > 1 ? " ×" + action.requestedCost : "") + "）";
@@ -5204,9 +5263,9 @@ function showFleeConfirm() {
 }
 
 function renderBattleActions() { if (!canSubmitPlayerAction()) return; var container = document.querySelector("#battle-actions"); if (!container) return; var oldList = container.querySelector(".battle-skill-list"); if (oldList) battleVisual.skillScroll = oldList.scrollLeft; container.innerHTML = ""; var player = gameState.playerActive; if (!player || player.isFainted()) return;
-  // 检查是否被控制（仅异常状态自动跳过；PP归零改为等待读秒）
-  var allPPEmpty = player.skills.every(function(s){return s.pp<=0;});
-  if (["sleep", "deep_sleep", "freeze", "fear"].includes(player.status) && !allPPEmpty) {
+  // 异常状态可自动跳过；没有可选技能时仍可通过换宠或空过行动。
+  const noAvailableSkill = !player.skills.some(canSelectSkill);
+  if (["sleep", "deep_sleep", "freeze", "fear"].includes(player.status) && !noAvailableSkill) {
     var reason = (player.status==="sleep"?"正在睡觉":player.status==="deep_sleep"?"正在沉睡":player.status==="freeze"?"被冰冻":player.status==="fear"?"被恐惧":player.status==="paralyze"?"麻痹无法行动":"无法行动");
     document.querySelector("#battle-actions").innerHTML = "<div style=text-align:center;padding:20px;color:var(--text2);font-size:14px>"+player.name+reason+"<br>自动跳过...</div>";
     stopTurnTimer();
@@ -5229,11 +5288,13 @@ function renderBattleActions() { if (!canSubmitPlayerAction()) return; var conta
     var prio = getSkillPriority(skill), prioStr = prio > 8 ? '+' + (prio-8) : prio < 8 ? '-' + (8-prio) : '±0';
     var card = document.createElement('div'); card.className = 'skill-card';
     var btn = document.createElement('button');
-    btn.className = 'skill-btn' + (skill.pp <= 0 ? ' no-pp' : ''); btn.disabled = skill.pp <= 0;
+    const sealed = isSkillSealed(skill, gameState.turnCount + 1);
+    btn.disabled = !canSelectSkill(skill);
+    btn.className = 'skill-btn' + (btn.disabled ? ' no-pp' : '');
     btn.style.setProperty('--el',el.color);
     var slotNumber = idx + 1;
-    btn.setAttribute('aria-label', '第' + slotNumber + '格：使用' + skill.name + '，剩余' + skill.pp + 'PP' + (skill.passiveLabel ? '，' + skill.passiveLabel : ''));
-    btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el.bg + '">' + getSkillIcon(displaySkill) + '</div><div class="skill-btn-name">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + (prio > 8 ? 'fast' : prio < 8 ? 'slow' : 'normal') + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (skill.power ? '威力 ' + Math.round(getSkillPower(skill,skill.power)*100)/100 : '变化') + '</span>' + renderSkillPassiveTag(skill) + '<span class="skill-pp-info"><span class="' + (skill.pp/skill.maxPp < .3 ? 'pp-empty' : '') + '">' + skill.pp + '</span> / ' + skill.maxPp + ' PP</span></div>';
+    btn.setAttribute('aria-label', '第' + slotNumber + '格：使用' + skill.name + '，剩余' + skill.pp + 'PP' + (skill.passiveLabel ? '，' + skill.passiveLabel : '') + (sealed ? '，封技' : ''));
+    btn.innerHTML = '<div class="skill-btn-header"><div class="skill-btn-icon" style="background:' + el.bg + '">' + getSkillIcon(displaySkill) + '</div><div class="skill-btn-name">' + escapeHtml(skill.name) + '</div><div class="skill-btn-prio ' + (prio > 8 ? 'fast' : prio < 8 ? 'slow' : 'normal') + '">' + prioStr + '</div></div><div class="skill-btn-body"><span class="skill-power">' + (sealed ? '封技' : skill.power ? '威力 ' + Math.round(getSkillPower(skill,skill.power)*100)/100 : '变化') + '</span>' + renderSkillPassiveTag(skill) + '<span class="skill-pp-info"><span class="' + (skill.pp/skill.maxPp < .3 ? 'pp-empty' : '') + '">' + skill.pp + '</span> / ' + skill.maxPp + ' PP</span></div>';
     btn.addEventListener('click', function() { btn.classList.add('pressed'); btn.classList.add('selected'); playerUseSkill(idx); });
     var slot = document.createElement('span');
     slot.className = 'skill-slot-label skill-order'; slot.textContent = String(slotNumber);
@@ -5243,7 +5304,7 @@ function renderBattleActions() { if (!canSubmitPlayerAction()) return; var conta
     info.addEventListener('click', function() { showSkillDetail(displaySkill,info); });
     card.appendChild(btn); card.appendChild(slot); card.appendChild(info); skillList.appendChild(card);
   });
-  if (allPPEmpty) {
+  if (noAvailableSkill) {
     var pass = document.createElement('button'); pass.className = 'action-btn'; pass.id = 'battle-pass'; pass.textContent = '跳过回合';
     pass.addEventListener('click', function() { if (canSubmitPlayerAction() && !gameState.waitingForSwitch) submitPlayerAction(null); });
     utilities.appendChild(pass);
