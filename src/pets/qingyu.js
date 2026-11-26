@@ -348,7 +348,7 @@ const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "�
             ctx.msg("【冰系】删除对方全体技能1PP！");
           }
         }
-        if (bd.mode === "清念" && skill.pp < skill.maxPp * 0.3) {
+        if (bd.mode === "清念" && skill.pp > 0 && skill.pp < skill.maxPp * 0.3) {
           const lost = skill.maxPp - skill.pp;
           const useAll = skill.pp <= skill.maxPp * 0.2 || skill.maxPp < 4;
           const marks = bd.qfzn || 0;

@@ -484,10 +484,11 @@ function postDamageProcessing() {
     if (!pet || !pet.bloodline) return;
     if (pet.lethalHitThisTurn && pet.bloodline.name === "不灭魂体" && !pet.lethalHandled) {
       pet.lethalHandled = true;
+      addMessage("【不灭魂体】" + pet.name + "受到致死伤害，尝试删除自身各技能4PP。");
+      createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
       const switched = forceSwitchPet(pet, () => {
         pet.hp = 1;
-        createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
-        addMessage(pet.name + " 被致命一击！不灭魂体保留1点精力！全体技能-4PP！");
+        addMessage("【不灭魂体】" + pet.name + "保留1点精力！");
       });
       if (!switched) {
         pet.hp = 0;

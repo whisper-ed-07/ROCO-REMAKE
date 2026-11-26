@@ -92,7 +92,7 @@ test('回溯初始精力与寄生，重衍只恢复一份全队最低总PP快照
   ctx.savePPState();
   owner.skills[0].pp = 2; owner.skills[1].pp = 0; mirror.skills[0].pp = 2;
   ctx.rewindPPToMin(24);
-  assert.deepEqual([owner.skills[0].pp, owner.skills[1].pp, mirror.skills[0].pp], [0, 2, 1]);
+  assert.deepEqual([owner.skills[0].pp, owner.skills[1].pp, mirror.skills[0].pp], [0, 0, 1]);
   assert.equal(owner.skills[0].noPPRecover, true);
   assert.equal(owner.skills[1].noPPRecover, true);
   assert.equal(foe.skills[0].pp, foe.skills[0].maxPp);
@@ -177,18 +177,22 @@ test('逆流最多使用两次，其他历史回溯不能重新点亮用尽的�
   assert.equal(reverse.useCount, 2);
 });
 
-test('免疫驱逐的神钟受到超出当前精力的伤害后倒下，存活后备正常登场', () => {
-  const { owner, foe, state, build, sandbox } = fixture(['sk_fthy']);
+test('免疫驱逐的神钟受到致死伤害时只扣一次 PP 后倒下，存活后备正常登场', () => {
+  const { owner, foe, state, build, sandbox } = fixture(['sk_fthy', 'sk_nlex', 'sk_mszw']);
+  owner.skills[2].ppLocked = true;
   const reserve = build('pet_qy', ['sk_qy_2']);
   state.playerParty.push(reserve);
   owner.hp = 10;
   owner.immuneEject = true;
   owner.takeDamage(11, foe);
   assert.equal(owner.hp, 0, '致死段的回复不会让神钟从 0 精力复活');
-  sandbox.checkFaints();
+  sandbox.postDamageProcessing();
   assert.equal(owner.hp, 0);
+  assert.equal(state.playerActive, owner);
+  assert.deepEqual(Array.from(owner.skills, skill => skill.pp), [4, 2, 12]);
+  sandbox.checkFaints();
   assert.equal(state.playerActive, reserve);
-  assert.equal(owner.skills[0].pp, 8);
+  assert.deepEqual(Array.from(owner.skills, skill => skill.pp), [4, 2, 12]);
   assert.ok(state.messages.some(message => message.text.includes('倒下了')));
   assert.ok(!state.messages.some(message => message.text.includes('被迫换下')));
 });

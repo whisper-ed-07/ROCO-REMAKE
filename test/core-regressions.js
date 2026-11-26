@@ -84,7 +84,7 @@ test('先手控制已选招的后手时 PP 只扣一次', () => {
 test('R05 驱逐后离场宠物不能行动', () => {
   const e=env(); let count=0; const p=built(e,'pet_qy',['sk_qy_1','sk_qy_2','sk_qy_3','sk_qy_4']), a=pet(e,'a',skill('queued',()=>count++)), b=pet(e,'bench'); setup(e,p,a); e.api.gameState.aiParty.push(b); turn(e,3); assert.strictEqual(e.api.gameState.aiActive,b); assert.strictEqual(count,0);
 });
-test('R06 没有存活后备的神钟受到致死段时倒下并判负', () => {
+test('R06 无存活后备的神钟受到致死段时扣 PP、倒下并判负', () => {
   const e = env(), p = built(e, 'pet_bmhs', ['sk_fthy']);
   const a = pet(e, 'attacker', skill('lethal', (u,t,c) => c.doFixedDamage(t,10,u)), 200);
   const defeatedReserve = pet(e, 'defeated-reserve');
@@ -94,7 +94,7 @@ test('R06 没有存活后备的神钟受到致死段时倒下并判负', () => {
   e.api.gameState.playerParty.push(defeatedReserve);
   turn(e, -1, 0);
   assert.strictEqual(p.hp, 0);
-  assert.strictEqual(p.skills[0].pp, 8);
+  assert.strictEqual(p.skills[0].pp, 4);
   assert.strictEqual(e.api.gameState.battleOver, true);
 });
 test('R07 新局清除降华全局状态', () => {
@@ -152,7 +152,7 @@ test('沉脉保持零 PP 等待自身结算，结算后开启削弱窗口', () =
   assert.strictEqual(a.qingnianWindowEnd, 12);
 });
 
-test('清念低 PP 回满至少消耗一层，零层不可回满', () => {
+test('清念低 PP 回满需要非零 PP 与至少一层清风之念', () => {
   const e = env(), p = built(e, 'pet_qy', []), a = pet(e, 'opponent');
   setup(e, p, a);
   e.sandbox.enterQingyuMode(p, '清念');
@@ -162,6 +162,11 @@ test('清念低 PP 回满至少消耗一层，零层不可回满', () => {
   p.bloodline.onSkillUse(p, a, ctx, move);
   assert.strictEqual(move.pp, 1);
   p.bloodlineData.qfzn = 2;
+  e.api.executeSkillTurn(p, a, move, 'player');
+  assert.strictEqual(move.pp, 0);
+  assert.strictEqual(p.bloodlineData.qfzn, 2);
+
+  move.pp = 1;
   p.bloodline.onSkillUse(p, a, ctx, move);
   assert.strictEqual(move.pp, 4);
   assert.strictEqual(p.bloodlineData.qfzn, 1);

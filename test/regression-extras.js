@@ -549,7 +549,7 @@ test('轻风散魂在残脉封存选招扣费后的 PP，再进清念恢复一�
   assert.equal(lightWind.pp, 4);
 });
 
-test('清翎与残风按裁定校验回复来源，清念只可回满清翎', () => {
+test('清翎与残风校验回复来源，清翎 0 PP 和 1 PP 均未满足低 PP 回满条件', () => {
   const e = env();
   const p = built(e, 'pet_qy', ['sk_qy_1', 'sk_qy_4', 'sk_qy_2']);
   const a = pet(e, 'enemy');
@@ -563,8 +563,14 @@ test('清翎与残风按裁定校验回复来源，清念只可回满清翎', ()
   assert.equal(e.sandbox.gainPP(p, residualWind, 4, '清念PP回复'), 0);
   p.bloodlineData.qfzn = 4;
   p.bloodline.onSkillUse(p, a, ctx, qingling);
-  assert.equal(qingling.pp, 3);
+  assert.equal(qingling.pp, 0);
+  assert.equal(p.bloodlineData.qfzn, 4);
+  qingling.pp = 1;
+  p.bloodline.onSkillUse(p, a, ctx, qingling);
+  assert.equal(qingling.pp, 1);
+  assert.equal(p.bloodlineData.qfzn, 4);
   assert.equal(residualWind.pp, 0);
+  assert.equal(e.sandbox.gainPP(p, qingling, 2, '清念PP回复'), 2);
   p.bloodlineData.qfzn = 3;
   e.api.executeSkillTurn(p, a, qingling, 'player');
   assert.equal(residualWind.pp, 2);

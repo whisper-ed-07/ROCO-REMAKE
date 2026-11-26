@@ -34,9 +34,9 @@ const CLOCK_SKILLS = [
     }
   },
   { id: "sk_nlex", name: "逆流而行", element: "divine_water", power: 135, pp: 2, maxPp: 2, accuracy: 100, category: "physical", priority: 12,
-    desc: "回溯双方全队的精力、PP、强化和异常，本招自身 PP 除外。按精力差追加固伤，同时为己方场下第二格回 PP。本招耗尽后自身失去属系，下一次威力招触发终结效果。",
-    detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前，跳过施放者本招的 PP。每场战斗最多使用本招 2 次。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次扣费耗尽本招 PP，或回溯后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 免疫常规删 PP 和回 PP。时间回溯和强制清空可跨常规保护，历史回溯最多为本招恢复至剩余可用次数。",
-    immuneToPP: true, noPPRecover: true, useLimit: 2,
+    desc: "回溯双方全队的精力、PP、强化和异常，逆流而行的 PP 除外。按精力差追加固伤，同时为己方场下第二格回 PP。本招耗尽后自身失去属系，下一次威力招触发终结效果。",
+    detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前，跳过双方所有逆流而行的 PP。每场战斗最多使用本招 2 次。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次使用后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 本招免疫常规删 PP、回复 PP 和历史回溯。强制清空仍可作用于本招。",
+    immuneToPP: true, noPPRecover: true, ppRewindImmune: true, useLimit: 2,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了逆流而行！时间倒流，逆转法则！");
       // 威力伤害
@@ -45,7 +45,7 @@ const CLOCK_SKILLS = [
       const nlexSkill = user.skills.find(skill => skill.id === "sk_nlex");
       const spentLastPP = nlexSkill?.pp === 0 || (ctx.sourceSkill === nlexSkill && ctx.skillPPAfter === 0);
       // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
-      var hpDiff = ctx.restoreSnapshot(3, nlexSkill);
+      var hpDiff = ctx.restoreSnapshot(3);
       if (hpDiff > 0) {
         ctx.doFixedDamage(target, hpDiff);
         ctx.msg("状态回溯造成 " + hpDiff + " 点固定伤害！");
@@ -188,7 +188,7 @@ const CLOCK_SKILLS = [
   { id: "sk_cyjy", name: "重衍纪元", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 1,
     passiveLabel: "携带被动",
     desc: "本招有 PP 时，自身所有输出伤害降低 40%。逆转双方全队 PP 至近 24 回合总 PP 最低的一份记录。其他技能有空 PP 时无效，后手结算后自身阵亡。",
-    detail: "① 本招有 PP 时，自身造成的所有类型伤害降低 40%。本招免疫常规删 PP 和回 PP，时间回溯可恢复历史值。\n② 自身任一其他技能无 PP 时，本招无效。\n③ 从最近 24 回合中选出全场总 PP 最低的一份记录，使双方全队的技能 PP 一并回到该记录。该回溯可越过常规 PP 保护。\n④ 先手时结算回溯后存活，后手时结算回溯后自身阵亡。",
+    detail: "① 本招有 PP 时，自身造成的所有类型伤害降低 40%。本招免疫常规删 PP 和回 PP，时间回溯可恢复历史值。\n② 自身任一其他技能无 PP 时，本招无效。\n③ 从最近 24 回合中选出全场总 PP 最低的一份记录，使双方全队的技能 PP 一并回到该记录。该回溯可越过常规 PP 保护，跳过逆流而行的 PP。\n④ 先手时结算回溯后存活，后手时结算回溯后自身阵亡。",
     immuneToPP: true, noPPRecover: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了重衍纪元！纪元重衍，万物复苏！");

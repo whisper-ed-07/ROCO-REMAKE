@@ -1556,9 +1556,9 @@ const CLOCK_SKILLS = [
     }
   },
   { id: "sk_nlex", name: "逆流而行", element: "divine_water", power: 135, pp: 2, maxPp: 2, accuracy: 100, category: "physical", priority: 12,
-    desc: "回溯双方全队的精力、PP、强化和异常，本招自身 PP 除外。按精力差追加固伤，同时为己方场下第二格回 PP。本招耗尽后自身失去属系，下一次威力招触发终结效果。",
-    detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前，跳过施放者本招的 PP。每场战斗最多使用本招 2 次。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次扣费耗尽本招 PP，或回溯后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 免疫常规删 PP 和回 PP。时间回溯和强制清空可跨常规保护，历史回溯最多为本招恢复至剩余可用次数。",
-    immuneToPP: true, noPPRecover: true, useLimit: 2,
+    desc: "回溯双方全队的精力、PP、强化和异常，逆流而行的 PP 除外。按精力差追加固伤，同时为己方场下第二格回 PP。本招耗尽后自身失去属系，下一次威力招触发终结效果。",
+    detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前，跳过双方所有逆流而行的 PP。每场战斗最多使用本招 2 次。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次使用后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 本招免疫常规删 PP、回复 PP 和历史回溯。强制清空仍可作用于本招。",
+    immuneToPP: true, noPPRecover: true, ppRewindImmune: true, useLimit: 2,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 使用了逆流而行！时间倒流，逆转法则！");
       // 威力伤害
@@ -1567,7 +1567,7 @@ const CLOCK_SKILLS = [
       const nlexSkill = user.skills.find(skill => skill.id === "sk_nlex");
       const spentLastPP = nlexSkill?.pp === 0 || (ctx.sourceSkill === nlexSkill && ctx.skillPPAfter === 0);
       // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
-      var hpDiff = ctx.restoreSnapshot(3, nlexSkill);
+      var hpDiff = ctx.restoreSnapshot(3);
       if (hpDiff > 0) {
         ctx.doFixedDamage(target, hpDiff);
         ctx.msg("状态回溯造成 " + hpDiff + " 点固定伤害！");
@@ -1710,7 +1710,7 @@ const CLOCK_SKILLS = [
   { id: "sk_cyjy", name: "重衍纪元", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 1,
     passiveLabel: "携带被动",
     desc: "本招有 PP 时，自身所有输出伤害降低 40%。逆转双方全队 PP 至近 24 回合总 PP 最低的一份记录。其他技能有空 PP 时无效，后手结算后自身阵亡。",
-    detail: "① 本招有 PP 时，自身造成的所有类型伤害降低 40%。本招免疫常规删 PP 和回 PP，时间回溯可恢复历史值。\n② 自身任一其他技能无 PP 时，本招无效。\n③ 从最近 24 回合中选出全场总 PP 最低的一份记录，使双方全队的技能 PP 一并回到该记录。该回溯可越过常规 PP 保护。\n④ 先手时结算回溯后存活，后手时结算回溯后自身阵亡。",
+    detail: "① 本招有 PP 时，自身造成的所有类型伤害降低 40%。本招免疫常规删 PP 和回 PP，时间回溯可恢复历史值。\n② 自身任一其他技能无 PP 时，本招无效。\n③ 从最近 24 回合中选出全场总 PP 最低的一份记录，使双方全队的技能 PP 一并回到该记录。该回溯可越过常规 PP 保护，跳过逆流而行的 PP。\n④ 先手时结算回溯后存活，后手时结算回溯后自身阵亡。",
     immuneToPP: true, noPPRecover: true,
     onUse: function(user, target, ctx) {
       ctx.msg(user.name + " 释放了重衍纪元！纪元重衍，万物复苏！");
@@ -2124,7 +2124,7 @@ const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "�
             ctx.msg("【冰系】删除对方全体技能1PP！");
           }
         }
-        if (bd.mode === "清念" && skill.pp < skill.maxPp * 0.3) {
+        if (bd.mode === "清念" && skill.pp > 0 && skill.pp < skill.maxPp * 0.3) {
           const lost = skill.maxPp - skill.pp;
           const useAll = skill.pp <= skill.maxPp * 0.2 || skill.maxPp < 4;
           const marks = bd.qfzn || 0;
@@ -3058,7 +3058,7 @@ function createBattleContext() {
       if (gameState.snapshots.length > 30) gameState.snapshots.shift();
     },
     // 时间回溯：恢复双方全体宠物的精力/PP/强化/异常，返回回溯前后精力差
-    restoreSnapshot: function(turnsBack, excludedSkill) {
+    restoreSnapshot: function(turnsBack) {
       // 快照在回合末保存，按回合号定位：当前回合 - turnsBack
       var targetTurn = (gameState.turnCount || 0) - turnsBack;
       var idx = -1;
@@ -3078,11 +3078,7 @@ function createBattleContext() {
           if (!s) return;
           pet.hp = Math.min(pet.maxHp + (pet.maxHpBonus || 0), s.hp);
           pet.skills.forEach(function(skill, i) {
-            if (skill === excludedSkill) {
-              traceSkillPP(pet, skill, skill.pp, skill.pp, "跳过回溯", "逆流而行", "本招不回溯自身 PP");
-            } else if (s.pp[i] !== undefined) {
-              setSkillPP(pet, skill, s.pp[i], "回溯到第" + snap.turn + "回合", "逆流而行");
-            }
+            restoreHistoricalPP(pet, skill, s.pp[i], snap.turn, "逆流而行");
           });
           STAGE_FIELDS.forEach(function(k, i){ if (s.stages[i] !== undefined) pet[k] = s.stages[i]; });
           pet.status = s.status; pet.statusTurns = s.statusTurns;
@@ -3109,8 +3105,7 @@ function createBattleContext() {
       [[gameState.playerParty, lowest.player], [gameState.aiParty, lowest.ai]].forEach(function(pair) {
         pair[0].forEach(function(pet, i) {
           pet.skills.forEach(function(skill, j) {
-            const value = pair[1][i]?.[j];
-            if (value !== undefined) setSkillPP(pet, skill, value, "回溯到第" + lowest.turn + "回合", "重衍纪元");
+            restoreHistoricalPP(pet, skill, pair[1][i]?.[j], lowest.turn, "重衍纪元");
           });
         });
       });
@@ -3197,6 +3192,15 @@ function traceBlockedPPSlots(pet, slot, action, source, detail) {
   for (const [index, skill] of pet.skills.entries()) {
     if (slot < 0 || index === slot) traceSkillPP(pet, skill, skill.pp, skill.pp, action, source, detail);
   }
+}
+
+function restoreHistoricalPP(pet, skill, value, turn, source) {
+  if (value === undefined) return;
+  if (skill.ppRewindImmune) {
+    traceSkillPP(pet, skill, skill.pp, skill.pp, "跳过回溯", source, "本技能 PP 不参与时间回溯");
+    return;
+  }
+  setSkillPP(pet, skill, value, "回溯到第" + turn + "回合", source);
 }
 
 function setSkillPP(pet, skill, value, action, source, detail) {
@@ -3741,10 +3745,11 @@ function postDamageProcessing() {
     if (!pet || !pet.bloodline) return;
     if (pet.lethalHitThisTurn && pet.bloodline.name === "不灭魂体" && !pet.lethalHandled) {
       pet.lethalHandled = true;
+      addMessage("【不灭魂体】" + pet.name + "受到致死伤害，尝试删除自身各技能4PP。");
+      createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
       const switched = forceSwitchPet(pet, () => {
         pet.hp = 1;
-        createBattleContext().deletePP(pet, -1, 4, "不灭魂体·保命");
-        addMessage(pet.name + " 被致命一击！不灭魂体保留1点精力！全体技能-4PP！");
+        addMessage("【不灭魂体】" + pet.name + "保留1点精力！");
       });
       if (!switched) {
         pet.hp = 0;
@@ -5040,8 +5045,8 @@ function endBattle(playerWin, fled = false) {
 }
 // ---------- BATTLE UI ----------
 const BLOODLINE_TEMP_RULES = {
-  pet_qy: "当前裁定中，低 PP 回满至少消耗 1 层清风之念。清念沉脉清空后直到自身结算，跳过血脉的两种 PP 回复。",
-  pet_bmhs: "当前裁定中，有存活后备且能成功驱逐时，才保留 1 点精力并扣除 PP。"
+  pet_qy: "当前裁定中，低 PP 回满要求剩余 PP 大于 0，且至少消耗 1 层清风之念。清念沉脉清空后直到自身结算，跳过血脉的两种 PP 回复。",
+  pet_bmhs: "当前裁定中，致死段结算后先尝试删除自身各技能 4 PP，遵守免删。驱逐成功则保留 1 点精力，失败则阵亡。"
 };
 
 let bloodlinePreview = null;

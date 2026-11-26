@@ -84,25 +84,37 @@ test('回复 PP 记录指定来源、禁回、减半和上限', () => {
   assert.match(ppLog(), /封灵千噬」 8 → 8[^\n]*目标本回合禁止回复 PP/);
 });
 
-test('双边场下同名宠物的回溯逐格记录', () => {
+test('双方队伍的逆流 PP 跳过回溯，其他技能逐格回溯并记录', () => {
   const { api, pet, state, ppLog } = fixture(['sk_ql_1'], []);
-  for (const party of [state.playerParty, state.aiParty]) party.push(pet('pet_bmhs', ['sk_nlex']));
-  const left = state.playerParty[1].skills[0];
-  const right = state.aiParty[1].skills[0];
+  for (const party of [state.playerParty, state.aiParty]) {
+    party.push(pet('pet_bmhs', ['sk_nlex', 'sk_fthy']));
+  }
+  const [leftReverse, leftOther] = state.playerParty[1].skills;
+  const [rightReverse, rightOther] = state.aiParty[1].skills;
   const ctx = api.createBattleContext();
   ctx.saveSnapshot();
   state.turnCount++;
-  left.pp = 0;
-  right.pp = 1;
+  leftReverse.pp = 0;
+  rightReverse.pp = 1;
+  leftOther.pp = 3;
+  rightOther.pp = 5;
   ctx.savePPState();
   ctx.restoreSnapshot(3);
-  assert.deepEqual([left.pp, right.pp], [2, 2]);
-  ctx.rewindPPToMin(24);
-  assert.deepEqual([left.pp, right.pp], [0, 1]);
+  assert.deepEqual([leftReverse.pp, rightReverse.pp], [0, 1]);
+  assert.deepEqual([leftOther.pp, rightOther.pp], [8, 8]);
 
-  assert.match(ppLog(), /我方场下创世神钟第1格「逆流而行」 0 → 2[^\n]*回溯到第0回合 · 逆流而行/);
-  assert.match(ppLog(), /对方场下创世神钟第1格「逆流而行」 1 → 2[^\n]*回溯到第0回合 · 逆流而行/);
-  assert.match(ppLog(), /我方场下创世神钟第1格「逆流而行」 2 → 0[^\n]*回溯到第1回合 · 重衍纪元/);
+  leftReverse.pp = 1;
+  rightReverse.pp = 2;
+  ctx.rewindPPToMin(24);
+  assert.deepEqual([leftReverse.pp, rightReverse.pp], [1, 2]);
+  assert.deepEqual([leftOther.pp, rightOther.pp], [3, 5]);
+
+  assert.match(ppLog(), /我方场下创世神钟第1格「逆流而行」 0 → 0[^\n]*跳过回溯 · 逆流而行/);
+  assert.match(ppLog(), /对方场下创世神钟第1格「逆流而行」 1 → 1[^\n]*跳过回溯 · 逆流而行/);
+  assert.match(ppLog(), /我方场下创世神钟第2格「覆体魂衣」 3 → 8[^\n]*回溯到第0回合 · 逆流而行/);
+  assert.match(ppLog(), /我方场下创世神钟第1格「逆流而行」 1 → 1[^\n]*跳过回溯 · 重衍纪元/);
+  assert.match(ppLog(), /对方场下创世神钟第1格「逆流而行」 2 → 2[^\n]*跳过回溯 · 重衍纪元/);
+  assert.match(ppLog(), /对方场下创世神钟第2格「覆体魂衣」 8 → 5[^\n]*回溯到第1回合 · 重衍纪元/);
 });
 
 test('清羽 PP 封存和跨形态恢复单独记录，普通模式沿用原有日志', () => {
@@ -145,14 +157,14 @@ test('清念灵体②只恢复威力技能的 PP，日志记录触发技能', ()
   assert.match(ppLog(), /万古遗恨」 3 → 5[^\n]*清念灵体·变化招（太虚灵威）/);
 });
 
-test('沉脉分别记录两种血脉回复的跳过原因', () => {
+test('沉脉记录翼系回复被跳过，0 PP 不触发清念低 PP 回满', () => {
   const { api, engine, p, a, state, ppLog } = fixture([], ['sk_qy_5']);
   state.turnCount = 1;
   engine.enterQingyuMode(a, '清念');
   a.bloodlineData.qfzn = 1;
   api.executeSkillTurn(a, p, a.skills[0], 'ai');
   assert.match(ppLog(), /清念沉脉」 0 → 0[^\n]*清念·翼系招式（清念沉脉）[^\n]*跳过血脉回复/);
-  assert.match(ppLog(), /清念沉脉」 0 → 0[^\n]*清念·低PP回满（清念沉脉）[^\n]*跳过血脉回复/);
+  assert.doesNotMatch(ppLog(), /清念·低PP回满（清念沉脉）/);
   assert.equal(a.skills[0].pp, 0);
   assert.equal(a.bloodlineData.qfzn, 1);
 });

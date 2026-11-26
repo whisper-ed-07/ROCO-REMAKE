@@ -269,7 +269,7 @@ function createBattleContext() {
       if (gameState.snapshots.length > 30) gameState.snapshots.shift();
     },
     // 时间回溯：恢复双方全体宠物的精力/PP/强化/异常，返回回溯前后精力差
-    restoreSnapshot: function(turnsBack, excludedSkill) {
+    restoreSnapshot: function(turnsBack) {
       // 快照在回合末保存，按回合号定位：当前回合 - turnsBack
       var targetTurn = (gameState.turnCount || 0) - turnsBack;
       var idx = -1;
@@ -289,11 +289,7 @@ function createBattleContext() {
           if (!s) return;
           pet.hp = Math.min(pet.maxHp + (pet.maxHpBonus || 0), s.hp);
           pet.skills.forEach(function(skill, i) {
-            if (skill === excludedSkill) {
-              traceSkillPP(pet, skill, skill.pp, skill.pp, "跳过回溯", "逆流而行", "本招不回溯自身 PP");
-            } else if (s.pp[i] !== undefined) {
-              setSkillPP(pet, skill, s.pp[i], "回溯到第" + snap.turn + "回合", "逆流而行");
-            }
+            restoreHistoricalPP(pet, skill, s.pp[i], snap.turn, "逆流而行");
           });
           STAGE_FIELDS.forEach(function(k, i){ if (s.stages[i] !== undefined) pet[k] = s.stages[i]; });
           pet.status = s.status; pet.statusTurns = s.statusTurns;
@@ -320,8 +316,7 @@ function createBattleContext() {
       [[gameState.playerParty, lowest.player], [gameState.aiParty, lowest.ai]].forEach(function(pair) {
         pair[0].forEach(function(pet, i) {
           pet.skills.forEach(function(skill, j) {
-            const value = pair[1][i]?.[j];
-            if (value !== undefined) setSkillPP(pet, skill, value, "回溯到第" + lowest.turn + "回合", "重衍纪元");
+            restoreHistoricalPP(pet, skill, pair[1][i]?.[j], lowest.turn, "重衍纪元");
           });
         });
       });
@@ -408,6 +403,15 @@ function traceBlockedPPSlots(pet, slot, action, source, detail) {
   for (const [index, skill] of pet.skills.entries()) {
     if (slot < 0 || index === slot) traceSkillPP(pet, skill, skill.pp, skill.pp, action, source, detail);
   }
+}
+
+function restoreHistoricalPP(pet, skill, value, turn, source) {
+  if (value === undefined) return;
+  if (skill.ppRewindImmune) {
+    traceSkillPP(pet, skill, skill.pp, skill.pp, "跳过回溯", source, "本技能 PP 不参与时间回溯");
+    return;
+  }
+  setSkillPP(pet, skill, value, "回溯到第" + turn + "回合", source);
 }
 
 function setSkillPP(pet, skill, value, action, source, detail) {
