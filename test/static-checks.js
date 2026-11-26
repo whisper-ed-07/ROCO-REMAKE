@@ -2,7 +2,6 @@
 // 用法:node test/static-checks.js
 // 覆盖:技能结构 / 宠物结构与引用完整性 / 属性克制表 / 引擎硬编码 id 耦合
 const path = require('path');
-const fs = require('fs');
 const { loadEngine } = require('./lib/harness');
 
 const HTML = path.join(__dirname, '..', 'ROCO REMAKE.html');
@@ -109,7 +108,7 @@ console.log('  已显式定义 ' + defined + '/' + total + ' 组,其余默认 1 
 
 // ---------- [4] 引擎硬编码 id 耦合(见 AGENTS.md §12) ----------
 console.log('\n[4] 引擎硬编码引用检查');
-const src = loaded.html;
+const src = loaded.code;
 function literals(re) {
   const out = new Set();
   (src.match(re) || []).forEach(m => out.add(m.replace(/["']/g, '')));

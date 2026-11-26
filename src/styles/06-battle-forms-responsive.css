@@ -1,0 +1,192 @@
+
+/* Battle: shrinkable columns instead of fixed widths and absolute overlays. */
+.battle-bg, [data-theme="light"] .battle-bg { background: transparent; gap: 22px; }
+.battle-top { padding: 0 0 18px; gap: 12px; border-bottom: 1px solid var(--border); align-items: center; }
+.turn-indicator { margin: 0; padding: 8px 12px; background: var(--ui-gold-soft); border: 1px solid var(--border); border-radius: 9px; font-size: 12px; letter-spacing: .5px; }
+.turn-timer, [data-theme="light"] .turn-timer { flex: 1 1 150px; max-width: 210px; min-width: 0; margin: 0; background: var(--surface); border-color: var(--border); padding: 8px 12px; border-radius: 9px; }
+.turn-timer-bar { min-width: 30px; background: var(--surface2); }
+.battle-weather { align-self: center; max-width: 100%; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.battle-weather:not([hidden]) { display: flex; }
+.w-item {
+  --w-color: var(--gold);
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px clamp(10px, 2vw, 17px);
+  border: 1px solid var(--w-color); border-radius: 12px; box-shadow: var(--shadow);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--w-color) 16%, transparent), transparent), var(--surface);
+  color: color-mix(in srgb, var(--w-color) 78%, var(--text));
+  font-size: clamp(16px, 2.3vw, 19px); font-weight: 800; line-height: 1.4; white-space: nowrap;
+}
+.w-item.has-field { --w-color: var(--shield-color); }
+.w-icon { font-size: 1.2em; line-height: 1; }
+.w-turns {
+  padding: 2px 7px; border-radius: 6px; background: var(--surface2); color: var(--text);
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.flee-btn { margin-left: auto; padding: 8px 13px; background: transparent; color: var(--hp-red); border-color: var(--border); border-radius: 9px; }
+@media (hover: hover) { .flee-btn:hover { transform: none; background: var(--ui-soft); border-color: var(--hp-red); } }
+.battle-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); gap: 16px; flex: none; align-items: center; padding: 4px 0 10px; }
+.battle-side { min-width: 0; gap: 16px; align-items: center; }
+.player-side { order: 1; }
+.battle-stage { order: 2; display: flex; width: auto; min-width: 0; align-self: center; }
+.enemy-side { order: 3; }
+.stage-vs { color: var(--gold); opacity: .65; font-size: 20px; font-style: italic; font-weight: 500; letter-spacing: 2px; }
+.battle-ground { display: none; }
+.battle-side .pet-sprite { width: 130px; height: 130px; font-size: 68px; max-width: 100%; }
+.pet-sprite.player { background: radial-gradient(circle, var(--ui-teal-soft), transparent 72%); }
+.pet-sprite.opponent { background: radial-gradient(circle, var(--ui-gold-soft), transparent 72%); }
+.pet-info-card, [data-theme="light"] .pet-info-card { width: 100%; min-width: 0; margin: 0; padding: 20px; background: var(--surface); border-color: var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+.pet-info-card::before { display: none; }
+.pet-info-name { font-size: 18px; text-shadow: none; overflow-wrap: anywhere; }
+.pet-info-lv { margin-left: auto; background: var(--ui-soft); }
+.pet-info-element { border-color: var(--border); border-radius: 6px; }
+.hp-bar-outer, [data-theme="light"] .hp-bar-outer { height: 9px; margin-top: 12px; border: 0; box-shadow: none; background: var(--surface2); }
+.hp-bar-inner::after { display: none; }
+.hp-text { font-variant-numeric: tabular-nums; margin-top: 6px; font-size: 13px; }
+.shield-bar-outer, .switch-pet-hpbar { background: var(--surface2); border: 0; }
+.stages-bar { justify-content: flex-start; gap: 5px; margin-top: 8px; }
+.stage-pill { background: var(--ui-soft); font-size: 11px; padding: 2px 6px; }
+.stage-pill.up { color: var(--green); background: var(--ui-teal-soft); }
+.stage-pill.down { color: var(--hp-red); }
+.status-badge { margin: 6px 4px 0 0; font-size: 11px; padding: 2px 7px; }
+.battle-bottom { display: grid; grid-template-columns: minmax(240px, .82fr) minmax(0, 1.38fr); align-items: stretch; padding: 0; gap: 20px; }
+.battle-log, .battle-panel { min-width: 0; display: flex; flex-direction: column; flex: none; }
+.battle-log::before, .battle-panel::before { margin: 0 0 10px; color: var(--text2); font-size: 12px; letter-spacing: 2px; }
+
+
+.battle-messages, .battle-log .battle-messages, [data-theme="light"] .battle-messages { width: 100%; margin: 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 13px; box-shadow: none; min-height: 238px; max-height: 310px; flex: 1 1 auto; color: var(--text2); line-height: 1.85; overflow-wrap: anywhere; }
+.battle-messages .msg { padding: 5px 0; border-bottom-color: var(--ui-soft); }
+.battle-messages .msg:last-child { color: var(--text); background: var(--ui-gold-soft); padding: 6px 8px; border-radius: 6px; }
+.battle-actions, .battle-panel .battle-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; }
+.skill-btn { min-width: 0; min-height: 78px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: none; }
+@media (hover: hover) { .skill-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--gold); box-shadow: 0 5px 16px rgba(0, 0, 0, .1); } }
+.skill-btn.selected { box-shadow: inset 0 0 0 1px var(--gold) !important; }
+.skill-btn.no-pp { opacity: .42; }
+.skill-btn-header { padding: 11px 12px 3px; gap: 8px; }
+.skill-btn-icon { width: 31px; height: 31px; font-size: 20px; border: 0; border-radius: 8px; }
+.skill-btn-name { font-size: 14px; font-weight: 700; color: var(--text) !important; }
+.skill-btn-prio { font-size: 10px; padding: 2px 5px; border-radius: 5px; }
+.skill-btn-prio.fast { color: var(--green); background: var(--ui-teal-soft); }
+.skill-btn-prio.slow { color: var(--hp-red); }
+.skill-btn-prio.normal { color: var(--text2); background: var(--ui-soft); }
+.skill-btn-body { padding: 3px 12px 10px 51px; font-size: 11px; }
+.skill-btn-body .skill-power { color: var(--text2); font-weight: 400; }
+.skill-btn-body .skill-pp-info { font-variant-numeric: tabular-nums; color: var(--text); }
+[data-theme="light"] .skill-btn-name, [data-theme="light"] .pet-card-element,
+[data-theme="light"] .pet-info-element, [data-theme="light"] .skill-swap-item > span[style*="color"],
+[data-theme="light"] .swap-item-main span[style*="color"] { color: var(--text) !important; }
+.action-btn { min-height: 78px; border-width: 1px; border-radius: 12px; background: var(--ui-soft); }
+@media (hover: hover) { .action-btn:hover:not(:disabled) { transform: translateY(-2px); background: var(--ui-gold-soft); } }
+.switch-panel, [data-theme="light"] .switch-panel { position: fixed; left: 50%; bottom: 20px; right: auto; transform: translateX(-50%); width: min(640px, calc(100% - 32px)); max-height: min(70svh, 640px); padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 20px 80px rgba(0, 0, 0, .4); animation: none; z-index: 80; }
+#switch-list { display: grid; gap: 8px; }
+.switch-pet-btn { width: 100%; border-width: 1px; background: var(--ui-soft); border-radius: 11px; }
+@media (hover: hover) { .switch-pet-btn:hover:not(:disabled) { transform: none; } }
+
+/* Forms and settings share the same surfaces in both themes. */
+.modal-overlay { padding: 20px; background: var(--ui-overlay); backdrop-filter: blur(8px); }
+.modal, [data-theme="light"] .modal { width: 100%; max-width: 540px; max-height: calc(100svh - 40px); border: 1px solid var(--border); padding: 26px; background: var(--surface); color: var(--text); border-radius: 18px; box-shadow: 0 24px 80px rgba(0, 0, 0, .3); }
+.modal h3 { font-size: 21px; text-align: left; margin-bottom: 24px; }
+.form-group { margin-bottom: 17px; }
+.form-group input, .form-group select, .form-group textarea { min-width: 0; border-width: 1px; background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { box-shadow: var(--glow-accent); border-color: var(--accent); }
+.form-group textarea { min-height: 96px; line-height: 1.7; }
+.stat-grid { gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-actions { padding-top: 8px; gap: 12px; }
+.form-actions .btn { min-width: 0; }
+.result-overlay { padding: 28px; background: var(--ui-overlay); }
+.result-text { font-size: clamp(26px, 5vw, 38px); }
+.result-text.win, .result-text.lose { text-shadow: none; }
+
+@media (min-width: 1400px) {
+  .menu-shell.screen.active { min-height: min(920px, 100svh); }
+  .battle-side .pet-sprite { width: 160px; height: 160px; font-size: 80px; }
+}
+@media (max-width: 900px) {
+  .menu-shell.screen.active { column-gap: 36px; padding-right: 0; padding-left: 0; }
+  .menu-logo .roco-mark { width: 160px; height: 104px; }
+  .menu-logo::before { width: 200px; height: 200px; top: -42px; }
+  .menu-buttons .btn { padding: 17px; }
+  .pet-grid, .pet-grid:has(> :nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pet-card { min-height: 180px; }
+  .battle-row { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 12px; }
+  .battle-bottom { grid-template-columns: 1fr; gap: 20px; }
+  .battle-panel { order: 1; }
+  .battle-log { order: 2; }
+  .battle-messages, .battle-log .battle-messages { min-height: 150px; max-height: 230px; }
+  .battle-side .pet-sprite { width: 110px; height: 110px; font-size: 58px; }
+}
+@media (max-width: 700px) {
+  #app { width: calc(100% - 32px); }
+  .screen { padding-top: 22px; }
+  .menu-shell.screen.active { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; min-height: 100svh; padding: 24px 8px 84px; }
+  .menu-topline { padding-bottom: 16px; font-size: 10px; letter-spacing: .8px; }
+  .menu-header { padding: 42px 0 28px; text-align: center; }
+  .menu-logo { margin-bottom: 16px; }
+  .menu-logo::before { left: -20px; opacity: .35; }
+  .menu-title-cn { font-size: 34px; }
+  .menu-title-cn span { font-size: 23px; letter-spacing: 4px; }
+  .menu-title-en { font-size: 11px; }
+  .menu-subtitle { margin: 18px auto 0; font-size: 12px; }
+  .menu-actions-area { width: min(100%, 480px); margin: 0 auto; padding: 10px 0 30px; }
+  .menu-buttons .btn { min-height: 72px; }
+  .menu-buttons .btn-primary { min-height: 86px; }
+  .menu-footer { flex-wrap: wrap; font-size: 11px; padding-top: 16px; gap: 12px; }
+  .menu-footer-note { letter-spacing: .5px; }
+  .menu-library-counts { gap: 20px; }
+  .menu-library-counts strong { font-size: 17px; }
+  .pet-info-card, [data-theme="light"] .pet-info-card { padding: 15px; }
+  .pet-info-name { font-size: 16px; }
+  .pet-info-element { padding: 2px 6px; font-size: 11px; }
+  .battle-top { gap: 8px; }
+  .battle-row { grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); gap: 7px; }
+  .stage-vs { font-size: 15px; letter-spacing: 0; }
+  .mgmt-item { padding: 15px; gap: 12px; }
+  .mgmt-item-actions { gap: 5px; }
+  .mgmt-item-actions button { min-width: 48px; padding: 6px 8px; }
+  .pet-detail-card { padding: 18px; }
+  .skill-swap-item .swap-info { flex-basis: 100%; margin-left: 0; padding-left: 36px; }
+  .settings-btn { right: 16px; bottom: 16px; }
+}
+@media (max-width: 460px) {
+  .screen-header { padding-right: 0; gap: 10px; }
+  .screen-title { font-size: 18px; }
+  .menu-brand-mini { font-size: 11px; letter-spacing: 1px; }
+  .menu-topline { gap: 8px; }
+  .menu-title-cn { font-size: 29px; }
+  .menu-title-cn span { font-size: 21px; }
+  .menu-footer-note { display: none; }
+  .pet-grid, .pet-grid:has(> :nth-child(4)) { gap: 12px; }
+  .pet-card { min-height: 165px; padding: 18px 10px; }
+  .pet-card-name { font-size: 15px; }
+  .pet-card-emoji { font-size: 42px; }
+  .battle-bg { gap: 16px; }
+  .battle-row { display: flex; flex-direction: column; gap: 16px; padding: 0; }
+  .battle-side { width: 100%; display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 12px; }
+  .battle-side .pet-sprite { width: 62px; height: 75px; font-size: 41px; }
+  .pet-sprite::after { width: 58px; }
+  .battle-stage { display: none; }
+  .player-side { order: 2; }
+  .enemy-side { order: 1; }
+  .pet-info-card, [data-theme="light"] .pet-info-card { padding: 13px; }
+  .battle-actions, .battle-panel .battle-actions { gap: 8px; }
+  .skill-btn-header { display: grid; grid-template-columns: 25px minmax(0, 1fr); padding: 10px 9px 3px; gap: 6px; }
+  .skill-btn-name { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+  .skill-btn-icon { width: 25px; height: 25px; font-size: 17px; }
+  .skill-btn-prio { margin-left: 0; grid-column: 2; justify-self: start; }
+  .skill-btn-body { padding: 3px 9px 9px; }
+  .mgmt-item { flex-wrap: wrap; }
+  .mgmt-item-info { flex-basis: calc(100% - 65px); }
+  .mgmt-item-actions { margin-left: auto; }
+  .modal-overlay { padding: 12px; }
+  .modal, [data-theme="light"] .modal { padding: 20px; max-height: calc(100svh - 24px); }
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+html[data-reduced-motion="true"], html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before, html[data-reduced-motion="true"] *::after {
+  animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important;
+  transition-duration: .01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important;
+}
+
+.swap-enter { animation: petEnter var(--motion-panel) var(--ease-enter); }
+.btn, .skill-btn, .action-btn, .switch-pet-btn { transition-duration: var(--motion-fast); }
+button:active:not(:disabled) { transform: scale(.985); }
+@media (hover: hover) { .btn:hover, .skill-btn:hover:not(:disabled), .action-btn:hover:not(:disabled), .switch-pet-btn:hover:not(:disabled), .pet-card:hover { transform: none; } }
+.btn:active:not(:disabled), .skill-btn:active:not(:disabled), .action-btn:active:not(:disabled), .switch-pet-btn:active:not(:disabled), .pet-card:active:not(:disabled) { transform: scale(.985); }

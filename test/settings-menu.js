@@ -7,8 +7,10 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { setTimeout: delay } = require('node:timers/promises');
+const { readGame } = require('./lib/game-assets');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'ROCO REMAKE.html'));
+const root = path.join(__dirname, '..');
+const filename = 'ROCO REMAKE.html';
 const browser = [
   process.env.ROCO_CHROMIUM,
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -455,7 +457,7 @@ async function test(browserConnection, origin) {
 }
 
 // 使用同一文件 URL 和隔离浏览器配置，模拟旧版本存档后替换游戏文件。
-async function testFileReplacement(connection, gameFile) {
+async function testFileReplacement(connection, gameFile, game) {
   const { send } = connection;
   const evaluate = async expression => {
     const result = await send('Runtime.evaluate', { expression, returnByValue: true });
@@ -488,11 +490,17 @@ async function testFileReplacement(connection, gameFile) {
   // 离开后在同一路径覆盖文件，避免更换 URL 或 Chromium profile。
   await send('Page.navigate', { url: 'about:blank' });
   await until(() => evaluate('location.href === "about:blank"'), '离开旧文件');
-  fs.writeFileSync(gameFile, html);
+  for (const [relativePath, { content }] of game.assets) {
+    const destination = path.join(path.dirname(gameFile), relativePath);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, content);
+  }
+  fs.writeFileSync(gameFile, game.html);
   await open();
-  const title = html.toString('utf8').match(/<title>([^<]+)<\/title>/)[1];
+  const title = game.html.match(/<title>([^<]+)<\/title>/)[1];
   assert.equal(await evaluate('document.title'), title, '同一路径已加载当前构建');
   await inspect(() => {
+    eq(getComputedStyle(get('#intro-screen')).position, 'fixed', '文件替换后加载样式');
     eq(root('theme'), 'light', '文件替换后读取主题');
     eq(root('log-size'), 'expanded', '文件替换后读取日志设置');
     eq(findSkill('custom_skill_file_test').name, '存档招式', '自定义技能');
@@ -519,19 +527,25 @@ async function testFileReplacement(connection, gameFile) {
 
 async function main() {
   assert.ok(browser, '找不到 Chromium，请设置 ROCO_CHROMIUM');
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'roco-settings-'));
   const fileMode = process.argv.includes('--file-replacement');
-  const gameFile = path.join(directory, 'ROCO REMAKE.html');
-  if (fileMode) fs.writeFileSync(gameFile, execFileSync('git', ['show', '0.0.1-preview:ROCO REMAKE.html'], { cwd: path.join(__dirname, '..') }));
+  const standalone = process.argv.includes('--standalone');
+  const game = readGame(standalone ? path.join(root, 'dist', filename) : path.join(root, filename));
+  if (standalone) assert.equal(game.assets.size, 0, '单文件版无需额外的样式或脚本文件');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'roco-settings-'));
+  const gameFile = path.join(directory, filename);
   const server = http.createServer((request, response) => {
-    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const route = request.url.split('?')[0];
+    const asset = game.assets.get(route.slice(1));
+    const content = asset?.content ?? (route === '/game' ? game.html : '<!doctype html><title>ROCO 测试</title><body></body>');
+    response.setHeader('Content-Type', (asset?.contentType ?? 'text/html') + '; charset=utf-8');
     // 保持测试只访问本机。字体仍可验证实际 CSS 字体链。
-    response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
-    response.end(request.url.startsWith('/game') ? html : '<!doctype html><title>ROCO 测试</title><body></body>');
+    response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
+    response.end(content);
   });
   let processHandle;
   let connection;
   try {
+    if (fileMode) fs.writeFileSync(gameFile, execFileSync('git', ['show', '0.0.1-preview:ROCO REMAKE.html'], { cwd: root }));
     await new Promise((resolve, reject) => {
       server.on('error', reject);
       server.listen(0, '127.0.0.1', resolve);
@@ -551,7 +565,7 @@ async function main() {
     const pages = await fetch('http://127.0.0.1:' + port + '/json/list').then(response => response.json());
     connection = await connect(pages.find(page => page.type === 'page').webSocketDebuggerUrl);
     if (fileMode) {
-      await testFileReplacement(connection, gameFile);
+      await testFileReplacement(connection, gameFile, game);
       console.log('file replacement and persisted battle passed');
     } else {
       await test(connection, 'http://127.0.0.1:' + server.address().port);

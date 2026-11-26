@@ -1,0 +1,89 @@
+
+/* ===== 电脑端宽屏：左右对战布局 ===== */
+/* ===== 横屏战斗布局 ===== */
+.battle-top { display:flex; align-items:center; gap:10px; padding:8px 16px 4px; flex-wrap:wrap; position:relative; }
+.flee-btn {
+  margin-left:auto; padding:8px 18px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:700;
+  background:rgba(248,81,73,0.15); border:1px solid rgba(248,81,73,0.45); color:#f85149;
+  transition:all 0.2s ease;
+}
+@media (hover: hover) { .flee-btn:hover { background:rgba(248,81,73,0.3); transform:scale(1.05); } }
+.battle-row { display:flex; flex-direction:column; flex:1; }
+.battle-side { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.battle-side .pet-sprite { width:110px; height:110px; font-size:54px; }
+.battle-stage { display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+.stage-vs { font-size:24px; font-weight:900; color:var(--text2); opacity:0.5; letter-spacing:3px; }
+.battle-bottom { display:flex; flex-direction:column; }
+.enemy-side { order:1; }
+.player-side { order:2; }
+.stages-bar { display:flex; gap:4px; flex-wrap:wrap; margin-top:5px; justify-content:center; }
+.stage-pill { white-space:nowrap; font-size: 12px; padding:2px 7px; border-radius:6px; background:rgba(255,255,255,0.06); color:var(--text2); font-weight:700; }
+.stage-pill.up { background:rgba(63,185,80,0.18); color:#3fb950; }
+.stage-pill.down { background:rgba(248,81,73,0.18); color:#f85149; }
+
+/* 横屏（≥1024px）：左右分置 */
+@media (min-width: 1024px) {
+  #app { max-width: 1400px; }
+  .battle-row { flex-direction:row; align-items:stretch; padding:12px 24px; }
+  .battle-side { flex:1; justify-content:flex-start; }
+  .player-side { order:1; }
+  .battle-stage { order:2; display:flex; width:170px; }
+  .enemy-side { order:3; }
+  .battle-side .pet-sprite { width:160px; height:160px; font-size:78px; }
+  .pet-info-card { min-width:280px; width:85%; }
+  .battle-bottom { flex-direction:row; padding:0 24px 16px; gap:16px; align-items:stretch; }
+  .battle-log { flex:0 0 30%; display:flex; flex-direction:column; }
+  .battle-panel { flex:1; }
+  .battle-log .battle-messages { margin:0; flex:1; min-height:180px; max-height:none; }
+  .battle-panel .battle-actions { padding:0; }
+  .turn-indicator, .turn-timer { margin:0; }
+  .battle-messages { margin:0; }
+  .battle-ground { display:none; }
+}
+
+@media (min-width: 768px) {
+  #app { max-width: 960px; }
+  .pet-grid { grid-template-columns: repeat(3, 1fr); }
+  .pet-grid:has(> :nth-child(4)) { grid-template-columns: repeat(4, 1fr); }
+  .menu-buttons { max-width: 420px; margin: 0 auto; }
+  .skill-btn { min-height: 62px; }
+}
+
+/* ===== 伤害飘字 ===== */
+.float-text { position:absolute; top:-8px; left:50%; font-size:22px; font-weight:900; pointer-events:none; z-index:60; text-shadow:0 2px 6px rgba(0,0,0,0.6); animation:floatUp var(--motion-float) ease-out forwards; white-space:nowrap; }
+@keyframes floatUp { 0%{opacity:0; transform:translate(-50%,12px) scale(0.7);} 15%{opacity:1; transform:translate(-50%,0) scale(1.15);} 100%{opacity:0; transform:translate(-50%,-46px) scale(1);} }
+/* ===== 技能释放反馈 ===== */
+.skill-btn.pressed { animation:btnPulse var(--motion-fast) ease; }
+.skill-btn.selected { border-color:var(--gold) !important; box-shadow:0 0 14px rgba(226,176,74,0.55) !important; }
+@keyframes btnPulse { 0%{transform:scale(1);} 50%{transform:scale(.985);} 100%{transform:scale(1);} }
+/* ===== 换宠面板卡片化 ===== */
+.switch-pet-btn { flex-direction:row; align-items:center; }
+.switch-pet-info { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
+.switch-pet-hpwrap { display:flex; align-items:center; gap:6px; }
+.switch-pet-hpbar { flex:1; height:6px; background:#1a1f2a; border-radius:3px; overflow:hidden; }
+.switch-pet-hpfill { height:100%; background:var(--hp-green); border-radius:3px; transition:width 0.4s ease; }
+.switch-pet-hpfill.low { background:var(--hp-yellow); }
+.switch-pet-hpfill.critical { background:var(--hp-red); }
+.switch-pet-status { display:flex; gap:3px; flex-wrap:wrap; }
+/* ===== 亮色主题 ===== */
+[data-theme="light"] {
+  --bg:#f5f6fa; --surface:#ffffff; --surface2:#eceff4;
+  --text:#2d3436; --text2:#636e72; --accent:#e17055;
+  --accent2:#ff8a70; --gold:#b8860b; --green:#27ae60;
+  --hp-green:#27ae60; --hp-yellow:#f39c12; --hp-red:#e74c3c;
+  --shield-color:#2980b9; --border:#dfe4ea;
+  --shadow:0 6px 24px rgba(0,0,0,0.12);
+  --glow-gold:0 0 16px rgba(184,134,11,0.3);
+  --glow-accent:0 0 16px rgba(225,112,85,0.3);
+}
+[data-theme="light"] body { background-image:radial-gradient(ellipse at 25% 40%, rgba(225,112,85,0.1) 0%, transparent 55%), radial-gradient(ellipse at 75% 30%, rgba(41,128,185,0.1) 0%, transparent 55%); }
+[data-theme="light"] .battle-bg { background:linear-gradient(180deg,#e8f0ee 0%,#eef1f6 35%,#f5f6fa 100%); }
+[data-theme="light"] .pet-info-card { background:rgba(255,255,255,0.7); }
+[data-theme="light"] .battle-messages { background:rgba(255,255,255,0.7); color:var(--text2); }
+[data-theme="light"] .battle-messages .msg:last-child { color:var(--text); }
+[data-theme="light"] .menu-screen-bg { background:linear-gradient(120deg,#ff6b6b,#ffa94d,#ffd93d,#51cf66,#4dabf7,#9775fa,#ff6b6b); background-size:600% 600%; animation-duration:12s; }
+[data-theme="light"] .menu-screen-bg::after { content:''; position:absolute; inset:0; background:rgba(255,255,255,0.22); pointer-events:none; }
+[data-theme="light"] .switch-panel { background:rgba(255,255,255,0.9); }
+[data-theme="light"] .modal { background:rgba(255,255,255,0.95); }
+[data-theme="light"] .hp-bar-outer { background:#e0e4ea; border-color:#dfe4ea; }
+[data-theme="light"] .turn-timer { background:rgba(255,255,255,0.7); }

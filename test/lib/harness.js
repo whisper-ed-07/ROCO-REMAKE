@@ -1,9 +1,9 @@
 // test/lib/harness.js — 在 Node 中加载游戏引擎(vm + DOM stub)
-// 已验证:可脱离浏览器执行 ROCO REMAKE.html 内的全部引擎代码
+// 从游戏入口加载有序的经典脚本。
 // 用法:const { loadEngine } = require('./lib/harness');
 //       const { api } = loadEngine(path.join(__dirname, '..', 'ROCO REMAKE.html'));
-const fs = require('fs');
 const vm = require('vm');
+const { readGame } = require('./game-assets');
 
 function makeEl() {
   const el = {
@@ -107,13 +107,13 @@ function loadEngine(htmlPath, opts) {
   sandbox.self = sandbox;
 
   vm.createContext(sandbox);
-  const html = fs.readFileSync(htmlPath, 'utf8');
-  const si = html.indexOf('<script>');
-  const sj = html.lastIndexOf('</script>');
-  if (si < 0 || sj < 0) throw new Error('未找到 <script> 块:' + htmlPath);
+  const { html, scripts } = readGame(htmlPath);
+  if (!scripts.length) throw new Error('未找到游戏脚本：' + htmlPath);
   sandbox.__html = html;
-  sandbox.__code = html.slice(si + '<script>'.length, sj);
-  vm.runInContext(sandbox.__code, sandbox, { filename: 'engine.js' });
+  sandbox.__code = scripts.map(({ content }) => content).join('\n');
+  for (const { filename, content } of scripts) {
+    new vm.Script(content, { filename }).runInContext(sandbox);
+  }
   vm.runInContext(EXPORTS, sandbox, { filename: 'harness-exports.js' });
 
   return { api: sandbox.__api, sandbox, myMath, clock, code: sandbox.__code, html };

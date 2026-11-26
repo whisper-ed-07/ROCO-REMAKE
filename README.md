@@ -4,7 +4,7 @@ ROCO REMAKE 是一款浏览器宠物回合制对战游戏。你可以为清羽�
 
 ## 开始游戏
 
-1. 下载或克隆项目，在浏览器打开根目录的游戏文件。 [ROCO REMAKE.html](ROCO%20REMAKE.html)
+1. 下载或克隆整个项目，保留根目录的游戏文件和同级 `src/` 目录。双击 [ROCO REMAKE.html](ROCO%20REMAKE.html) 即可在浏览器运行。
 2. 点击启动画面进入菜单，选择「单机模式」并点击「开始对战」。
 3. 依次选择我方和对手的宠物。每只宠物最多携带四个出战技能。
 4. 在对手阵容页选择「对手 AI」，确认后开战。默认策略「Little Roco V0-Preview」会根据精力、PP、属性克制和场上状态选招。
@@ -17,11 +17,17 @@ ROCO REMAKE 是一款浏览器宠物回合制对战游戏。你可以为清羽�
 
 ## 开发与测试
 
-在项目根目录使用 Node.js 22 或更新版本运行以下命令。构建脚本使用 Node.js 内置模块，将 `src/` 生成根目录的单文件游戏。
+在项目根目录使用 Node.js 22 或更新版本运行以下命令。构建生成根目录的 HTML 入口和宠物原文数据。入口按顺序加载 `src/` 下的样式和经典脚本。修改源码时直接编辑对应分区，修改宠物 TXT 或构建清单后重新构建。
 
 ```sh
 node scripts/build.cjs
 node scripts/build.cjs --check
+```
+
+需要只发一个文件时，可单独导出 `dist/ROCO REMAKE.html`。浏览器存档与打开的文件路径有关，继续原存档时请沿用原来的路径。
+
+```sh
+node scripts/build.cjs --standalone
 ```
 
 静态检查、对战矩阵和浏览器交互测试可分别运行。
@@ -42,7 +48,9 @@ node test/settings-menu.js --file-replacement
 
 | 路径 | 内容 |
 | --- | --- |
-| [`src/data/`](src/data/) | 属性克制和宠物、技能注册 |
+| [`src/index.html`](src/index.html) | 游戏入口模板 |
+| [`src/data/`](src/data/) | 属性克制、宠物和技能注册、由 TXT 生成的局内原文 |
+| [`src/styles/`](src/styles/) | 公共样式、菜单、对战、管理、动画、布局及设置，按编号加载 |
 | [`src/pets/`](src/pets/) | 四只内置宠物的血脉与技能 |
 | [`src/battle/`](src/battle/) | 回合、伤害、PP 和状态结算 |
 | [`src/ui/`](src/ui/) | 选队、对战界面、日志、设置和编辑器 |
