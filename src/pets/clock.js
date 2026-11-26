@@ -68,7 +68,7 @@ const CLOCK_SKILLS = [
           user.element = null;
           user.elementLost = true;
           ctx.msg(user.name + " 失去了属系！");
-          renderBattle(document.querySelector("#app"));
+          battlePresentation.elementChanged?.(user);
         }
         // 根据使用次数记录延迟效果：下一次威力技能结算时触发
         user.pendingNilex = { cnt: nlexCount };

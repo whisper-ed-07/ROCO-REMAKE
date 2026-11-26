@@ -619,6 +619,15 @@ button:disabled, .btn:disabled { cursor: not-allowed; opacity: .48; transform: n
 .menu-footer-note { letter-spacing: 1px; }
 
 /* Selection, management and loadout screens. */
+.opponent-ai-field {
+  display: grid; grid-template-columns: max-content minmax(0, 260px);
+  align-items: center; gap: 12px; margin: 0 0 16px; color: var(--text);
+}
+.opponent-ai-field label { font-weight: 700; }
+.opponent-ai-field select {
+  width: 100%; min-width: 0; min-height: 42px; padding: 6px 10px; cursor: pointer;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+}
 .pet-grid, .pet-grid:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; align-content: start; flex: none; overflow: visible; padding: 4px 0 24px; }
 .pet-card { background: var(--surface); min-width: 0; min-height: 205px; padding: 26px 16px; border: 1px solid var(--border); border-radius: 16px; box-shadow: none; }
 @media (hover: hover) { .pet-card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: var(--shadow); } }

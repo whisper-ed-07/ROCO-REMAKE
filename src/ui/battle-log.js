@@ -10,8 +10,6 @@ function decorateMessage(text) {
     .replace(/(\d+)\s*点伤害/g, '<b class="n">$1</b> 点伤害');
 }
 
-function isDeveloperBattle() { return gameState.battleMode === "developer"; }
-
 function renderDeveloperBattleLog(list) {
   const messages = gameState.messages;
   if (list.logSource !== messages || list.logCount > messages.length) {
@@ -92,26 +90,8 @@ function copyBattleLog() {
   else fallback();
 }
 
-// ---------- 战斗日志消息 ----------
-// 统一消息模型：{ text, type: action|damage|heal|status|system|turn, side: player|ai|system, turn }
-function classifyMessage(text) {
-  var s = String(text);
-  if (/^━+/.test(s)) return "turn";
-  if (/造成|伤害|固伤|反伤|攻击了自己/.test(s)) return "damage";
-  if (/回复|治疗|护盾|吸收了/.test(s)) return "heal";
-  if (/免疫|陷入|混乱|烧伤|冰冻|麻痹|中毒|睡眠|恐惧|束缚|寄生|强化|提升|降低|级/.test(s)) return "status";
-  if (/天气|环境|回合|换宠|换上|先手|后手|倒下了|战斗开始|逃跑|解除/.test(s)) return "system";
-  return "action";
-}
 let developerLogFramePending = false;
-function addMessage(msg, type, side) {
-  var text = String(msg);
-  gameState.messages.push({
-    text: text,
-    type: type || classifyMessage(text),
-    side: side || gameState.currentActingSide || "system",
-    turn: gameState.turnCount || 0
-  });
+function scheduleDeveloperBattleLog() {
   if (isDeveloperBattle() && gameState.screen === "battle" && !developerLogFramePending) {
     developerLogFramePending = true;
     requestAnimationFrame(function() {

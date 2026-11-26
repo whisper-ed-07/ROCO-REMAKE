@@ -29,12 +29,3 @@ function startTurnTimer() {
     }
   }, 1000);
 }
-function stopTurnTimer() {
-  clearInterval(gameState.turnTimer);
-  clearTimeout(gameState.autoSkipTimer);
-  gameState.turnTimer = null;
-  gameState.autoSkipTimer = null;
-  var td = document.querySelector("#turn-timer");
-  if (td) td.style.display = "none";
-}
-

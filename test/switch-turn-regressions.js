@@ -90,11 +90,13 @@ test('先手施加换宠锁，拦下已提交的 8 速换宠行动', () => {
 test('驱逐仅在完成换入和入场结算后同步通知界面', () => {
   const { sandbox, state, events, incoming, outgoing } = setup({ priority: 9 });
   const updates = [];
-  sandbox.setActivePetChangeListener(update => {
-    assert.equal(state.playerActive, incoming);
-    assert.deepEqual(events, ['新宠入场']);
-    assert.equal(state.messages.at(-1).text, '换上 新宠！');
-    updates.push(update);
+  sandbox.setBattlePresentation({
+    activePetChanged(update) {
+      assert.equal(state.playerActive, incoming);
+      assert.deepEqual(events, ['新宠入场']);
+      assert.equal(state.messages.at(-1).text, '换上 新宠！');
+      updates.push(update);
+    },
   });
 
   outgoing.immuneEject = true;
@@ -104,4 +106,30 @@ test('驱逐仅在完成换入和入场结算后同步通知界面', () => {
   assert.equal(sandbox.forceSwitchPet(outgoing), incoming);
   assert.equal(updates.length, 1);
   assert.deepEqual({ ...updates[0] }, { side: 'player', previous: outgoing, incoming, reason: 'forced' });
+});
+
+test('没有界面时仍可结算换宠、伤害、PP 和战斗结果', () => {
+  const { sandbox, state, incoming, outgoing, events } = setup({
+    priority: 7,
+    hit: (user, target, ctx) => ctx.doFixedDamage(target, 25, user),
+  });
+  sandbox.setBattlePresentation();
+  Object.defineProperty(sandbox, 'document', {
+    get() { assert.fail('战斗结算读取了 DOM'); },
+  });
+  state.battleMode = 'developer';
+
+  sandbox.playerSwitch(1);
+  assert.deepEqual(events, ['新宠入场', '对手命中新宠']);
+  assert.equal(state.turnCount, 1);
+  assert.equal(state.waitingForSwitch, false);
+  assert.equal(state.playerActive, incoming);
+  assert.equal(incoming.hp, incoming.maxHp - 25);
+  assert.equal(state.aiActive.skills[0].pp, 4);
+  assert.ok(state.messages.some(message => message.text.includes('【PP】')));
+
+  outgoing.hp = incoming.hp = 0;
+  assert.equal(sandbox.checkFaints(), true);
+  assert.equal(state.battleOver, true);
+  assert.equal(state.messages.at(-1).text, '战斗结束，对方胜利。');
 });

@@ -89,11 +89,25 @@ function pageSetup() {
     }
   };
   const enterBattle = () => {
+    const solo = get('#mode-solo').getAttribute('aria-pressed') === 'true';
     click('#btn-battle');
+    eq(document.querySelector('#opponent-ai-select'), null, '我方选宠不显示对手 AI');
     click('[data-pet-id]');
     click('#btn-ready');
+    const picker = document.querySelector('#opponent-ai-select');
+    if (solo) {
+      eq(picker?.tagName, 'SELECT', '单机显示对手 AI 下拉框');
+      eq(picker.labels[0]?.textContent, '对手 AI', '选择框标注对手 AI');
+      eq(picker.value, 'little-roco-v0-preview', '默认选中 Little Roco');
+      eq(picker.selectedOptions[0]?.textContent, 'Little Roco V0-Preview', '对手 AI 名称');
+      picker.dispatchEvent(new Event('change', { bubbles: true }));
+      layout();
+    } else {
+      eq(picker, null, '开发者模式不显示对手 AI 选项');
+    }
     click('[data-opp-id]');
     click('#opp-ready');
+    eq(gameState.opponentAIId, picker?.value ?? null, '本局使用选中的对手 AI');
   };
   const logMetrics = () => {
     const log = get('#battle-messages');
@@ -380,6 +394,36 @@ async function test(browserConnection, origin) {
     for (let i = 0; i < 230; i++) addMessage('单机记录 ' + i);
     renderBattleLog();
     eq(document.querySelectorAll('#battle-messages .msg').length, 200, '单机仍只显示最近两百条');
+
+    const baseline = { element: 'normal', pp: 5, maxPp: 5, priority: 8, accuracy: 100 };
+    const attacker = { ...baseline, id: 'browser-ai-attack', name: '测试攻击', power: 120, category: 'physical' };
+    const heal = { ...baseline, id: 'browser-ai-heal', name: '光合作用', power: 0, category: 'status' };
+    gameState.aiActive.skills = [attacker, heal];
+    gameState.aiActive.hp = 70;
+    gameState.playerActive.skills = [
+      { ...baseline, id: 'browser-ai-player', name: '测试出招', pp: 9, maxPp: 9, power: 0, category: 'status', onUse() {} },
+    ];
+    renderBattleActions();
+    click('.skill-btn');
+    stopTurnTimer();
+    eq(attacker.pp, 5, '单机对手低精力时保留攻击 PP');
+    eq(heal.pp, 4, '单机真实回合选中治疗招式');
+    eq(gameState.aiActive.hp > 70, true, '单机对手实际回复精力');
+
+    // 逐招走已生成的技能按钮，验证浏览器解码与换行显示。
+    const player = gameState.playerActive;
+    for (const pet of DEFAULT_PETS) {
+      for (const id of pet.skillIds) {
+        gameState.playerActive = new BattlePet({ ...pet, skillIds: [id] });
+        renderBattleActions();
+        click('.skill-info');
+        eq(get('.skill-detail-original').textContent, ORIGINAL_SKILL_TEXT[id], id + ' 的原文');
+        click('#skill-detail-close');
+      }
+    }
+    gameState.playerActive = player;
+    renderBattleActions();
+    stopTurnTimer();
   });
 
   await inspect(() => localStorage.setItem('roco_theme', 'light'));

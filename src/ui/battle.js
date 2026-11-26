@@ -1,10 +1,47 @@
-setActivePetChangeListener(({ reason }) => {
-  if (reason === "voluntary") {
-    updateBattleUI();
-  } else {
-    renderBattle(document.querySelector("#app"));
-  }
+setBattlePresentation({
+  actionSubmitted() {
+    document.querySelectorAll("#battle-actions button").forEach(button => { button.disabled = true; });
+  },
+  awaitingAction() { renderBattleActions(); },
+  roundStarted() {
+    const indicator = document.querySelector("#turn-indicator");
+    if (indicator) indicator.style.display = "none";
+  },
+  timerStopped() {
+    const timer = document.querySelector("#turn-timer");
+    if (timer) timer.style.display = "none";
+  },
+  switchSelected() {
+    const panel = document.querySelector("#switch-panel");
+    if (panel?.closeLayer) panel.closeLayer(true);
+    else if (panel) panel.classList.remove("show");
+  },
+  activePetChanged({ reason }) {
+    if (reason === "voluntary") updateBattleUI();
+    else renderBattle(document.querySelector("#app"));
+  },
+  elementChanged() { renderBattle(document.querySelector("#app")); },
+  refresh() { updateBattleUI(); },
+  floatText(pet, text, type) { spawnFloatText(pet, text, type); },
+  messageAdded() { scheduleDeveloperBattleLog(); },
+  battleEnding() { closeBloodlinePreview(); },
+  battleEnded(playerWin, fled) { showBattleResult(playerWin, fled); }
 });
+
+function showBattleResult(playerWin, fled) {
+  if (isDeveloperBattle()) {
+    renderBattleLog();
+    const leave = document.querySelector("#flee-btn");
+    if (leave) { leave.textContent = "返回主菜单"; leave.title = "返回主菜单"; }
+  }
+  document.querySelector("#result-overlay").classList.add("show");
+  document.querySelector("#result-emoji").textContent = fled ? "" : playerWin ? "\u{1F3C6}" : "\u{1F494}";
+  const result = document.querySelector("#result-text");
+  result.textContent = fled ? "测试结束" : playerWin ? "你赢了！" : "你输了...";
+  result.className = "result-text " + (fled ? "" : playerWin ? "win" : "lose");
+  const actions = document.querySelector("#battle-actions");
+  if (actions) actions.innerHTML = "";
+}
 
 function displayedPercent(node, fallback) {
   if (!node) return fallback;
@@ -242,10 +279,15 @@ function showSkillDetail(skill, trigger) {
   var returnFocus = trigger || document.activeElement;
   var ov = document.createElement('div'); ov.className = 'modal-overlay show'; ov.id = 'skill-detail-overlay';
   var builtin = DEFAULT_SKILLS.find(function(s) { return s.id === skill.id; });
-  var description = escapeHtml(skill.detail || skill.desc || '暂无说明');
+  const original = gameState.screen === "battle" && Object.hasOwn(ORIGINAL_SKILL_TEXT, skill.id)
+    ? ORIGINAL_SKILL_TEXT[skill.id] : undefined;
+  const bodyLabel = original === undefined ? '技能机制正文' : '技能原文';
+  let description = original === undefined
+    ? escapeHtml(skill.detail || skill.desc || '暂无说明')
+    : '<span class="skill-detail-original">' + escapeHtml(original) + '</span>';
   if (skill.bloodlineDetail) description = '<strong class="skill-bloodline-detail">' + escapeHtml(skill.bloodlineDetail) + '</strong>\n\n' + description;
-  if (builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) description = escapeHtml(skill.desc) + '\n\n' + description;
-  ov.innerHTML = '<div class="modal skill-detail" role="dialog" aria-modal="true" aria-labelledby="skill-detail-title"><h3 id="skill-detail-title">' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + (skill.passiveLabel ? ' · ' + renderSkillPassiveTag(skill) : '') + '</div><div class="skill-detail-body" tabindex="0" aria-label="技能机制正文">' + description + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
+  if (original === undefined && builtin && skill.detail && skill.desc && skill.desc !== builtin.desc) description = escapeHtml(skill.desc) + '\n\n' + description;
+  ov.innerHTML = '<div class="modal skill-detail" role="dialog" aria-modal="true" aria-labelledby="skill-detail-title"><h3 id="skill-detail-title">' + escapeHtml(skill.name) + '</h3><div class="skill-detail-meta">' + skillMetaText(skill) + (skill.passiveLabel ? ' · ' + renderSkillPassiveTag(skill) : '') + '</div><div class="skill-detail-body" tabindex="0" aria-label="' + bodyLabel + '">' + description + '</div><div class="form-actions"><button class="btn btn-secondary" id="skill-detail-close">关闭</button></div></div>';
   document.body.appendChild(ov);
   var version = uiPageVersion;
   prepareLayer(ov, function(restore) {

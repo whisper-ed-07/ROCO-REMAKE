@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { readPetText } = require('./pet-text.cjs');
 
 const root = path.join(__dirname, '..');
 const output = path.join(root, 'ROCO REMAKE.html');
@@ -13,6 +14,7 @@ const sourceFiles = [
   'pets/qingling.js',
   'data/catalog.js',
   'storage.js',
+  'battle/presentation.js',
   'battle/model.js',
   'battle/context.js',
   'battle/effects.js',
@@ -20,6 +22,7 @@ const sourceFiles = [
   'battle/weather.js',
   'battle/status.js',
   'ui/battle-log.js',
+  'battle/ai.js',
   'battle/turn.js',
   'ui/bloodline.js',
   'ui/battle-status.js',
@@ -35,9 +38,15 @@ function readSource(file) {
   return fs.readFileSync(path.join(root, 'src', file), 'utf8');
 }
 
+// 转义 "<"，避免原文被浏览器当作内联脚本的结束标签。
+const { skillText, bloodlineText } = readPetText(root);
+const inlineSources = Object.entries({ ORIGINAL_SKILL_TEXT: skillText, BLOODLINE_ORIGINALS: bloodlineText })
+  .map(([name, value]) => 'const ' + name + ' = ' + JSON.stringify(value, null, 2).replaceAll('<', '\\u003c') + ';\n')
+  .join('');
+const scripts = inlineSources + sourceFiles.map(readSource).join('');
 const html = readSource('index.html')
   .replace('{{STYLES}}', () => readSource('styles.css'))
-  .replace('{{SCRIPTS}}', () => sourceFiles.map(readSource).join(''));
+  .replace('{{SCRIPTS}}', () => scripts);
 
 const upToDate = fs.existsSync(output) && fs.readFileSync(output, 'utf8') === html;
 

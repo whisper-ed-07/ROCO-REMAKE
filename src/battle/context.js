@@ -125,7 +125,7 @@ function createBattleContext() {
       var healed = target.heal(Math.floor(amount), options);
       if (healed > 0) addMessage(target.name + " 回复了" + healed + "HP");
     },
-    addShield: function(target, amount) { if (gameState.banEffects && gameState.banEffects.shield) { addMessage("护盾已被微灵封体永久限制！"); return; } var amt = Math.floor(amount); target.shield += amt; if (amt > 0) spawnFloatText(target, amt, "shield"); },
+    addShield: function(target, amount) { if (gameState.banEffects && gameState.banEffects.shield) { addMessage("护盾已被微灵封体永久限制！"); return; } var amt = Math.floor(amount); target.shield += amt; if (amt > 0) battlePresentation.floatText?.(target, amt, "shield"); },
     grantStatusImmunity: grantStatusImmunity,
     revokeStatusImmunity: revokeStatusImmunity,
     applyStatus: function(pet, effect, options) {

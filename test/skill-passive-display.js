@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { loadEngine, makeEl } = require('./lib/harness');
@@ -10,6 +11,7 @@ test('战斗中空 PP 的技能仍标记携带被动，详情可查看免疫条�
   const pet = new api.BattlePet(api.findPet('pet_bmhs'));
   pet.skills[0].pp = 0;
   api.gameState.playerActive = pet;
+  api.gameState.screen = 'battle';
 
   const cards = makeEl();
   const doc = sandbox.document;
@@ -33,9 +35,8 @@ test('战斗中空 PP 的技能仍标记携带被动，详情可查看免疫条�
   const overlay = doc.body.children.find(child => child.id === 'skill-detail-overlay');
   assert.ok(overlay, '点击技能信息打开详情');
   const dialog = overlay.innerHTML;
-  assert.match(dialog, /无需出招即免疫束缚、恐惧、睡眠、冰冻/);
-  assert.match(dialog, /当前PP为0时，免疫所有异常状态/);
-  assert.match(dialog, /PP恢复后保留原有四种免疫/);
+  assert.match(dialog, /①被动免疫束缚，恐惧，睡眠，冰冻/);
+  assert.match(dialog, /④本技能免疫删除与回复，当PP为0时自身免疫异常状态/);
 });
 
 test('换装技能列表显示已实装的携带被动', () => {
@@ -70,7 +71,7 @@ test('清羽两招的血脉联动整段加粗，原初血脉单独起行', () =>
   }
 });
 
-test('微灵封体的局内详情注明 PP 保护、回复范围和全队封锁', () => {
+test('微灵封体的局外详情注明 PP 保护、回复范围和全队封锁', () => {
   const { api, sandbox } = loadEngine(game);
   sandbox.showSkillDetail(api.findSkill('sk_ql_1'));
   const dialog = sandbox.document.body.children.at(-1).innerHTML;
@@ -116,7 +117,7 @@ test('同类免疫的提示保留所有生效来源和最长剩余时间', () =>
   assert.equal((html.match(/class="status-badge immune"/g) || []).length, 1);
 });
 
-test('局内技能详情显示明确的作用对象、触发条件和基础威力', () => {
+test('局外技能详情显示明确的作用对象、触发条件和基础威力', () => {
   const { api, sandbox } = loadEngine(game);
   const cases = [
     ['sk_jydm_5', /对方同一格技能的 PP[^]*?本招从发动起 12 个战斗回合无法回复 PP/],
@@ -130,4 +131,36 @@ test('局内技能详情显示明确的作用对象、触发条件和基础威�
     assert.match(sandbox.document.body.children.at(-1).innerHTML, expected, id);
   }
   assert.match(sandbox.skillMetaText({ ...api.findSkill('sk_nlex'), element: null }), /^无属系 · 物理/);
+});
+
+test('四只宠物的二十项局内技能正文逐字对应 TXT', () => {
+  const { api, sandbox } = loadEngine(game);
+  api.gameState.screen = 'battle';
+  let checked = 0;
+  for (const pet of api.DEFAULT_PETS) {
+    const txt = fs.readFileSync(path.join(__dirname, '..', 'pets', pet.name + '.txt'), 'utf8')
+      .replace(/\r\n/g, '\n')
+      .split(/\n(?:思路：|清灵是“清念”)/, 1)[0];
+    const headings = [...txt.matchAll(/^(?:\[图片\])?(\S+) [^\n]*系(?:变化|物理|魔法) \d+PP[^\n]*$/gm)];
+    assert.equal(headings.length, pet.skillIds.length, pet.name);
+    for (const [index, id] of pet.skillIds.entries()) {
+      const skill = api.findSkill(id);
+      const heading = headings[index];
+      assert.equal(heading[1], skill.name);
+      const end = headings[index + 1]?.index ?? txt.length;
+      const body = txt.slice(heading.index + heading[0].length, end)
+        .replace(/^\[\d{4}-\d{2}-\d{2} 玩家修订。.*原句：.*\]$/gm, '')
+        .trim();
+      sandbox.showSkillDetail({ ...skill, desc: '覆盖描述' });
+      const dialog = sandbox.document.body.children.at(-1).innerHTML;
+      assert.doesNotMatch(dialog, /覆盖描述/);
+      const original = dialog.match(/<span class="skill-detail-original">([^]*?)<\/span>/);
+      assert.equal(original?.[1], sandbox.escapeHtml(body), skill.name);
+      if (skill.bloodlineDetail) {
+        assert.match(dialog, /<strong class="skill-bloodline-detail">[^]*?进入原初血脉状态：[^]*?<\/strong>/);
+      }
+      checked++;
+    }
+  }
+  assert.equal(checked, 20);
 });

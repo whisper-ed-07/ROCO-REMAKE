@@ -424,12 +424,16 @@ function setSkillElement(pet, source, element, turns) {
   effects.set(source, { element, throughTurn: gameState.turnCount + turns - 1 });
 }
 
-function getEffectiveSkillElement(pet, baseElement) {
+function getEffectiveSkillElement(pet, baseElement, forecastTurn) {
   if (gameState.forceSkillElement) return gameState.forceSkillElement;
   let element = baseElement;
+  const turn = forecastTurn ?? gameState.turnCount;
   for (const [source, effect] of pet.skillElementEffects || []) {
-    if (effect.throughTurn < gameState.turnCount) pet.skillElementEffects.delete(source);
-    else element = effect.element;
+    if (effect.throughTurn < turn) {
+      if (forecastTurn === undefined) pet.skillElementEffects.delete(source);
+    } else {
+      element = effect.element;
+    }
   }
   return element;
 }

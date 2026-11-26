@@ -12,31 +12,31 @@ function getPPCostSourceLabel(source) {
   return source.startsWith("光幕三损:") ? "极影光幕·三损" : source;
 }
 
-function getRequiredPPCost(pet, skill, breakdown) {
+function getRequiredPPCost(pet, skill, breakdown, forecastTurn) {
   if (skill.noExtraPPCost) {
     if (breakdown) breakdown.noExtra = true;
     return 1;
   }
-  const turn = gameState.turnCount + (gameState.resolvingTurn ? 0 : 1);
+  const turn = forecastTurn ?? gameState.turnCount + (gameState.resolvingTurn ? 0 : 1);
   let extra = skill.extraPPCost || 0;
   let multiplier = pet.skillPPCostMult || 1;
   if (breakdown && extra > 0) breakdown.extraSource = "技能自身";
   const opponent = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive;
   if (opponent?.lightWindThroughTurn >= turn) {
-    const lightWind = getEffectiveSkillElement(pet, skill.element) === "flying" ? 1 : 2;
+    const lightWind = getEffectiveSkillElement(pet, skill.element, forecastTurn) === "flying" ? 1 : 2;
     if (breakdown && lightWind > extra) breakdown.extraSource = "轻风散魂";
     extra = Math.max(extra, lightWind);
   }
   for (const [source, effect] of pet.ppCostEffects || []) {
     if (effect.throughTurn < turn) {
-      pet.ppCostEffects.delete(source);
+      if (forecastTurn === undefined) pet.ppCostEffects.delete(source);
       continue;
     }
     if (effect.skill && effect.skill !== skill) continue;
     const factor = effect.multiplier || 1;
     if (breakdown && factor > multiplier) breakdown.multiplierSource = getPPCostSourceLabel(source);
     multiplier = Math.max(multiplier, factor);
-    const amount = effect.extraFor ? effect.extraFor(skill, getEffectiveSkillElement(pet, skill.element)) : effect.extra;
+    const amount = effect.extraFor ? effect.extraFor(skill, getEffectiveSkillElement(pet, skill.element, forecastTurn)) : effect.extra;
     if (breakdown && (amount || 0) > extra) breakdown.extraSource = getPPCostSourceLabel(source);
     extra = Math.max(extra, amount || 0);
   }
@@ -86,17 +86,29 @@ function playerUseSkill(skillIdx) {
   if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return;
   const player = gameState.playerActive;
   if (!player || player.isFainted()) return;
-  const action = reserveSkillAction(player, player.skills[skillIdx], gameState.turnCount + 1);
-  if (action) submitPlayerAction(action);
+  const skill = player.skills[skillIdx];
+  // 对手先锁定选招，避免读到我方这回合预付后的 PP。
+  const opponentMove = gameState.battleMode === "solo" && canSelectSkill(skill)
+    ? chooseOpponentSkill(gameState.aiActive, player) : undefined;
+  const action = reserveSkillAction(player, skill, gameState.turnCount + 1);
+  if (action) submitPlayerAction(action, opponentMove);
 }
 
-function submitPlayerAction(action) {
+function submitPlayerAction(action, opponentMove) {
   gameState.pendingPlayerAction = action;
   gameState.pendingPlayerSkill = null;
   gameState.isPlayerTurn = false;
   stopTurnTimer();
-  document.querySelectorAll("#battle-actions button").forEach(button => { button.disabled = true; });
-  aiDecideAndResolve();
+  battlePresentation.actionSubmitted?.();
+  aiDecideAndResolve(opponentMove);
+}
+
+function stopTurnTimer() {
+  clearInterval(gameState.turnTimer);
+  clearTimeout(gameState.autoSkipTimer);
+  gameState.turnTimer = null;
+  gameState.autoSkipTimer = null;
+  battlePresentation.timerStopped?.();
 }
 
 function endTurnCleanup() {
@@ -105,32 +117,18 @@ function endTurnCleanup() {
     if (pet.powerDamageImmuneThroughTurn === gameState.turnCount) pet.powerDamageImmuneThroughTurn = -1;
   });
   gameState.isPlayerTurn = !gameState.battleOver;
-  updateBattleUI();
-  if (!gameState.battleOver) renderBattleActions();
+  battlePresentation.refresh?.();
+  if (!gameState.battleOver) battlePresentation.awaitingAction?.();
 }
 
-function aiDecideAndResolve() {
+function aiDecideAndResolve(opponentMove) {
   if (gameState.battleOver || gameState.resolvingTurn) return;
-  var ai = gameState.aiActive, player = gameState.playerActive;
-  
-  // 先选招，行动能力统一在本回合结算内判定，选招阶段不抽取麻痹随机数。
-  // AI选技能（与旧版相同逻辑）
-  var available = ai.skills.filter(canSelectSkill);
-  if (available.length === 0) {
-    addMessage(ai.name + (ai.skills.some(skill => skill.pp > 0) ? " 没有可用技能！" : " 所有技能PP耗尽！"));
-    gameState.pendingAISkill = -1; // signal no skill
-  } else {
-    var bestSkill = available[0], bestScore = -Infinity;
-    for (var i = 0; i < available.length; i++) {
-      var sk = available[i], score = sk.power || 30;
-      var eff = getEffectiveness(getEffectiveSkillElement(ai, sk.element), player.element); score *= eff;
-      if (sk.effect && sk.effectChance > 30) score += 20;
-      if (sk.onUse) score += 15;
-      if (score > bestScore) { bestScore = score; bestSkill = sk; }
-    }
-    gameState.pendingAISkill = ai.skills.indexOf(bestSkill);
+  const { aiActive: ai, playerActive: player } = gameState;
+  const skill = opponentMove === undefined ? chooseOpponentSkill(ai, player) : opponentMove;
+  if (!skill) {
+    addMessage(ai.name + (ai.skills.some(move => move.pp > 0) ? " 没有可用技能！" : " 所有技能PP耗尽！"));
   }
-  
+  gameState.pendingAISkill = ai.skills.indexOf(skill);
   resolveTurn();
 }
 
@@ -203,7 +201,7 @@ function resolveTurnActions() {
   if (aSkill) aAction.effectivePriority = aPrio;
   
   processWeather();processField();
-  var ti=document.querySelector("#turn-indicator"); if (ti) ti.style.display = "none";
+  battlePresentation.roundStarted?.();
   createBattleContext().savePPState();
   processBloodlines();
   processCreationRounds();
@@ -246,7 +244,7 @@ function resolveTurnActions() {
   resolveQinglingHealBatches();
   sampleQingnianEndOfRound();
   postDamageProcessing();
-  updateBattleUI();
+  battlePresentation.refresh?.();
   checkFaints();
   if (!gameState.battleOver) tickEnvironments();
   for (const heal of gameState.wanguHeals) {
@@ -354,17 +352,17 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
       addMessage(user.name + " 攻击了自己，受到 " + selfDmg + " 点伤害！");
       user.confuseTurns--;
       addMessage(user.name + " 混乱自伤！" + ppChange);
-      updateBattleUI(); checkFaints(); return;
+      battlePresentation.refresh?.(); checkFaints(); return;
     }
   }
   
   const dodged = resolveDimoFirstAttack(target, skill);
-  if (user.isFainted()) { updateBattleUI(); checkFaints(); return; }
+  if (user.isFainted()) { battlePresentation.refresh?.(); checkFaints(); return; }
   recordRoundSkillUse(action, target);
   recordDimoSkillRound(user, skill);
   if (dodged) {
     applyQingnianSuppression(user, skill);
-    updateBattleUI(); checkFaints();
+    battlePresentation.refresh?.(); checkFaints();
     return;
   }
 
@@ -395,7 +393,7 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
     addMessage(target.name + " 闪避了后手非必中技能！视物攻+2！" + ppChange);
     target.atkStage = Math.min(6, target.atkStage + 2);
     target.dodgeNextNonSure = false;
-    updateBattleUI(); checkFaints(); return;
+    battlePresentation.refresh?.(); checkFaints(); return;
   }
   // 闪避失败：target 有标志、本技能必中、user 为后手 → 倒置双方强化+删对方2PP
   if (!skill.semiSure && target.dodgeNextNonSure && skill.accuracy >= 100 && userIsBackhand) {
@@ -449,7 +447,7 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
     user.bloodline.onSkillUse(user, target, ctx, skill);
   }
 
-  updateBattleUI();
+  battlePresentation.refresh?.();
   checkFaints();
 }
 
@@ -537,9 +535,7 @@ function playerSwitch(petIdx) {
   const user = gameState.playerActive, incoming = gameState.playerParty[petIdx];
   if (!user || user.isFainted() || !incoming || incoming === user || incoming.isFainted() || !canSwitchPet(user)) return;
   gameState.waitingForSwitch = false;
-  const panel = document.querySelector("#switch-panel");
-  if (panel?.closeLayer) panel.closeLayer(true);
-  else if (panel) panel.classList.remove("show");
+  battlePresentation.switchSelected?.();
   submitPlayerAction({ kind: "switch", user, incoming });
 }
 
@@ -585,21 +581,11 @@ function checkFaints() {
 }
 
 function endBattle(playerWin, fled = false) {
-  closeBloodlinePreview();
+  battlePresentation.battleEnding?.();
   gameState.battleOver = true;
   stopTurnTimer();
   if (isDeveloperBattle()) {
     addMessage(fled ? "我方逃跑，测试结束。" : playerWin ? "战斗结束，我方胜利。" : "战斗结束，对方胜利。", "system");
-    renderBattleLog();
-    const leave = document.querySelector("#flee-btn");
-    if (leave) { leave.textContent = "返回主菜单"; leave.title = "返回主菜单"; }
   }
-  document.querySelector("#result-overlay").classList.add("show");
-  document.querySelector("#result-emoji").textContent = fled ? "" : playerWin ? "\u{1F3C6}" : "\u{1F494}";
-  const result = document.querySelector("#result-text");
-  result.textContent = fled ? "测试结束" : playerWin ? "你赢了！" : "你输了...";
-  result.className = "result-text " + (fled ? "" : playerWin ? "win" : "lose");
-  const actions = document.querySelector("#battle-actions");
-  if (actions) actions.innerHTML = "";
+  battlePresentation.battleEnded?.(playerWin, fled);
 }
-

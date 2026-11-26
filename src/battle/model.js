@@ -152,9 +152,9 @@ class BattlePet {
     if (reduction > 0) dmg = Math.floor(dmg * (100 - reduction) / 100);
     // 护盾吸收（带日志+飘字）
     if (!gameState.banEffects?.shield && this.shield > 0) {
-      if (this.shield >= dmg) { this.shield -= dmg; if (!this.shield && dmg > 0) dimoShieldBroke(this, source); addMessage(this.name + " 的护盾吸收了" + dmg + "点伤害！"); spawnFloatText(this, dmg, "shield"); return 0; }
+      if (this.shield >= dmg) { this.shield -= dmg; if (!this.shield && dmg > 0) dimoShieldBroke(this, source); addMessage(this.name + " 的护盾吸收了" + dmg + "点伤害！"); battlePresentation.floatText?.(this, dmg, "shield"); return 0; }
       addMessage(this.name + " 的护盾吸收了" + this.shield + "点伤害，剩余" + (dmg - this.shield) + "点穿透！");
-      spawnFloatText(this, this.shield, "shield");
+      battlePresentation.floatText?.(this, this.shield, "shield");
       dmg -= this.shield; this.shield = 0; dimoShieldBroke(this, source);
     }
     dmg = restrictJianghuaDamage(this, dmg);
@@ -170,7 +170,7 @@ class BattlePet {
       this.lastDamageSegment = received;
       sealDivineSkill(this, source, sourceSkill);
     }
-    if (dmg > 0) { this.damageTakenThisTurn.push(dmg); spawnFloatText(this, dmg, "dmg"); }
+    if (dmg > 0) { this.damageTakenThisTurn.push(dmg); battlePresentation.floatText?.(this, dmg, "dmg"); }
     const segmentIndex = this.segmentIdx++;
     if (received > 0) this.bloodline?.onAfterDamageSegment?.(this, segmentIndex, createBattleContext());
     return dmg;
@@ -197,14 +197,14 @@ class BattlePet {
     this.hp = Math.max(0, Math.min(cap, Math.max(0, this.hp - inverted) + amount - inverted));
     const change = this.hp - before;
     if (inverted > 0) addMessage(this.name + "的治疗被倒置，精力减少" + inverted + "点！");
-    if (change > 0) spawnFloatText(this, change, "heal");
+    if (change > 0) battlePresentation.floatText?.(this, change, "heal");
     return change;
   }
 }
 
 // ---------- GLOBAL STATE ----------
 var gameState = {
-  screen: "menu", battleMode: "solo", playerParty: [], aiParty: [],
+  screen: "menu", battleMode: "solo", opponentAIId: null, playerParty: [], aiParty: [],
   playerActive: null, aiActive: null,
   messages: [], isPlayerTurn: true,
   battleOver: false, waitingForSwitch: false, pendingPlayerSkill: null, pendingAISkill: null, pendingPlayerAction: null, resolvingTurn: false, turnTimer: null, autoSkipTimer: null, turnTimeLeft: 0,
@@ -216,13 +216,26 @@ var gameState = {
   ppHistory: []        // 全局PP历史 [{turn, pets: [{id,pp}]}]
 };
 
-let activePetChangeListener = null;
+function isDeveloperBattle() { return gameState.battleMode === "developer"; }
 
-function setActivePetChangeListener(listener) {
-  activePetChangeListener = listener;
+// ---------- 战斗日志消息 ----------
+// 统一消息模型：{ text, type: action|damage|heal|status|system|turn, side: player|ai|system, turn }
+function classifyMessage(text) {
+  var s = String(text);
+  if (/^━+/.test(s)) return "turn";
+  if (/造成|伤害|固伤|反伤|攻击了自己/.test(s)) return "damage";
+  if (/回复|治疗|护盾|吸收了/.test(s)) return "heal";
+  if (/免疫|陷入|混乱|烧伤|冰冻|麻痹|中毒|睡眠|恐惧|束缚|寄生|强化|提升|降低|级/.test(s)) return "status";
+  if (/天气|环境|回合|换宠|换上|先手|后手|倒下了|战斗开始|逃跑|解除/.test(s)) return "system";
+  return "action";
 }
-
-function notifyActivePetChanged(side, previous, incoming, reason) {
-  activePetChangeListener?.({ side, previous, incoming, reason });
+function addMessage(msg, type, side) {
+  var text = String(msg);
+  gameState.messages.push({
+    text: text,
+    type: type || classifyMessage(text),
+    side: side || gameState.currentActingSide || "system",
+    turn: gameState.turnCount || 0
+  });
+  battlePresentation.messageAdded?.();
 }
-

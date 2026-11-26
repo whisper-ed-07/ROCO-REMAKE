@@ -1,12 +1,27 @@
+let selectedOpponentAIId = SOLO_OPPONENT_AIS[0].id;
+
+function renderOpponentAISelect() {
+  const options = SOLO_OPPONENT_AIS.map(ai => '<option value="' + uiAttr(ai.id) + '"' +
+    (ai.id === selectedOpponentAIId ? ' selected' : '') + '>' + escapeHtml(ai.name) + '</option>').join('');
+  return '<div class="opponent-ai-field"><label for="opponent-ai-select">对手 AI</label>' +
+    '<select id="opponent-ai-select">' + options + '</select></div>';
+}
+
 function renderTeamChoice(app, opponent) {
   var pets = getAllPets(), selected = opponent ? gameState.opponentTeamIds : gameState.selectedTeamIds;
   var back = opponent ? 'opp-back' : 'team-back', ready = opponent ? 'opp-ready' : 'btn-ready';
   var attr = opponent ? 'data-opp-id' : 'data-pet-id';
-  var content = '<div class="screen active">' + pageHeader(opponent ? '选择对手宠物（1~6只）' : '选择出战宠物（1~6只）', back) + '<div class="pet-grid">';
+  const showAI = opponent && menuMode === "solo";
+  var content = '<div class="screen active">' + pageHeader(opponent ? '选择对手宠物（1~6只）' : '选择出战宠物（1~6只）', back) +
+    (showAI ? renderOpponentAISelect() : '') + '<div class="pet-grid">';
   pets.forEach(function(pet) { content += petChoiceCard(pet, attr, selected.includes(pet.id)); });
   app.innerHTML = content + '</div><div class="team-ready-bar"><div class="selected-count">已选择 <strong>' + selected.length + '</strong> / 6 只</div><button class="btn btn-primary" id="' + ready + '"' + (selected.length ? '' : ' disabled') + '>' + (opponent ? '确认对手并开战！' : '下一步：选择对手') + '</button></div></div>';
   document.querySelector('#' + back).addEventListener('click', function() { showScreen(opponent ? 'team' : 'menu'); });
   document.querySelector('#' + ready).addEventListener('click', function() { opponent ? confirmOpponentAndBattle() : startBattle(); });
+  if (showAI) {
+    const picker = app.querySelector("#opponent-ai-select");
+    picker.addEventListener("change", () => { selectedOpponentAIId = getSoloOpponentAI(picker.value).id; });
+  }
   pets.forEach(function(pet) {
     var card = document.querySelector('[' + attr + '="' + uiAttr(pet.id) + '"]');
     if (card) card.addEventListener('click', function() { opponent ? toggleOpponentSelection(pet.id) : toggleTeamSelection(pet.id); });
@@ -42,6 +57,7 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   // 新战斗必须清空上一局残留的天气/环境/全局封锁与待结算指令
   gameState.battleId = (gameState.battleId || 0) + 1;
   gameState.battleMode = menuMode === "developer" ? "developer" : "solo";
+  gameState.opponentAIId = gameState.battleMode === "solo" ? getSoloOpponentAI(selectedOpponentAIId).id : null;
   gameState.pendingPlayerAction = null;
   gameState.resolvingTurn = false;
   gameState.weather = null; gameState.weatherTurns = 0;
