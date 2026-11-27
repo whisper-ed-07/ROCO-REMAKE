@@ -91,7 +91,7 @@ async function testWiki({ send }) {
     const position = await until(() => inspect(selector => {
       const node = document.querySelector(selector);
       if (!node) return null;
-      node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      node.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
       const box = node.getBoundingClientRect();
       const x = box.left + box.width / 2;
       const y = box.top + box.height / 2;
@@ -101,16 +101,34 @@ async function testWiki({ send }) {
     await send('Input.dispatchMouseEvent', { ...position, type: 'mouseReleased', button: 'left', clickCount: 1 });
   }
 
-  async function open() {
-    await send('Page.navigate', { url });
+  function waitForArticle(id) {
+    return until(() => inspect(selector => {
+      const button = document.querySelector(selector);
+      return button?.getAttribute('aria-current') === 'true' &&
+        document.querySelector('#wiki-article h1')?.textContent === button.textContent;
+    }, selectorFor(id)), '目录选中并显示 ' + id);
+  }
+
+  async function selectArticle(id) {
+    await click(selectorFor(id));
+    await waitForArticle(id);
+  }
+
+  async function enterMenu() {
     await until(() => inspect(url => location.href === url && !!document.querySelector('#intro-screen'), url), 'file 游戏启动');
     await click('#intro-screen');
     await until(() => evaluate('!document.querySelector("#intro-screen")'), '启动页淡出');
     assert.equal(await evaluate('document.querySelector("#btn-wiki .menu-action-title")?.textContent'), 'RRWIKI');
+  }
+
+  async function open() {
+    await send('Page.navigate', { url });
+    await enterMenu();
     await click('#btn-wiki');
   }
 
   async function checkArticle(id, heading, text, focus = false) {
+    await waitForArticle(id);
     const article = await inspect(() => {
       const current = [...document.querySelectorAll('.wiki-contents [aria-current="true"]')];
       const heading = document.querySelector('#wiki-article h1');
@@ -126,6 +144,30 @@ async function testWiki({ send }) {
     assert.match(article.heading, heading);
     assert.match(article.text, text);
     if (focus) assert.ok(article.focused, '切换后焦点移到条目标题');
+  }
+
+  function readArticle() {
+    return inspect(() => {
+      const article = document.querySelector('#wiki-article');
+      return {
+        title: article.querySelector('h1').textContent,
+        summary: article.querySelector('.wiki-summary').textContent,
+        sections: [...article.querySelectorAll('section')].map(section => ({
+          title: section.querySelector('h2').textContent,
+          paragraphs: [...section.querySelectorAll('p')].map(paragraph => paragraph.textContent)
+        }))
+      };
+    });
+  }
+
+  async function fill(selector, text) {
+    await inspect(selector => {
+      const control = document.querySelector(selector);
+      control.focus();
+      control.select();
+    }, selector);
+    await send('Input.insertText', { text });
+    assert.equal(await inspect(selector => document.querySelector(selector).value, selector), text, '填写 ' + selector);
   }
 
   async function checkLayout(mobile) {
@@ -155,6 +197,161 @@ async function testWiki({ send }) {
     await until(() => evaluate('document.scrollingElement.scrollTop > 0'), 'RRWIKI 页面可滚动');
   }
 
+  async function checkEditing() {
+    const targetId = 'switch-turn';
+    const edit = '#wiki-edit';
+    const submit = '#wiki-editor #form-save';
+    const summary = '#wiki-edit-summary';
+    const errorText = () => evaluate('document.querySelector("#wiki-edit-error")?.textContent.trim()');
+    const checkClosed = () => until(() => evaluate('!document.querySelector("#modal-overlay")'), '条目编辑器关闭');
+    const hasEdit = () => evaluate('!!document.querySelector("#wiki-edit")');
+    async function readOtherArticles() {
+      const ids = await inspect(() => [...document.querySelectorAll('.wiki-contents [data-wiki-article]')]
+        .map(button => button.dataset.wikiArticle));
+      const articles = {};
+      for (const id of ids.filter(id => id !== targetId)) {
+        await inspect(selector => document.querySelector(selector).click(), selectorFor(id));
+        await waitForArticle(id);
+        articles[id] = await readArticle();
+      }
+      return articles;
+    }
+    async function checkSavedArticle(expected) {
+      assert.deepEqual(await readArticle(), expected, '显示完整的编辑结果');
+      const current = await inspect(() => {
+        const item = document.querySelector('.wiki-contents [aria-current="true"]');
+        return { id: item?.dataset.wikiArticle, title: item?.textContent };
+      });
+      assert.deepEqual(current, { id: targetId, title: expected.title }, '目录更新标题并保留选中条目');
+      assert.equal(await evaluate('!!document.querySelector(".wiki-screen [data-wiki-test-text]")'), false, '编辑内容按纯文本显示');
+    }
+
+    await size(1280, 800);
+    await open();
+    assert.equal(await hasEdit(), false, '普通模式只读');
+    const untouched = await readOtherArticles();
+    await selectArticle(targetId);
+    const original = await readArticle();
+    await click('#wiki-back');
+    await click('#mode-developer');
+    await click('#btn-wiki');
+    await selectArticle(targetId);
+    await click(edit);
+    await fill('#wiki-edit-title', '取消后应保留原文');
+    await click('#wiki-editor #form-cancel');
+    await checkClosed();
+    assert.deepEqual(await readArticle(), original, '取消编辑保留已发布内容');
+
+    const literal = '<em data-wiki-test-text>保留字面文本</em>';
+    const edited = {
+      title: '主动换宠 ' + literal,
+      summary: '换宠说明 ' + literal,
+      sections: [
+        { title: '换宠结算 ' + literal, paragraphs: ['新正文 ' + literal, '独立的第二段'] },
+        ...original.sections.slice(1)
+      ]
+    };
+    await click(edit);
+    await fill('#wiki-edit-title', edited.title);
+    await fill(summary, '   ');
+    await click(submit);
+    assert.ok(await errorText(), '忽略空白后校验失败并显示错误');
+    assert.equal(await evaluate('document.activeElement.id'), 'wiki-edit-summary', '校验失败聚焦空字段');
+    assert.deepEqual(await readArticle(), original, '校验失败保留显示内容');
+    await fill(summary, edited.summary);
+    await fill('[data-wiki-section-title]', edited.sections[0].title);
+    await fill('[data-wiki-section-body]', edited.sections[0].paragraphs.join('\n\n'));
+    await click(submit);
+    await checkClosed();
+    await checkSavedArticle(edited);
+    assert.equal(await evaluate('document.activeElement.id'), 'wiki-edit', '保存后焦点返回编辑按钮');
+    assert.ok(await evaluate('document.querySelector("#wiki-save-status")?.textContent.trim()'), '保存后显示反馈');
+
+    const added = { title: '新增小节', paragraphs: ['额外的换宠说明'] };
+    await click(edit);
+    await click('#wiki-add-section');
+    const lastSection = '#wiki-editor .wiki-edit-section:last-of-type';
+    assert.equal(await evaluate('document.querySelectorAll("#wiki-editor .wiki-edit-section").length'), edited.sections.length + 1);
+    await fill(lastSection + ' [data-wiki-section-title]', added.title);
+    await fill(lastSection + ' [data-wiki-section-body]', added.paragraphs[0]);
+    await inspect(() => {
+      const setItem = Storage.prototype.setItem;
+      window.restoreWikiStorage = () => {
+        Storage.prototype.setItem = setItem;
+        delete window.restoreWikiStorage;
+      };
+      Storage.prototype.setItem = function (key, value) {
+        if (key === 'pbg_wiki_article_override:switch-turn') throw new DOMException('测试写入被拒', 'QuotaExceededError');
+        return setItem.call(this, key, value);
+      };
+    });
+    try {
+      await click(submit);
+      assert.match(await errorText(), /无法保存/, '存储拒绝时明确报告失败');
+      assert.equal(await inspect(selector => document.querySelector(selector).value, lastSection + ' [data-wiki-section-title]'), added.title, '存储失败保留编辑草稿');
+      await checkSavedArticle(edited);
+    } finally {
+      await evaluate('window.restoreWikiStorage()');
+    }
+    await click(submit);
+    await checkClosed();
+    const withAdded = { ...edited, sections: [...edited.sections, added] };
+    await checkSavedArticle(withAdded);
+
+    await click('#wiki-back');
+    await click('#mode-solo');
+    await click('#btn-wiki');
+    assert.equal(await hasEdit(), false, '切回单机后只读');
+    await selectArticle(targetId);
+    await checkSavedArticle(withAdded);
+
+    await send('Page.reload');
+    await enterMenu();
+    await click('#btn-wiki');
+    await waitForArticle('pp-commit');
+    assert.deepEqual(await readOtherArticles(), untouched, '同一路径重载后其他条目仍保留原文');
+    await selectArticle(targetId);
+    await checkSavedArticle(withAdded);
+    assert.equal(await hasEdit(), false, '同一路径重载后在单机模式阅读已保存内容');
+
+    await size(320, 640, true);
+    await click('#wiki-back');
+    await click('#mode-developer');
+    await click('#btn-wiki');
+    await waitForArticle('pp-commit');
+    await click(edit);
+    const formLayout = await inspect(() => {
+      const form = document.querySelector('#wiki-editor');
+      const { clientWidth, clientHeight } = document.documentElement;
+      const fields = form.querySelector('.wiki-editor-fields');
+      const controls = [form, ...form.querySelectorAll('fieldset, input, textarea, button')];
+      return {
+        fits: controls.every(control => {
+          const { left, right, width } = control.getBoundingClientRect();
+          return width > 0 && left >= 0 && right <= clientWidth;
+        }),
+        noHorizontalScroll: form.scrollWidth === form.clientWidth && fields.scrollWidth === fields.clientWidth,
+        actionsVisible: ['#form-cancel', '#form-save'].every(selector => {
+          const button = form.querySelector(selector);
+          const { left, top, bottom, width, height } = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(left + width / 2, top + height / 2);
+          return height > 0 && top >= 0 && bottom <= clientHeight && button.contains(hit);
+        })
+      };
+    });
+    assert.deepEqual(formLayout, { fits: true, noHorizontalScroll: true, actionsVisible: true },
+      '窄屏表单无需横向滚动，打开后可直接点按取消和保存');
+    await click('#wiki-editor #form-cancel');
+    await checkClosed();
+    assert.deepEqual(await readArticle(), untouched['pp-commit'], '窄屏可取消并返回原条目');
+    await selectArticle(targetId);
+    await click(edit);
+    await click(lastSection + ' [data-wiki-remove-section]');
+    await click(submit);
+    await checkClosed();
+    await checkSavedArticle(edited);
+  }
+
   await send('Network.enable');
   await send('Network.setBlockedURLs', { urls: ['http://*', 'https://*'] });
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
@@ -162,14 +359,14 @@ async function testWiki({ send }) {
   await size(1280, 800);
   await open();
   await checkArticle('pp-commit', /PP/, /PP/);
-  await click(selectorFor('switch-turn'));
+  await selectArticle('switch-turn');
   await checkArticle('switch-turn', /换宠/, /先手值[^。]*8|8[^。]*先手值/, true);
   await click('#settings-btn');
   await click('#settings-back');
   await checkArticle('switch-turn', /换宠/, /先手值[^。]*8|8[^。]*先手值/);
-  await click(selectorFor('turn-order'));
+  await selectArticle('turn-order');
   await checkArticle('turn-order', /回合|行动/, /梦境/, true);
-  await click(selectorFor('stat-stages'));
+  await selectArticle('stat-stages');
   await checkArticle('stat-stages', /强化/, /速度/, true);
   await inspect(selector => document.querySelector(selector).focus(), selectorFor('status-immunity'));
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
@@ -185,7 +382,7 @@ async function testWiki({ send }) {
 
   await size(320, 640, true);
   await open();
-  await click(selectorFor('status-immunity'));
+  await selectArticle('status-immunity');
   await checkArticle('status-immunity', /异常|防控/, /寄生/, true);
   await evaluate('window.scrollTo({ top: 0, behavior: "instant" })');
   await checkLayout(true);
@@ -198,6 +395,7 @@ async function testWiki({ send }) {
   await click('#wiki-back');
   await click('#btn-wiki');
   await checkArticle('pp-commit', /PP/, /PP/);
+  await checkEditing();
 }
 
 async function main() {
@@ -227,7 +425,7 @@ async function main() {
     }
     fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
-  console.log('RRWIKI file navigation and desktop/mobile layout passed');
+  console.log('RRWIKI file navigation, desktop/mobile layout and developer editing passed');
 }
 
 main().catch(error => {

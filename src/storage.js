@@ -8,6 +8,63 @@ function loadPetLoadouts() { try { var d = JSON.parse(localStorage.getItem(STORA
 function savePetLoadouts(map) { localStorage.setItem(STORAGE_KEY_LOADOUTS, JSON.stringify(map)); }
 function loadCustomSkills() { try { var d = JSON.parse(localStorage.getItem(STORAGE_KEY_SKILLS)); return Array.isArray(d) ? d.filter(function(s){return s&&s.id;}) : []; } catch(e) { return []; } }
 function saveCustomSkills(skills) { localStorage.setItem(STORAGE_KEY_SKILLS, JSON.stringify(skills)); }
+
+const STORAGE_KEY_WIKI_PREFIX = "pbg_wiki_article_override:";
+
+function isWikiText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function getWikiArticleFields(entry) {
+  if (!entry || typeof entry !== "object" || !isWikiText(entry.title) ||
+      !isWikiText(entry.summary) || !Array.isArray(entry.sections) || !entry.sections.length) return null;
+  const sections = [];
+  for (const section of entry.sections) {
+    if (!section || !isWikiText(section.title) ||
+        !Array.isArray(section.paragraphs) || !section.paragraphs.length) return null;
+    const paragraphs = [...section.paragraphs];
+    if (!paragraphs.every(isWikiText)) return null;
+    sections.push({ title: section.title, paragraphs });
+  }
+  return { title: entry.title, summary: entry.summary, sections };
+}
+
+function readWikiArticleOverride(id) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_WIKI_PREFIX + id);
+    return getWikiArticleFields(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function loadWikiArticles() {
+  return WIKI_ARTICLES.map(article => ({
+    ...article,
+    ...(readWikiArticleOverride(article.id) || getWikiArticleFields(article))
+  }));
+}
+
+function saveWikiArticle(entry) {
+  const original = WIKI_ARTICLES.find(article => article.id === entry?.id);
+  if (!original) throw new Error("找不到要编辑的百科条目。");
+  const fields = getWikiArticleFields(entry);
+  if (!fields) throw new Error("请填写条目标题、摘要，以及每个小节的标题和正文。");
+
+  try {
+    const key = STORAGE_KEY_WIKI_PREFIX + original.id;
+    const contents = JSON.stringify(fields);
+    if (contents === JSON.stringify(getWikiArticleFields(original))) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, contents);
+    }
+  } catch {
+    throw new Error("浏览器无法保存 RRWIKI 修改。");
+  }
+  return { id: original.id, ...fields };
+}
+
 function getAllSkills() {
   var custom = loadCustomSkills();
   var builtinIds = new Set(DEFAULT_SKILLS.map(function(s) { return s.id; }));

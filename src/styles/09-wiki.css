@@ -25,16 +25,33 @@
 .wiki-article {
   padding: clamp(16px, 4vw, 36px); font-size: 15px; line-height: 1.8; overflow-wrap: anywhere;
 }
+.wiki-article-header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
 .wiki-article h1 {
   width: fit-content; max-width: 100%; font-size: clamp(23px, 3vw, 30px);
   line-height: 1.35; scroll-margin-top: 20px;
 }
 .wiki-article h1:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .wiki-article .wiki-summary { margin-top: 10px; color: var(--text2); }
+.wiki-summary, .wiki-body p { white-space: pre-wrap; }
+.wiki-article #wiki-save-status { color: var(--accent2); }
 .wiki-article section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
 .wiki-article h2 { margin-bottom: 6px; color: var(--gold); font-size: 17px; }
-.wiki-article p + p { margin-top: 8px; }
+.wiki-body p + p { margin-top: 8px; }
 .wiki-to-contents { display: none; }
+.modal.wiki-editor-dialog { display: flex; flex-direction: column; max-width: 650px; overflow: hidden; }
+.wiki-editor-dialog h3 { margin-bottom: 8px; }
+.wiki-editor-fields { min-height: 0; overflow-y: auto; padding: 4px 6px 8px; margin-inline: -6px; }
+.wiki-editor-note { margin-bottom: 16px; color: var(--text2); }
+.wiki-editor-dialog .form-actions {
+  flex: none; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.wiki-edit-section {
+  min-width: 0; margin-bottom: 14px; padding: 12px; border: 1px solid var(--border); border-radius: 10px;
+}
+.wiki-edit-section legend { padding-inline: 6px; color: var(--gold); font-weight: 700; }
+.wiki-editor-dialog .form-group [aria-invalid="true"] { border-color: var(--hp-red); }
+#wiki-edit-error { color: var(--hp-red); }
+#wiki-edit-error:not(:empty) { margin-top: 12px; }
 @media (min-width: 741px) {
   .wiki-contents { position: sticky; top: 20px; max-height: calc(100svh - 40px); overflow-y: auto; }
 }
