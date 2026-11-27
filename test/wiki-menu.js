@@ -373,12 +373,13 @@ async function testWiki({ send }) {
 
   await size(1280, 800);
   await open();
-  await checkArticle('pp-commit', /PP/, /PP/);
+  await checkArticle('pp-commit', /^选招与技能的 PP$/, /PP是技能的使用资源/);
   await selectArticle('switch-turn');
-  await checkArticle('switch-turn', /换宠/, /先手值[^。]*8|8[^。]*先手值/, true);
+  await checkArticle('switch-turn', /^主动换宠$/, /出招速度为 8/, true);
+  assert.match((await readArticle()).sections[0].paragraphs[0], /\n\/\/“梦境”环境下，上述规则反转/);
   await click('#settings-btn');
   await click('#settings-back');
-  await checkArticle('switch-turn', /换宠/, /先手值[^。]*8|8[^。]*先手值/);
+  await checkArticle('switch-turn', /^主动换宠$/, /出招速度为 8/);
   await selectArticle('turn-order');
   await checkArticle('turn-order', /回合|行动/, /梦境/, true);
   await selectArticle('stat-stages');
