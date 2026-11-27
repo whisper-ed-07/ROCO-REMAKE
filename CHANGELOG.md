@@ -1,6 +1,11 @@
 # 变更记录
 
-版本为 `0.0.1-preview`。同名 Git 标签保留拆分前的游戏文件。逐次开发日志可查 `git log --oneline`，重写前的完整 Markdown 可读 `git show a1bd9ec:CHANGELOG.md`。
+当前版本为 `V0.0.1-Alpha`。历史标签 `0.0.1-preview` 保留拆分前的游戏文件。逐次开发日志可查 `git log --oneline`，重写前的完整 Markdown 可读 `git show a1bd9ec:CHANGELOG.md`。
+
+## 2026-11-27 · V0.0.1-Alpha
+
+- 本版收录四只内置宠物、20 个内置技能、单机对战 AI、开发者战斗日志与 28 篇 RRWIKI 条目。可下载单文件 HTML 双击游玩，源码版从根目录 HTML 启动。
+- 76 项回归通过。源码版与单文件版均验证了同路径旧存档和 RRWIKI 浏览、编辑。对战矩阵 16 局中 15 局结束，极影迪莫镜像达到 150 回合采样上限，0 卡死、0 异常。
 
 ## 2026-11-27 · RRWIKI 阅读修订
 
