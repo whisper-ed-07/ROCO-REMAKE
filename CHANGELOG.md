@@ -2,6 +2,12 @@
 
 当前版本为 `V0.0.1-Alpha`。历史标签 `0.0.1-preview` 保留拆分前的游戏文件。逐次开发日志可查 `git log --oneline`，重写前的完整 Markdown 可读 `git show a1bd9ec:CHANGELOG.md`。
 
+## 2026-11-27 · GitHub Pages
+
+- 网页版从指定版本的 GitHub Release 下载 `ROCO-REMAKE.html`，并将同一份文件作为 [在线游戏](https://whisper-ed-07.github.io/ROCO-REMAKE/) 的入口。首次部署使用 `V0.0.1-Alpha`。
+- 发布新版本时，先把单文件附件上传到 Release 草稿，再公开发布。正式版和预发布都会触发网站更新。补发或回退时，可从 [部署工作流](https://github.com/whisper-ed-07/ROCO-REMAKE/actions/workflows/pages.yml) 选择已公开的 Release 标签重新部署。
+- 构建校验、静态检查、单文件版菜单和原路径替换存档测试通过。Alpha 单文件构建的 SHA-256 与已发布附件一致。
+
 ## 2026-11-27 · V0.0.1-Alpha
 
 - 本版收录四只内置宠物、20 个内置技能、单机对战 AI、开发者战斗日志与 28 篇 RRWIKI 条目。可下载单文件 HTML 双击游玩，源码版从根目录 HTML 启动。

@@ -1,0 +1,51 @@
+name: Publish Release to GitHub Pages
+run-name: Deploy ${{ github.event.release.tag_name || inputs.release_tag }} to GitHub Pages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Tag of a published GitHub Release
+        required: true
+        type: string
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download the published game
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          published=$(gh release view --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft == false' -- "$RELEASE_TAG")
+          if [[ "$published" != true ]]; then
+            echo 'Publish the GitHub Release before deploying it to Pages.' >&2
+            exit 1
+          fi
+
+          mkdir -p site
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern ROCO-REMAKE.html --output site/index.html -- "$RELEASE_TAG"
+          test -s site/index.html
+
+      - name: Upload the game to Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
