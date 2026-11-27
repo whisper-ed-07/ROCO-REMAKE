@@ -1,0 +1,51 @@
+.wiki-screen { max-width: 960px; margin-inline: auto; }
+.wiki-screen .screen-header { padding-right: 0; }
+.wiki-layout {
+  display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: clamp(14px, 3vw, 28px); align-items: start;
+}
+.wiki-contents, .wiki-article {
+  min-width: 0; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.wiki-contents { padding: 14px; }
+.wiki-contents-title { margin: 0 8px 8px; color: var(--text2); font-size: 13px; font-weight: 700; }
+.wiki-contents ul { display: grid; gap: 4px; list-style: none; }
+.wiki-contents button {
+  width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid transparent;
+  border-radius: 9px; background: transparent; color: var(--text); text-align: left;
+  line-height: 1.45; overflow-wrap: anywhere; cursor: pointer;
+}
+.wiki-contents button[aria-current="true"] {
+  border-color: var(--gold); background: var(--ui-gold-soft); color: var(--gold); font-weight: 700;
+}
+@media (hover: hover) {
+  .wiki-contents button:hover { background: var(--surface2); }
+}
+.wiki-article {
+  padding: clamp(16px, 4vw, 36px); font-size: 15px; line-height: 1.8; overflow-wrap: anywhere;
+}
+.wiki-article h1 {
+  width: fit-content; max-width: 100%; font-size: clamp(23px, 3vw, 30px);
+  line-height: 1.35; scroll-margin-top: 20px;
+}
+.wiki-article h1:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.wiki-article .wiki-summary { margin-top: 10px; color: var(--text2); }
+.wiki-article section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.wiki-article h2 { margin-bottom: 6px; color: var(--gold); font-size: 17px; }
+.wiki-article p + p { margin-top: 8px; }
+.wiki-to-contents { display: none; }
+@media (min-width: 741px) {
+  .wiki-contents { position: sticky; top: 20px; max-height: calc(100svh - 40px); overflow-y: auto; }
+}
+@media (max-width: 740px) {
+  .wiki-layout { grid-template-columns: minmax(0, 1fr); }
+  .wiki-screen .screen-header { padding-right: 56px; margin-bottom: 14px; }
+  .wiki-to-contents { display: inline-flex; align-items: center; margin-top: 20px; }
+  body:has(.wiki-screen) .settings-btn {
+    position: absolute; top: 32px; right: max(24px, env(safe-area-inset-right)); bottom: auto;
+  }
+}
+@media (max-width: 700px) {
+  body:has(.wiki-screen) .settings-btn { top: 22px; right: max(16px, env(safe-area-inset-right)); }
+}

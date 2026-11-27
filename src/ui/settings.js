@@ -177,7 +177,7 @@ function initSettings() {
   btn.textContent = "⚙"; btn.title = "设置"; btn.setAttribute("aria-label", "设置");
   document.body.appendChild(btn);
   btn.addEventListener("click", function() {
-    if (!["menu", "team", "opponent", "pets", "skillswap"].includes(gameState.screen) ||
+    if (!["menu", "team", "opponent", "pets", "skillswap", "wiki"].includes(gameState.screen) ||
         document.querySelector("#intro-screen, #swap-save, .modal-overlay")) return;
     settingsOrigin = gameState.screen; settingsScrollY = window.scrollY || 0;
     showScreen("settings");

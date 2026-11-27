@@ -14,6 +14,7 @@ const styleFiles = [
   'styles/06-battle-forms-responsive.css',
   'styles/07-motion-battle-controls.css',
   'styles/08-compact-layout-settings.css',
+  'styles/09-wiki.css',
 ];
 // 保留现有浏览器全局作用域和初始化顺序。
 const sourceFiles = [
@@ -24,6 +25,7 @@ const sourceFiles = [
   'pets/qingyu.js',
   'pets/qingling.js',
   'data/catalog.js',
+  'data/wiki.js',
   'storage.js',
   'battle/presentation.js',
   'battle/model.js',
@@ -38,6 +40,7 @@ const sourceFiles = [
   'ui/bloodline.js',
   'ui/battle-status.js',
   'ui/navigation.js',
+  'ui/wiki.js',
   'ui/team-selection.js',
   'ui/battle.js',
   'ui/editors.js',

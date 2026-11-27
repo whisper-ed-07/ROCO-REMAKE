@@ -95,7 +95,17 @@ function showScreen(id) {
   ["switch-panel", "result-overlay"].forEach(function(key) { var layer = document.getElementById(key); if (layer && layer.closeLayer) layer.closeLayer(true); });
   if (previous === "battle" && id !== "battle") resetBattleVisual();
   gameState.screen = id; app.innerHTML = "";
-  switch(id) { case "intro": renderIntro(app); break; case "menu": renderMenu(app); break; case "team": renderTeamSelect(app); break; case "battle": renderBattle(app); break; case "pets": renderPetManagement(app); break; case "opponent": renderOpponentSelect(app); break; case "skillswap": renderSkillSwap(app); break; case "settings": renderSettings(app); break; }
+  switch (id) {
+    case "intro": renderIntro(app); break;
+    case "menu": renderMenu(app); break;
+    case "team": renderTeamSelect(app); break;
+    case "battle": renderBattle(app); break;
+    case "pets": renderPetManagement(app); break;
+    case "opponent": renderOpponentSelect(app); break;
+    case "skillswap": renderSkillSwap(app); break;
+    case "settings": renderSettings(app); break;
+    case "wiki": renderWiki(app); break;
+  }
   if (changed && id !== "intro" && previous !== "intro") {
     var screen = app.querySelector(".screen"); if (screen && !prefersReducedMotion()) screen.classList.add("page-enter");
     focusScreen(app);
@@ -173,6 +183,7 @@ function renderMenu(app) {
         '<button class="btn btn-primary" id="btn-battle"><span class="menu-action-copy"><span class="menu-action-title">开始对战</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
         '<button class="btn btn-secondary" id="btn-swap"><span class="menu-action-copy"><span class="menu-action-title">局外技能更换</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
         '<button class="btn btn-secondary" id="btn-pets"><span class="menu-action-copy"><span class="menu-action-title">宠物管理</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
+        '<button class="btn btn-secondary" id="btn-wiki"><span class="menu-action-copy"><span class="menu-action-title">RRWIKI</span></span><span class="menu-action-arrow" aria-hidden="true">→</span></button>' +
       '</div></nav><div class="menu-footer" aria-hidden="true"></div>' +
     '</main>';
   const battle = app.querySelector("#btn-battle");
@@ -195,5 +206,6 @@ function renderMenu(app) {
   });
   document.querySelector('#btn-swap').addEventListener('click', function() { showScreen('skillswap'); });
   document.querySelector('#btn-pets').addEventListener('click', function() { showScreen('pets'); });
+  app.querySelector('#btn-wiki').addEventListener('click', openWiki);
 }
 
