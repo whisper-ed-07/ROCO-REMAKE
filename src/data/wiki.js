@@ -1,4 +1,4 @@
-const WIKI_ARTICLES = [
+const WIKI_BASIC_ARTICLES = [
   {
     id: "pp-commit",
     title: "选招与 PP",
@@ -102,5 +102,78 @@ const WIKI_ARTICLES = [
         ]
       }
     ]
+  },
+  {
+    id: "battle-flow",
+    title: "选招倒计时与空过",
+    summary: "出现选招栏时有 20 秒提交行动。换宠面板与选招共用这段时间。",
+    sections: [
+      {
+        title: "超时选哪一招",
+        paragraphs: [
+          "超时会从仍有 PP 且未被封禁的技能中等概率选一招，并按正常选招规则扣 PP。换宠面板还开着时，超时也不会自动换宠。",
+          "例如，面板上有四招，其中一招 PP 已空、一招被封禁。超时只会从另外两招中随机选一招。"
+        ]
+      },
+      {
+        title: "没有可用招式",
+        paragraphs: [
+          "没有可用招式时，可以点击「跳过回合」，也可以在允许换宠时换上有资源的队友。超时未提交会空过。持续效果仍会按各自的条件结算。",
+          "正式对战没有固定回合上限。双方都没有可用招式时，空过本身会继续推进回合。"
+        ]
+      }
+    ]
+  },
+  {
+    id: "switch-forced",
+    title: "驱逐、阵亡与替补",
+    summary: "驱逐由技能或血脉触发，随机换入存活后备。阵亡时按队伍顺序补位。",
+    sections: [
+      {
+        title: "驱逐成功与失败",
+        paragraphs: [
+          "驱逐结算时，从被驱逐一方的存活后备中随机换入一只。目标有驱逐免疫，或者没有存活后备时，就不会发生驱逐换入。",
+          "如果原在场宠物先被驱逐，它本回合尚未执行的招式会被取消。新入场的宠物会结算自己的入场效果。"
+        ]
+      },
+      {
+        title: "阵亡时谁上场",
+        paragraphs: [
+          "受到致死伤害后会先检查适用的保命效果。确认倒下时，队伍里排在最前的存活后备自动补位，并结算入场效果。没有存活后备的一方落败。",
+          "例如，两只后备都活着时，驱逐可能换入其中任何一只。前排阵亡时，队伍顺序靠前的那只会先补位。"
+        ]
+      }
+    ]
+  },
+  {
+    id: "skill-continuations",
+    title: "连续招式与打断",
+    summary: "有些技能的后续一段要由原施放者使出其他招式带出，段数按经过的回合计算。",
+    sections: [
+      {
+        title: "怎样带出后续效果",
+        paragraphs: [
+          "轻风散魂的三回合分支、封灵千噬、化念作刃和创世之能都属于这类连招。获得连招后，在持续期内使出其他招式即可带出当前一段。需要取对手时，效果结算给当时仍在场的对手。",
+          "例如，第 1 回合开启三回合连招，第 2 回合空过，第 3 回合使出其他招式，会直接结算第 3 段。已经跳过的第 2 段不会补发。"
+        ]
+      },
+      {
+        title: "清翎覆尘能打断什么",
+        paragraphs: [
+          "清羽处于清念且拥有至少 3 层清风之念时，清翎覆尘可以提前结束对手由其他用招带出的连招。清念沉脉与极影光幕按各自规则继续计时。"
+        ]
+      }
+    ]
   }
 ];
+
+const WIKI_GROUPS = [
+  { id: "basics", title: "战斗基础", articles: WIKI_BASIC_ARTICLES },
+  { id: "battle", title: "伤害、场地与资源", articles: WIKI_BATTLE_ARTICLES },
+  { id: "clock", title: "创世神钟", articles: WIKI_CLOCK_ARTICLES },
+  { id: "dimo", title: "极影迪莫", articles: WIKI_DIMO_ARTICLES },
+  { id: "qingling", title: "清灵", articles: WIKI_QINGLING_ARTICLES },
+  { id: "qingyu", title: "清羽", articles: WIKI_QINGYU_ARTICLES }
+];
+
+const WIKI_ARTICLES = WIKI_GROUPS.flatMap(group => group.articles);

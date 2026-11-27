@@ -114,6 +114,17 @@ async function testWiki({ send }) {
     await waitForArticle(id);
   }
 
+  async function selectCategory(id, firstArticle) {
+    const visible = await inspect(id => {
+      const category = document.querySelector('#wiki-category');
+      category.value = id;
+      category.dispatchEvent(new Event('change', { bubbles: true }));
+      return [...document.querySelectorAll('[data-wiki-group]:not([hidden])')].map(list => list.dataset.wikiGroup);
+    }, id);
+    assert.deepEqual(visible, [id], '目录只显示当前分类');
+    await waitForArticle(firstArticle);
+  }
+
   async function enterMenu() {
     await until(() => inspect(url => location.href === url && !!document.querySelector('#intro-screen'), url), 'file 游戏启动');
     await click('#intro-screen');
@@ -178,7 +189,7 @@ async function testWiki({ send }) {
       const settings = document.querySelector('#settings-btn').getBoundingClientRect();
       const settingsCoversArticle = settings.left < article.right && settings.right > article.left &&
         settings.top < article.bottom && settings.bottom > article.top;
-      const outside = [...document.querySelectorAll('.wiki-screen button, #wiki-article h1, #wiki-article p')].some(node => {
+      const outside = [...document.querySelectorAll('.wiki-screen button, #wiki-category, #wiki-article h1, #wiki-article p')].some(node => {
         const { left, width, right } = node.getBoundingClientRect();
         return width > 0 && (left < 0 || right > clientWidth);
       });
@@ -206,14 +217,18 @@ async function testWiki({ send }) {
     const checkClosed = () => until(() => evaluate('!document.querySelector("#modal-overlay")'), '条目编辑器关闭');
     const hasEdit = () => evaluate('!!document.querySelector("#wiki-edit")');
     async function readOtherArticles() {
-      const ids = await inspect(() => [...document.querySelectorAll('.wiki-contents [data-wiki-article]')]
-        .map(button => button.dataset.wikiArticle));
+      const { ids, selected } = await inspect(() => ({
+        ids: [...document.querySelectorAll('.wiki-contents [data-wiki-article]')].map(button => button.dataset.wikiArticle),
+        selected: document.querySelector('.wiki-contents [aria-current="true"]').dataset.wikiArticle
+      }));
       const articles = {};
       for (const id of ids.filter(id => id !== targetId)) {
         await inspect(selector => document.querySelector(selector).click(), selectorFor(id));
         await waitForArticle(id);
         articles[id] = await readArticle();
       }
+      await inspect(selector => document.querySelector(selector).click(), selectorFor(selected));
+      await waitForArticle(selected);
       return articles;
     }
     async function checkSavedArticle(expected) {
@@ -373,6 +388,17 @@ async function testWiki({ send }) {
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
   await checkArticle('status-immunity', /异常|防控/, /寄生/, true);
   await checkLayout(false);
+  for (const [id, first, title, body] of [
+    ['battle', 'hit-and-dodge', /命中/, /半必中/],
+    ['clock', 'clock-survival', /不灭魂体/, /覆体魂衣/],
+    ['dimo', 'dimo-mark', /明念/, /极尽降华/],
+    ['qingling', 'qingling-bloodline', /清念灵体/, /微灵封体/],
+    ['qingyu', 'qingyu-forms', /清念沉脉/, /原初血脉/]
+  ]) {
+    await selectCategory(id, first);
+    await checkArticle(first, title, body);
+  }
+  await selectCategory('basics', 'pp-commit');
   await size(1280, 360);
   await checkScroll();
   await click('#wiki-back');
@@ -386,12 +412,16 @@ async function testWiki({ send }) {
   await checkArticle('status-immunity', /异常|防控/, /寄生/, true);
   await evaluate('window.scrollTo({ top: 0, behavior: "instant" })');
   await checkLayout(true);
+  await selectCategory('qingyu', 'qingyu-forms');
+  await selectArticle('qingyu-ice-skills');
+  await checkArticle('qingyu-ice-skills', /残念余梦/, /残风临霜/, true);
   await click('#settings-btn');
   await click('#settings-back');
-  await checkArticle('status-immunity', /异常|防控/, /寄生/);
+  await checkArticle('qingyu-ice-skills', /残念余梦/, /残风临霜/);
+  assert.equal(await evaluate('document.querySelector("#wiki-category").value'), 'qingyu', '设置往返保留分类');
   await checkScroll();
   await click('.wiki-to-contents');
-  assert.equal(await evaluate('document.activeElement.dataset.wikiArticle'), 'status-immunity', '从正文返回目录时聚焦当前条目');
+  assert.equal(await evaluate('document.activeElement.dataset.wikiArticle'), 'qingyu-ice-skills', '从正文返回目录时聚焦当前条目');
   await click('#wiki-back');
   await click('#btn-wiki');
   await checkArticle('pp-commit', /PP/, /PP/);

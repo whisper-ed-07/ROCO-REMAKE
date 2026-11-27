@@ -7,35 +7,51 @@ function openWiki() {
 }
 
 function renderWiki(app) {
-  const entries = loadWikiArticles();
-  const contents = entries.map(article =>
-    '<li><button type="button" data-wiki-article="' + uiAttr(article.id) + '" aria-controls="wiki-article">' + escapeHtml(article.title) + '</button></li>'
+  const entries = new Map(loadWikiArticles().map(article => [article.id, article]));
+  const options = WIKI_GROUPS.map(group =>
+    '<option value="' + uiAttr(group.id) + '">' + escapeHtml(group.title) + '</option>'
+  ).join("");
+  const contents = WIKI_GROUPS.map(group =>
+    '<ul data-wiki-group="' + uiAttr(group.id) + '" hidden>' + group.articles.map(({ id }) =>
+      '<li><button type="button" data-wiki-article="' + uiAttr(id) + '" aria-controls="wiki-article">' +
+        escapeHtml(entries.get(id).title) + '</button></li>'
+    ).join("") + '</ul>'
   ).join("");
   const editControls = menuMode === "developer"
     ? '<button type="button" class="btn btn-secondary" id="wiki-edit">编辑条目</button>'
     : '';
   app.innerHTML = '<main class="screen active wiki-screen">' + pageHeader("RRWIKI", "wiki-back") +
     '<div class="wiki-layout"><nav class="wiki-contents" aria-labelledby="wiki-contents-title">' +
-      '<p class="wiki-contents-title" id="wiki-contents-title">条目目录</p><ul>' + contents + '</ul></nav>' +
+      '<label class="wiki-contents-title" id="wiki-contents-title" for="wiki-category">条目目录</label>' +
+      '<select id="wiki-category" aria-controls="wiki-directory">' + options + '</select>' +
+      '<div class="wiki-directory" id="wiki-directory">' + contents + '</div></nav>' +
     '<article class="wiki-article" id="wiki-article" aria-labelledby="wiki-article-title">' +
       '<div class="wiki-article-header"><h1 id="wiki-article-title" tabindex="-1"></h1>' + editControls + '</div>' +
       '<p id="wiki-save-status" role="status"></p><p class="wiki-summary"></p><div class="wiki-body"></div>' +
       '<button type="button" class="btn btn-secondary wiki-to-contents">返回目录</button></article></div></main>';
 
   const list = app.querySelector(".wiki-contents");
+  const category = list.querySelector("#wiki-category");
+  const directory = list.querySelector("#wiki-directory");
+  const directories = [...directory.querySelectorAll("[data-wiki-group]")];
   const article = app.querySelector("#wiki-article");
   const heading = article.querySelector("h1");
   const summary = article.querySelector(".wiki-summary");
   const body = article.querySelector(".wiki-body");
   const feedback = article.querySelector("#wiki-save-status");
-  const buttons = [...list.querySelectorAll("[data-wiki-article]")];
+  const buttons = new Map([...directory.querySelectorAll("[data-wiki-article]")].map(button => [button.dataset.wikiArticle, button]));
 
   function showArticle(entry, moveFocus) {
     wikiArticleId = entry.id;
-    buttons.forEach(button => {
-      if (button.dataset.wikiArticle === entry.id) button.setAttribute("aria-current", "true");
-      else button.removeAttribute("aria-current");
-    });
+    const selectedButton = buttons.get(entry.id);
+    const activeDirectory = selectedButton.closest("[data-wiki-group]");
+    directory.querySelector('[aria-current="true"]')?.removeAttribute("aria-current");
+    selectedButton.setAttribute("aria-current", "true");
+    if (activeDirectory.hidden) {
+      category.value = activeDirectory.dataset.wikiGroup;
+      directories.forEach(group => { group.hidden = group !== activeDirectory; });
+      directory.scrollTop = 0;
+    }
     heading.textContent = entry.title;
     summary.textContent = entry.summary;
     body.innerHTML = entry.sections.map(section =>
@@ -51,29 +67,33 @@ function renderWiki(app) {
     app.querySelector("#btn-wiki").focus();
   }
 
-  buttons.forEach((button, index) => {
-    button.addEventListener("click", () => showArticle(entries[index], true));
+  category.addEventListener("change", () => {
+    const group = WIKI_GROUPS.find(group => group.id === category.value);
+    showArticle(entries.get(group.articles[0].id), false);
+    heading.scrollIntoView({ block: "nearest", behavior: "instant" });
+  });
+  buttons.forEach((button, id) => {
+    button.addEventListener("click", () => showArticle(entries.get(id), true));
   });
   article.querySelector(".wiki-to-contents").addEventListener("click", () => {
-    list.querySelector('[aria-current="true"]').focus();
+    buttons.get(wikiArticleId).focus();
   });
   article.querySelector("#wiki-edit")?.addEventListener("click", () => {
-    const index = entries.findIndex(entry => entry.id === wikiArticleId);
-    openWikiEditor(entries[index], saved => {
-      entries[index] = saved;
-      buttons[index].textContent = saved.title;
+    openWikiEditor(entries.get(wikiArticleId), saved => {
+      entries.set(saved.id, saved);
+      buttons.get(saved.id).textContent = saved.title;
       showArticle(saved, false);
       feedback.textContent = "已保存到当前浏览器。";
     });
   });
   app.querySelector("#wiki-back").addEventListener("click", leaveWiki);
   app.querySelector(".wiki-screen").addEventListener("keydown", event => {
-    if (event.key === "Escape" && !event.defaultPrevented) {
+    if (event.key === "Escape" && !event.defaultPrevented && event.target !== category) {
       event.preventDefault();
       leaveWiki();
     }
   });
-  showArticle(entries.find(entry => entry.id === wikiArticleId) || entries[0], false);
+  showArticle(entries.get(wikiArticleId) || entries.get(WIKI_ARTICLES[0].id), false);
 }
 
 function openWikiEditor(entry, onSave) {
