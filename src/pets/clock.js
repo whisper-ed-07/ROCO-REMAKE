@@ -2,7 +2,7 @@ const CLOCK_SKILLS = [
   { id: "sk_cszn", name: "创世之能", element: "normal", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 14,
     passiveLabel: "携带被动",
     desc: "携带时免疫束缚、恐惧、睡眠和冰冻，本招无 PP 时免疫全部异常。主动发动三回合，增加速度与输出、吸取 PP，并分别结算回满精力、重置强化，末回合精力低于 30% 时回复精力并清空本招 PP。",
-    detail: "① 创世神钟携带本技能时，无需出招即免疫束缚、恐惧、睡眠、冰冻。当前PP为0时，免疫所有异常状态。PP恢复后保留原有四种免疫。\n② 主动效果持续 3 回合。发动时在场的两只宠物速度各提高 10%，自身所有类型输出提高 25%。重复发动刷新效果。\n③ 每回合从当前在场对手的各技能最多吸取 2 PP，按实际扣除量回复自己的对应格。首回合吸取后，锁定对方所有并列最低 PP 的技能，使其出招额外消耗 1 PP。0 PP 也参与比较。\n④ 首回合回满精力，免疫对方后手施加给自身的效果。若先手，额外删除对方各技能 1 PP。\n⑤ 次回合强制清除在场双方强化，并尝试回满自身首格技能的 PP。\n⑥ 末回合自身精力低于最大精力的 30% 时，回复 70% 已损精力，并清空本招 PP。\n⑦ 免疫常规删 PP 和回 PP。时间回溯与逆流而行的强制清空可以越过对应保护。",
+    detail: "① 创世神钟携带本技能时，无需出招即免疫束缚、恐惧、睡眠、冰冻。当前PP为0时，免疫所有异常状态。PP恢复后保留原有四种免疫。\n② 主动效果持续 3 回合。发动时在场的两只宠物速度各提高 10%，自身所有类型输出提高 25%。重复发动刷新效果。\n③ 首段立即发动，后两段须由自己使用其他技能带出。每次从当前在场对手的各技能最多吸取 2 PP，按实际扣除量回复自己的对应格。首回合吸取后，锁定对方所有并列最低 PP 的技能，使其出招额外消耗 1 PP。0 PP 也参与比较。\n④ 首回合回满精力，免疫对方后手施加给自身的效果。若先手，额外删除对方各技能 1 PP。\n⑤ 次回合强制清除在场双方强化，并尝试回满自身首格技能的 PP。\n⑥ 末回合自身精力低于最大精力的 30% 时，回复 70% 已损精力，并清空本招 PP。\n⑦ 免疫常规删 PP 和回 PP。时间回溯与逆流而行的强制清空可以越过对应保护。",
     immuneToPP: true, noPPRecover: true,
     onUse: function(user, target, ctx) {
       const data = user.bloodlineData ||= {};
@@ -11,7 +11,9 @@ const CLOCK_SKILLS = [
       data.creationThrough = turn + 2;
       data.creationTarget = skillEffectTarget(ctx, target, "stat");
       data.creationActive = true;
-      (gameState.creationOwners ||= new Set()).add(user);
+      startSkillContinuation(user, "sk_cszn", 3, (stage, opponent) => {
+        resolveCreationStage(user, opponent, stage, ctx);
+      }, () => endCreation(user));
       (user.creationSpeedSources ||= new Set()).add(user);
       if (data.creationTarget) (data.creationTarget.creationSpeedSources ||= new Set()).add(user);
 

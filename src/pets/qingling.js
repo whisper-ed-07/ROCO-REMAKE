@@ -68,7 +68,7 @@ const QINGLING_SKILLS = [
   },
   { id: "sk_ql_3", name: "封灵千噬", element: "ghost", power: 70, pp: 8, maxPp: 8, accuracy: 100, category: "special", priority: 12, semiSure: true, sureFirst: true,
     desc: "连续三回合发动。首回合免疫对方后手施加给自身的效果，先手必中必暴。次回合另加一段物理伤害，末回合回复精力和 PP，太虚灵威满 PP 时触发清空联动。",
-    detail: "实际威力为 70 + 万念俱灰实时威力 × 0.2，上限 150。未携带万念俱灰时，其参与计算的威力取 150。\n【三回合】每回合发动一次威力攻击，获得 10 点微灵印记与 100 点护盾。首格无 PP 时回复 100 点精力。自身获得异常免疫，对方使用技能额外消耗 1 PP。\n【首回合】免疫对方后手施加给自身的效果，含伤害。删除对方本回合使用技能的 1 PP，施加换下即失效的封灵印记。若先手，首段必中必暴。\n【次回合】以对方上回合总输出 × 0.6 为威力，追加一次独立的物理攻击。\n【末回合】回复自身 30% 最大精力和全体技能各 1 PP。若太虚灵威满 8 PP，随机清空对方一个可删技能的 PP，并清空太虚灵威的剩余 PP。",
+    detail: "实际威力为 70 + 万念俱灰实时威力 × 0.2，上限 150。未携带万念俱灰时，其参与计算的威力取 150。\n【三回合】首段立即发动，后两段由自己使用其他技能带出。每段发动一次威力攻击，获得 10 点微灵印记与 100 点护盾。首格无 PP 时回复 100 点精力。自身获得异常免疫，对方使用技能额外消耗 1 PP。\n【首回合】免疫对方后手施加给自身的效果，含伤害。删除对方本回合使用技能的 1 PP，施加换下即失效的封灵印记。若先手，首段必中必暴。\n【次回合】以对方上回合总输出 × 0.6 为威力，追加一次独立的物理攻击。\n【末回合】回复自身 30% 最大精力和全体技能各 1 PP。若太虚灵威满 8 PP，随机清空对方一个可删技能的 PP，并清空太虚灵威的剩余 PP。",
     onUse: function(u, t, ctx) {
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai"));
       var currentOpp = function(p){ return gameState.playerActive === p ? gameState.aiActive : gameState.playerActive; };
@@ -88,46 +88,44 @@ const QINGLING_SKILLS = [
         ctx.msg("封灵千噬发动！造成 " + r.damage + " 点伤害。" + (r.isCrit ? "命中要害！" : ""));
         perTurn(owner);
       };
+      endSkillContinuation(u, "sk_ql_3");
       ctx.grantStatusImmunity(u, "封灵千噬", 3, { statuses: ABNORMAL_WITHOUT_BIND });
-      ctx.setPPCostEffect(t, "封灵千噬", 3, { extra: 1 });
+      const removeExtraCost = ctx.setPPCostEffect(t, "封灵千噬", 3, { extra: 1 });
       strike(u, isFirst);
       u.immuneBackhandEffects = true;
       const slot = getRoundSkillSlot(t);
       if (slot >= 0) ctx.deletePP(t, slot, 1);
       ctx.markQinglingSeal(t);
       ctx.msg("首回合：免疫对方后手，给予封灵印记（换下失效）！");
-      var stage = 0;
-      ctx.addTurnEffect(u, "封灵千噬连击", 2, function(p) {
-        stage++;
-        if (stage === 1) {
-          strike(p);
-          var opp = currentOpp(p);
-          if (opp) {
-            var extra = Math.floor((opp.lastTurnOutput || 0) * 0.6);
-            if (extra > 0 && !opp.isFainted()) {
-              const hit = createBattleContext().doDamage(p, opp, extra, "physical", "ghost");
-              ctx.msg("封灵千噬次回合：追加" + hit.damage + "点物理伤害。");
-            }
+      startSkillContinuation(u, "sk_ql_3", 3, function(stage, opp) {
+        strike(u);
+        if (stage === 2) {
+          var extra = Math.floor((opp.lastTurnOutput || 0) * 0.6);
+          if (extra > 0 && !opp.isFainted()) {
+            const hit = createBattleContext().doDamage(u, opp, extra, "physical", "ghost");
+            ctx.msg("封灵千噬次回合：追加" + hit.damage + "点物理伤害。");
           }
         } else {
-          strike(p);
-          ctx.doHeal(p, Math.floor((p.maxHp + (p.maxHpBonus || 0)) * 0.3));
-          p.skills.forEach(function(s){ gainPP(p, s, 1, undefined, "封灵千噬·末回合"); });
+          ctx.doHeal(u, Math.floor((u.maxHp + (u.maxHpBonus || 0)) * 0.3));
+          u.skills.forEach(function(s){ gainPP(u, s, 1, undefined, "封灵千噬·末回合"); });
           ctx.msg("封灵千噬末回合：回复30%精力与全体技能1PP！");
-          var txw = p.skills.find(function(s){ return s.id === "sk_ql_4"; });
+          var txw = u.skills.find(function(s){ return s.id === "sk_ql_4"; });
           if (txw && txw.pp === txw.maxPp) {
-            var opp2 = currentOpp(p);
+            var opp2 = currentOpp(u);
             var pool = opp2 ? opp2.skills.filter(function(s){ return s.pp > 0 && !s.immuneToPP && !s.ppLocked; }) : [];
             if (pool.length) {
               var victim = pool[Math.floor(Math.random() * pool.length)];
               ctx.deletePP(opp2, opp2.skills.indexOf(victim), victim.pp);
               ctx.msg("太虚灵威联动：清空对方「" + victim.name + "」的PP！");
             }
-            setSkillPP(p, txw, 0, "联动清空 PP", "封灵千噬·末回合");
+            setSkillPP(u, txw, 0, "联动清空 PP", "封灵千噬·末回合");
             ctx.msg("太虚灵威剩余PP已清空。");
           } else { ctx.msg("太虚灵威PP未满，联动未触发。"); }
         }
-      }, null);
+      }, () => {
+        ctx.revokeStatusImmunity(u, "封灵千噬");
+        removeExtraCost?.();
+      });
     }
   },
   { id: "sk_ql_4", name: "太虚灵威", element: "ghost", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 9, semiSure: true, ppLocked: true,

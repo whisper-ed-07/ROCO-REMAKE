@@ -3,9 +3,9 @@ const QINGYU_ORIGINAL_BLOODLINE_DETAIL = "进入原初血脉状态：缺少清�
 const QINGYU_SKILLS = [
   { id: "sk_qy_1", ppRecoverySource: ["sk_qy_2", "清念PP回复"], noExtraPPCost: true, name: "清翎覆尘", element: "flying", power: 0, pp: 3, maxPp: 3, accuracy: 100, category: "status", priority: 15, immuneToPP: true,
     passiveLabel: "血脉联动",
-    desc: "清念且清风之念至少 3 层时净化、回满精力并解除对手的回合效果。其他情况获得护盾并免疫当回合后手伤害。首用让双方技能变为各自主系，续用倒置对方治疗。",
+    desc: "清念且清风之念至少 3 层时净化、回满精力并打断对手连续发动的技能。其他情况获得护盾并免疫当回合后手伤害。首用让双方技能变为各自主系，续用倒置对方治疗。",
     bloodlineDetail: "血脉联动：清羽同时携带清翎覆尘和残风临霜，且首格为清翎覆尘时，上场进入清念状态。\n" + QINGYU_ORIGINAL_BLOODLINE_DETAIL,
-    detail: "① 本技能免疫删 PP 与额外 PP 消耗。轻风散魂和清念血脉的低 PP 回满可以回复本技能。\n② 清风之念不足 3 层或不在清念状态时，2 回合内每回合获得（200 + 0.4 × 已损精力）点护盾，并免疫发动当回合对方后手造成的伤害。\n③ 清念且至少 3 层时，净化自身并回满精力。每个其他技能回复其最大 PP 的 30%，向上取整。清除对方回合效果，含限时防控。自身 12 回合免疫异常与负面强化。\n④ 首次使用时，双方在场宠物的技能各自变为携带者的主系，持续（2 + 实际变系技能数 × 2）回合。清念额外倒置对方治疗 2 回合。残脉反弹对方后手施加给自身的效果。\n⑤ 后续使用按（0.3 + 已损精力比例）倒置对方治疗，持续（4 + 2 × 已损精力比例）回合，回合数四舍五入。\n⑥ 后续使用且处于清念时，若场上有非疾风天气或环境，倒置比例锁定为 0.7，持续 7 回合。疾风天气下锁定为（1.4 − 0.2 × 本技能累计使用次数），统计本次，持续 4 回合。\n⑦ 梦境中，本技能的基础先手值改为后手 −7。",
+    detail: "① 本技能免疫删 PP 与额外 PP 消耗。轻风散魂和清念血脉的低 PP 回满可以回复本技能。\n② 清风之念不足 3 层或不在清念状态时，2 回合内每回合获得（200 + 0.4 × 已损精力）点护盾，并免疫发动当回合对方后手造成的伤害。\n③ 清念且至少 3 层时，净化自身并回满精力。每个其他技能回复其最大 PP 的 30%，向上取整。打断对方须由其他技能带出的连续发动。自身 12 回合免疫异常与负面强化。\n④ 首次使用时，双方在场宠物的技能各自变为携带者的主系，持续（2 + 实际变系技能数 × 2）回合。清念额外倒置对方治疗 2 回合。残脉反弹对方后手施加给自身的效果。\n⑤ 后续使用按（0.3 + 已损精力比例）倒置对方治疗，持续（4 + 2 × 已损精力比例）回合，回合数四舍五入。\n⑥ 后续使用且处于清念时，若场上有非疾风天气或环境，倒置比例锁定为 0.7，持续 7 回合。疾风天气下锁定为（1.4 − 0.2 × 本技能累计使用次数），统计本次，持续 4 回合。\n⑦ 梦境中，本技能的基础先手值改为后手 −7。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var q = bd.qfzn || 0, inQ = bd.mode === "清念";
@@ -24,9 +24,9 @@ const QINGYU_SKILLS = [
         STAGE_FIELDS.forEach(function(k){ if (u[k] < 0) u[k] = 0; });
         ctx.doHeal(u, (u.maxHp + (u.maxHpBonus || 0)) - u.hp);
         u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3), "sk_qy_1"); });
-        ctx.clearTurnEffects(t);
+        ctx.interruptSkillContinuations(t);
         ctx.grantStatusImmunity(u, "清翎覆尘", 12, { stats: true });
-        ctx.msg("清念：净化回满，其他技能+30%PP，清除对方回合效果，12回合免疫！");
+        ctx.msg("清念：净化回满，其他技能+30%PP，打断对方连续发动的技能，12回合免疫！");
       }
       if (!bd.qyFirstUse) {
         bd.qyFirstUse = true;
@@ -56,7 +56,7 @@ const QINGYU_SKILLS = [
     } },
   { id: "sk_qy_2", name: "轻风散魂", element: "flying", power: 0, pp: 8, maxPp: 8, accuracy: 100, category: "status", priority: 11, immuneToPP: true,
     desc: "按对方各招的最大 PP 比例删 PP，闪避当回合后手与下回合的常规非必中招式。清念按层数触发吸取、额外删 PP 或转残脉。残脉使用后封存本招 PP。",
-    detail: "① 分别按对方各技能的最大 PP 删除（10 + 4 × 清风之念层数）%，上限 25%，向下取整。\n② 闪避对方当回合后手的常规非必中招式，以及下一回合的常规非必中招式。\n③ 先手时，等对方行动结算后回复本招 2 PP。后手时，对方各技能额外损失等同于清翎覆尘已损 PP 的点数，最少 1 点。\n④ 清念 1–2 层时，3 回合连动期间对方使用翼系技能额外消耗 1 PP，其他系额外消耗 2 PP。对在场非翼系对手，每回合吸取（50 + 0.2 × 双方速度差）点精力，向下取整。自身精力低于 60% 时，每段伤害限 150 点。\n⑤ 清念 3–4 层时，额外删除对方本回合先手所用技能的 PP。扣除量为清翎覆尘已损 PP、自身空 PP 技能数和本招已损 PP 之和，上限 7 点。\n⑥ 至少 5 层时清空清风之念，回复清翎覆尘 2 PP，转入残脉。\n⑦ 残脉下使用时，记录本次选招扣费后的剩余 PP 并清空本招，进入清念时恢复记录值。",
+    detail: "① 分别按对方各技能的最大 PP 删除（10 + 4 × 清风之念层数）%，上限 25%，向下取整。\n② 闪避对方当回合后手的常规非必中招式，以及下一回合的常规非必中招式。\n③ 先手时，等对方行动结算后回复本招 2 PP。后手时，对方各技能额外损失等同于清翎覆尘已损 PP 的点数，最少 1 点。\n④ 清念 1–2 层时，连动的后两段由自己使用其他技能带出。3 回合连动期间对方使用翼系技能额外消耗 1 PP，其他系额外消耗 2 PP。对在场非翼系对手，每回合吸取（50 + 0.2 × 双方速度差）点精力，向下取整。自身精力低于 60% 时，每段伤害限 150 点。\n⑤ 清念 3–4 层时，额外删除对方本回合先手所用技能的 PP。扣除量为清翎覆尘已损 PP、自身空 PP 技能数和本招已损 PP 之和，上限 7 点。\n⑥ 至少 5 层时清空清风之念，回复清翎覆尘 2 PP，转入残脉。\n⑦ 残脉下使用时，记录本次选招扣费后的剩余 PP 并清空本招，进入清念时恢复记录值。",
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var q = bd.qfzn || 0;
@@ -92,6 +92,7 @@ const QINGYU_SKILLS = [
         const slot = getRoundSkillSlot(t, true);
         if (slot >= 0) ctx.deletePP(t, slot, ex);
       } else if (q >= 1) {
+        endSkillContinuation(u, "sk_qy_2");
         u.lightWindThroughTurn = gameState.turnCount + 2;
         const drain = owner => {
           const opponent = gameState.playerActive === owner ? gameState.aiActive : gameState.playerActive;
@@ -101,7 +102,9 @@ const QINGYU_SKILLS = [
           ctx.doHeal(owner, amount);
         };
         drain(u);
-        ctx.addTurnEffect(u, "轻风连动", 2, drain);
+        startSkillContinuation(u, "sk_qy_2", 3, () => drain(u), () => {
+          u.lightWindThroughTurn = -1;
+        });
         ctx.msg("清念1-2层：3回合连动！");
       }
     } },
@@ -186,8 +189,9 @@ const QINGYU_SKILLS = [
     } },
   { id: "sk_qy_5", name: "清念沉脉", element: "flying", power: 0, pp: 6, maxPp: 6, accuracy: 100, category: "status", priority: 11,
     desc: "清双方强化并治疗对手，自身各招回 3 PP。耗尽本招 PP 进入清念，期满按双方各自的 PP 净变化回复本招，随后四回合永久削弱对手实际用过的技能。",
-    detail: "① 强制清除双方七项强化。把清除的正负等级分别取绝对值后求和，每级为对方回复 60 点精力。\n② 该次计算的治疗量低于 240 点时，额外删除对方上次所用技能 5 PP。\n③ 回复自身各技能 3 PP，然后清空本招。等待沉脉结算时，本招跳过清念翼系回 PP 与消耗清风之念回满。\n④ 进入清念，时长等于 1 加上本招实际扣费的 PP 和本招随后清空的 PP。\n⑤ 按每只在场宠物分别计算技能 PP 总量的期初和期末净变化，再对双方各自取绝对值后相加，乘 0.5 并四舍五入，期满一次回复本招。场下期间的 PP 改变不计。清羽换下暂停，重复发动时以该回合期初值重新计时和统计，提前转离清念则立即结算。\n⑥ 结算回复后开启 4 回合削弱窗口，跟随当前在场对手。对方出威力招时，按该招原始威力永久削弱 30%，累计上限 50%。出变化招时，该招先手永久减 1，本回合已排定的先后不重排。已造成的削弱持续到战斗结束。",
+    detail: "① 强制清除双方七项强化。把清除的正负等级分别取绝对值后求和，每级为对方回复 60 点精力。\n② 该次计算的治疗量低于 240 点时，额外删除对方上次所用技能 5 PP。\n③ 回复自身各技能 3 PP，然后清空本招。等待沉脉结算时，本招跳过清念翼系回 PP 与消耗清风之念回满。\n④ 进入清念，时长等于 1 加上本招实际扣费的 PP 和本招随后清空的 PP。\n⑤ 发动时锁定清羽和当时在场的对手，对手换下后仍取其 PP。取发动回合期初至持续期末的技能 PP 总量，各自的净变化取绝对值后相加，乘 0.5 并四舍五入。下一回合双方行动后回复本招。清羽换下暂停，重复发动重新锁定并计时，提前转离清念立即结算。\n⑥ 结算回复后开启 4 回合削弱窗口，跟随当前在场对手。对方出威力招时，按该招原始威力永久削弱 30%，累计上限 50%。出变化招时，该招先手永久减 1，本回合已排定的先后不重排。已造成的削弱持续到战斗结束。",
     onUse: function(u, t, ctx) {
+      const samples = [qingnianPPSample(u, ctx.skillPPCost), qingnianPPSample(t)];
       var total = 0;
       const recipient = skillEffectTarget(ctx, t, "stat");
       [...new Set([u, recipient].filter(Boolean))].forEach(function(p) { STAGE_FIELDS.forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
@@ -202,7 +206,7 @@ const QINGYU_SKILLS = [
       // 玩家裁定：本次常规出招消耗 + 本技能清空消耗，不计其他技能 PP。
       cp += ctx.skillPPCost || 0;
       enterQingyuMode(u, "清念");
-      startQingnianChannel(u, t, 1 + cp, ctx);
+      startQingnianChannel(u, samples, 1 + cp, ctx);
       ctx.msg("进入清念" + (1 + cp) + "回合！");
     } },
 ];

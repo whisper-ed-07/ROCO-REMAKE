@@ -71,26 +71,6 @@ function tickStatusImmunities(pet) {
   }
 }
 
-function clearTurnEffects(pet) {
-  pet.turnEffects = [];
-  pet.statLockedThrough = -1;
-  for (const skill of pet.skills) skill.jianghuaSealedTurns?.clear();
-  if (pet.bloodlineData?.qingnianChannel) delete pet.bloodlineData.qingnianChannel;
-  pet.powerDamageImmuneThroughTurn = -1;
-  pet.qinglingInvertNext = false;
-  pet.qinglingInvertThrough = -1;
-  pet.ppCostEffects?.clear();
-  pet.switchLockSources?.clear();
-  pet.lightWindThroughTurn = -1;
-  pet.lightWindDodgeTurn = -2;
-  pet.futiThrough = -1;
-  endCreation(pet);
-  pet.dimoFrostRecoveryThrough = -1;
-  for (const [source, lock] of pet.statusImmunitySources || []) {
-    if (lock.turnsLeft !== Infinity) revokeStatusImmunity(pet, source);
-  }
-}
-
 function cleanseAbnormalStatuses(pet) {
   pet.status = null;
   pet.statusTurns = 0;

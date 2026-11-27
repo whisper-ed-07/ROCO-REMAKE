@@ -10,7 +10,7 @@ const init = ids => {
   const p = new api.BattlePet({...api.findPet('pet_jydm'), skillIds:ids});
   const a = new api.BattlePet({...api.findPet('pet_qy'), skillIds:['sk_qy_3']});
   const b = new api.BattlePet({...api.findPet('pet_qy'), skillIds:['sk_qy_4']});
-  Object.assign(api.gameState, { playerActive:p, aiActive:a, playerParty:[p], aiParty:[a,b], turnCount:10, messages:[], resolvingTurn:false, weather:null,field:null, pendingFirstMove:'player', banEffects:null, fieldLockedThrough:-1, jianghuaOwners:new Set(), pendingJianghuaByPet:new Map() });
+  Object.assign(api.gameState, { playerActive:p, aiActive:a, playerParty:[p], aiParty:[a,b], turnCount:10, messages:[], resolvingTurn:false, weather:null,field:null, pendingFirstMove:'player', banEffects:null, fieldLockedThrough:-1, jianghuaOwners:new Set(), });
   for (const pet of [p,a,b]) pet.hp = pet.maxHp = 10000;
   return {p,a,b,ctx:api.createBattleContext(),g:api.gameState};
 };
@@ -32,10 +32,11 @@ check('极尽降华保护3回合，真正删空、仍在场才被动', ()=>{
   g.turnCount=0; p.bloodline.onEnter(p);
   g.turnCount=3; assert.equal(ctx.deletePP(p,0,1).length,0);
   g.turnCount=4; assert.equal(ctx.deletePP(p,0,1).length,1);
-  vm.resolveJianghuaDeletions();
   assert.equal(p.bloodlineData.markTarget,a);
   assert.equal(p.skills[0].pp,0);
-  p.skills[0].pp=1;ctx.deletePP(p,0,1);vm.leaveBattlefield(p);vm.resolveJianghuaDeletions();
+  g.playerParty.push(new api.BattlePet({...api.findPet('pet_qy'), skillIds:[]}));
+  vm.executeSwitchAction({ user: p, incoming: g.playerParty[1] }, 'player');
+  p.skills[0].pp=1;ctx.deletePP(p,0,1);
   assert.equal(p.bloodlineData.jianghuaCasts,1);
 });
 check('降华区分6和12回合、外免与累计限伤', ()=>{

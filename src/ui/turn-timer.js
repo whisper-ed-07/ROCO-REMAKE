@@ -1,31 +1,50 @@
 // ---------- TURN TIMER ----------
 var TURN_TIME_LIMIT = 20;
 function startTurnTimer() {
-  stopTurnTimer();
-  if (!canSubmitPlayerAction() || gameState.waitingForSwitch) return;
+  if (!canSubmitPlayerAction()) return;
+  if (gameState.turnTimer !== null && gameState.turnTimer !== undefined) {
+    renderTurnTimer();
+    return;
+  }
   const battleId = gameState.battleId;
+  const round = gameState.turnCount;
+  const deadline = Date.now() + TURN_TIME_LIMIT * 1000;
   gameState.turnTimeLeft = TURN_TIME_LIMIT;
-  var td = document.querySelector("#turn-timer");
-  var fill = document.querySelector("#turn-timer-fill");
-  var txt = document.querySelector("#turn-timer-text");
-  if (td) td.style.display = "flex";
-  gameState.turnTimer = setInterval(function() {
-    gameState.turnTimeLeft--;
-    if (fill) {
-      var pct = (gameState.turnTimeLeft / TURN_TIME_LIMIT) * 100;
-      fill.style.width = pct + "%";
-      fill.className = "turn-timer-fill" + (pct < 10 ? " danger" : pct < 20 ? " warning" : "");
+  renderTurnTimer();
+  const timer = setInterval(function() {
+    if (gameState.turnTimer !== timer || gameState.battleId !== battleId || gameState.turnCount !== round) {
+      clearInterval(timer);
+      return;
     }
-    if (txt) txt.textContent = gameState.turnTimeLeft + "s";
-    if (gameState.turnTimeLeft <= 0) {
-      clearInterval(gameState.turnTimer);
-      if (td) td.style.display = "none";
-      if (!canSubmitPlayerAction() || gameState.waitingForSwitch || gameState.battleId !== battleId) return;
-      const player = gameState.playerActive;
-      if (!player || player.isFainted()) return;
-      const skillIdx = player.skills.findIndex(canSelectSkill);
-      if (skillIdx >= 0) playerUseSkill(skillIdx);
-      else submitPlayerAction(null);
+    gameState.turnTimeLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    renderTurnTimer();
+    if (gameState.turnTimeLeft > 0) return;
+    stopTurnTimer();
+    if (!canSubmitPlayerAction()) return;
+    const player = gameState.playerActive;
+    if (!player || player.isFainted()) return;
+    if (gameState.waitingForSwitch) {
+      gameState.waitingForSwitch = false;
+      battlePresentation.switchSelected?.();
     }
+    const available = player.skills.filter(canSelectSkill);
+    if (!available.length) { submitPlayerAction(null); return; }
+    const move = available[Math.floor(Math.random() * available.length)];
+    addMessage("选招超时，随机选中「" + move.name + "」。");
+    playerUseSkill(player.skills.indexOf(move));
   }, 1000);
+  gameState.turnTimer = timer;
+}
+
+function renderTurnTimer() {
+  const timer = document.querySelector("#turn-timer");
+  const fill = document.querySelector("#turn-timer-fill");
+  const text = document.querySelector("#turn-timer-text");
+  if (timer) timer.style.display = "flex";
+  if (fill) {
+    const pct = gameState.turnTimeLeft / TURN_TIME_LIMIT * 100;
+    fill.style.width = pct + "%";
+    fill.className = "turn-timer-fill" + (pct < 10 ? " danger" : pct < 20 ? " warning" : "");
+  }
+  if (text) text.textContent = gameState.turnTimeLeft + "s";
 }

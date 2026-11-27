@@ -203,7 +203,7 @@ function soloSkillBenefits(skill, context, paid, first) {
     }
     case "sk_ql_3":
       plan.power = Math.min(150, 70 + getWannenPower(user) * 0.2);
-      plan.utility = user.turnEffects.some(effect => effect.name === "封灵千噬") ? 0 : 36;
+      plan.utility = user.skillContinuations.has("sk_ql_3") ? 0 : 36;
       break;
     case "sk_ql_4":
       plan.status = "fear";

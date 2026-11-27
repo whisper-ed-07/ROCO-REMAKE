@@ -744,7 +744,8 @@ test('沉脉按每只在场宠物的期初期末差值，暂停并让削弱跟�
   p.bloodlineData = { mode:'清念' };
   p.skills[0].pp = 0;
   state.roundStartPP = new Map([[p, 10], [a, 2]]);
-  e.sandbox.startQingnianChannel(p, a, 2, e.api.createBattleContext());
+  const samples = [p, a].map(pet => e.sandbox.qingnianPPSample(pet));
+  e.sandbox.startQingnianChannel(p, samples, 2, e.api.createBattleContext());
   a.skills[0].pp = 6;
   e.sandbox.sampleQingnianEndOfRound();
   // 清羽在场合计4点损失，对手合计增加4点。

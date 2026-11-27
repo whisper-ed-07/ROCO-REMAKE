@@ -68,11 +68,10 @@ function confirmOpponentAndBattle() { var allPets = getAllPets(); var aiPets = g
   // R07：清理上一局残留的降华全局状态与延迟效果
   gameState.forceSkillElement = null; gameState.forceSkillElementTurns = 0;
   gameState.jianghuaBuff = null;
-  gameState.jianghuaOwners = new Set(); gameState.pendingJianghuaByPet = new Map();
+  gameState.jianghuaOwners = new Set();
   delete gameState.fieldLockedThrough;
   gameState.wanguHeals = [];
   gameState.qingnianWindows = {};
-  gameState.creationOwners = new Set();
   [gameState.playerParty, gameState.aiParty].forEach(function(party) {
     (party || []).forEach(function(pet) { pet.pendingNilex = null; });
   });

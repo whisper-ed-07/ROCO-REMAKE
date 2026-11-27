@@ -143,10 +143,10 @@ function createBattleContext() {
       if (target) cleanseAbnormalStatuses(target);
     },
     fear: function(target) { return this.applyStatus(target, "fear"); },
-    clearTurnEffects: function(pet) {
-      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.clearTurnEffects(target));
+    interruptSkillContinuations: function(pet) {
+      recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.interruptSkillContinuations(target));
       const target = skillEffectTarget(this, pet, "turn");
-      if (target) clearTurnEffects(target);
+      if (target) interruptSkillContinuations(target);
     },
     forceClearPP: function(pet, source = this.sourceSkill?.name) {
       recordAttemptedNegativeEffect(this, pet, (ctx, target) => ctx.forceClearPP(target));
@@ -250,7 +250,7 @@ function createBattleContext() {
     addTurnEffect: function(target, name, turns, onTick, onExpire) {
       target = skillEffectTarget(this, target, "turn");
       if (!target) return;
-      target.turnEffects.push({ name: name, turnsLeft: turns, onTick: onTick, onExpire: onExpire, createdTurn: gameState.turnCount || 0 });
+      target.turnEffects.push({ name, turnsLeft: turns, onTick, onExpire, createdTurn: gameState.turnCount || 0 });
     },
     saveSnapshot: function() {
       var make = function(party) {
@@ -364,7 +364,7 @@ function createBattleContext() {
       });
       const target = skillEffectTarget(this, pet, "pp");
       if (target && (slot < 0 || target.skills[slot])) {
-        setPPCostEffect(target, source, turns, { ...options, skill: slot < 0 ? undefined : target.skills[slot] });
+        return setPPCostEffect(target, source, turns, { ...options, skill: slot < 0 ? undefined : target.skills[slot] });
       }
     },
     lockSwitch: function(pet, source, turns) {

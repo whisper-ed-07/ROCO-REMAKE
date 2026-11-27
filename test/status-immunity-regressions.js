@@ -65,13 +65,21 @@ test('化念作刃使用当下防控，四回合后到期', () => {
 test('覆体到期后创世之能携带被动仍阻挡睡眠', () => {
   const f=fixture('pet_bmhs',['sk_cszn','sk_fthy']); f.p.bloodline.onTurnStart(f.p,f.ctx); use(f,'sk_fthy'); tick(f,4); blocked(f,'sleep'); permitted(f,'burn');
 });
-test('清翎清除对方有限防控，保留永久防控', () => {
-  function clear(id, ids, permanent) {
-    const f=fixture(id,ids); f.a.bloodlineData={mode:'清念',qfzn:3,turnCount:0};
-    if (permanent) use(f,'sk_ql_1'); use(f,'sk_jydm_3'); blocked(f);
-    use(f,'sk_qy_1',f.a,f.p); if (permanent) blocked(f); else permitted(f);
-  }
-  clear('pet_jydm',['sk_jydm_3'],false); clear('pet_qingling',['sk_ql_1'],true);
+test('清翎打断化念，光幕防控和速度依然按时到期', () => {
+  const f = fixture('pet_jydm', ['sk_jydm_2', 'sk_jydm_3']);
+  f.a.bloodlineData = { mode: '清念', qfzn: 3 };
+  use(f, 'sk_jydm_3');
+  use(f, 'sk_jydm_2');
+  assert.ok(f.e.sandbox.isEjectImmune(f.p));
+  use(f, 'sk_qy_1', f.a, f.p);
+  assert.equal(f.p.statusImmunitySources.has('化念作刃'), false);
+  assert.equal(f.e.sandbox.isEjectImmune(f.p), false);
+  assert.equal(f.a.ppCostEffects.has('化念中段'), false);
+  blocked(f);
+  assert.equal(f.p.spdMod, 1.05);
+  tick(f, 5);
+  permitted(f);
+  assert.equal(f.p.spdMod, 1);
 });
 test('残脉反弹冰冻时攻击者的光幕防控生效', () => {
   const f=fixture('pet_jydm',['sk_jydm_3']);

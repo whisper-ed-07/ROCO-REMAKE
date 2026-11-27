@@ -26,7 +26,7 @@ function setQingyuOriginalBloodline(pet, active) {
 function enterQingyuMode(pet, mode) {
   var bd = pet.bloodlineData || (pet.bloodlineData = { turnCount: 0, qfzn: 0, healCount: 0 });
   var previous = bd.mode;
-  if (previous === "清念" && mode !== "清念" && bd.qingnianChannel) finishQingnianChannel(pet, true);
+  if (previous === "清念" && mode !== "清念" && bd.qingnianChannel && !bd.qingnianChannel.due) finishQingnianChannel(pet, true);
   bd.mode = mode;
   bd.modeEntered = true;
   if (pet.bloodline?.name === "清念/残脉") setQingyuOriginalBloodline(pet, false);
@@ -233,37 +233,29 @@ function jianghuaBlocksSummon(ctx, kind) {
   return true;
 }
 
-function recoverFromJianghuaDeletion(target, changes) {
-  if (target.bloodline?.name !== "明念" || target.isFainted() ||
-      ![gameState.playerActive, gameState.aiActive].includes(target)) return;
-  const entry = changes.find(change => change.skill.id === "sk_jydm_1" && change.skill.pp === 0);
-  if (entry) (gameState.pendingJianghuaByPet ||= new Map()).set(target, entry.skill);
-}
-
-function resolveJianghuaDeletions() {
-  const queued = gameState.pendingJianghuaByPet || new Map();
-  gameState.pendingJianghuaByPet = new Map();
-  for (const [pet, skill] of queued) {
-    const target = getActiveOpponent(pet);
-    if (pet.isFainted() || !target || target.isFainted()) continue;
-    const ctx = createBattleContext();
-    ctx.sourceSkill = skill;
-    ctx.sourceSkillOwner = pet;
-    ctx.isPassive = true;
-    const breakdown = isDeveloperBattle() ? {} : null;
-    const extra = getRequiredPPCost(pet, skill, breakdown) - 1;
-    if (extra > 0) {
-      const value = Math.max(0, skill.pp - extra);
-      setSkillPP(pet, skill, value, "被动发动额外扣费", "极尽降华",
-        breakdown ? describePPCost(breakdown, extra, skill.pp - value) : undefined);
-    }
-    recordRoundSkillUse({ user: pet, skill, effectivePriority: getSkillPriority(skill) }, target);
-    recordDimoSkillRound(pet, skill);
-    applyQingnianSuppression(pet, skill);
-    addMessage("【极尽降华】PP被删除，被动发动！");
-    skill.onUse(pet, target, ctx);
-    pet.bloodline?.onActionEnd?.(pet, target, ctx, skill);
+function recoverFromJianghuaDeletion(pet, changes) {
+  if (pet.bloodline?.name !== "明念" || pet.isFainted()) return;
+  const target = getActiveOpponent(pet);
+  if (!target || target.isFainted()) return;
+  const skill = changes.find(change => change.skill.id === "sk_jydm_1" && change.skill.pp === 0)?.skill;
+  if (!skill) return;
+  const ctx = createBattleContext();
+  ctx.sourceSkill = skill;
+  ctx.sourceSkillOwner = pet;
+  ctx.isPassive = true;
+  const breakdown = isDeveloperBattle() ? {} : null;
+  const extra = getRequiredPPCost(pet, skill, breakdown) - 1;
+  if (extra > 0) {
+    const paid = Math.min(skill.pp, extra);
+    setSkillPP(pet, skill, skill.pp - paid, "被动发动额外扣费", "极尽降华",
+      breakdown ? describePPCost(breakdown, extra, paid) : undefined);
   }
+  recordRoundSkillUse({ user: pet, skill, effectivePriority: getSkillPriority(skill) }, target);
+  recordDimoSkillRound(pet, skill);
+  applyQingnianSuppression(pet, skill);
+  addMessage("【极尽降华】PP被删除，被动发动！");
+  skill.onUse(pet, target, ctx);
+  pet.bloodline?.onActionEnd?.(pet, target, ctx, skill);
 }
 
 function resolveNilexFollowup(user, target, ctx, pending) {
@@ -290,7 +282,7 @@ function endCreation(pet) {
   delete data.creationTarget;
   for (const [recipient, source] of data.creationCosts || []) recipient.ppCostEffects?.delete(source);
   delete data.creationCosts;
-  gameState.creationOwners?.delete(pet);
+  pet.skillContinuations.delete("sk_cszn");
 }
 
 function creationPP(pet, opponent, ctx) {
@@ -300,27 +292,17 @@ function creationPP(pet, opponent, ctx) {
   }
 }
 
-function processCreationRounds() {
-  const ctx = createBattleContext();
-  for (const owner of gameState.creationOwners || []) {
-    const data = owner.bloodlineData;
-    if (owner.isFainted() || gameState.turnCount > data.creationThrough) {
-      endCreation(owner);
-      continue;
-    }
-    const opponent = getActiveOpponent(owner);
-    if (!opponent || gameState.turnCount < data.creationThrough - 1) continue;
-    creationPP(owner, opponent, ctx);
-    if (gameState.turnCount === data.creationThrough - 1) {
-      ctx.transformStages(owner, () => 0);
-      ctx.transformStages(opponent, () => 0);
-      gainPP(owner, owner.skills[0], Infinity, "sk_cszn", "创世之能·次回合");
-    } else {
-      const cap = owner.maxHp + (owner.maxHpBonus || 0);
-      if (owner.hp < cap * 0.3) ctx.doHeal(owner, Math.floor((cap - owner.hp) * 0.7));
-      const skill = owner.skills.find(item => item.id === "sk_cszn");
-      if (skill) setSkillPP(owner, skill, 0, "清空自身 PP", "创世之能·末回合", "当前精力 " + owner.hp + "/" + cap);
-    }
+function resolveCreationStage(owner, opponent, stage, ctx) {
+  creationPP(owner, opponent, ctx);
+  if (stage === 2) {
+    ctx.transformStages(owner, () => 0);
+    ctx.transformStages(opponent, () => 0);
+    gainPP(owner, owner.skills[0], Infinity, "sk_cszn", "创世之能·次回合");
+  } else {
+    const cap = owner.maxHp + (owner.maxHpBonus || 0);
+    if (owner.hp < cap * 0.3) ctx.doHeal(owner, Math.floor((cap - owner.hp) * 0.7));
+    const skill = owner.skills.find(item => item.id === "sk_cszn");
+    if (skill) setSkillPP(owner, skill, 0, "清空自身 PP", "创世之能·末回合", "当前精力 " + owner.hp + "/" + cap);
   }
 }
 
@@ -343,43 +325,32 @@ function totalSkillPP(pet) {
   return pet.skills.reduce((sum, skill) => sum + skill.pp, 0);
 }
 
-function startQingnianChannel(owner, opponent, turns, ctx) {
+function qingnianPPSample(pet, paidPP = 0) {
+  const previous = gameState.roundStartPP?.get(pet) ?? totalSkillPP(pet) + paidPP;
+  return { pet, previous, change: 0 };
+}
+
+function startQingnianChannel(owner, samples, turns, ctx) {
   const data = owner.bloodlineData ||= {};
-  const samples = new Map();
   const channel = data.qingnianChannel = { samples, attackingPlayer: gameState.playerActive === owner };
-  for (const pet of [owner, opponent]) {
-    const total = totalSkillPP(pet);
-    const first = gameState.roundStartPP?.get(pet) ?? total + (pet === owner ? ctx.skillPPCost || 0 : 0);
-    samples.set(pet, { net: 0, first, last: total });
-  }
   owner.turnEffects = owner.turnEffects.filter(effect => effect.name !== "清念沉脉");
   ctx.addTurnEffect(owner, "清念沉脉", turns, null, () => {
-    if (data.qingnianChannel === channel) finishQingnianChannel(owner, false);
+    channel.due = true;
   });
 }
 
-function beginQingnianSample(channel, pet) {
-  if (!pet) return;
-  const total = totalSkillPP(pet);
-  const sample = channel.samples.get(pet) || { net: 0 };
-  if (sample.first !== undefined) return;
-  sample.first = sample.last = total;
-  channel.samples.set(pet, sample);
-}
-
-function closeQingnianSample(sample, pet) {
-  if (sample.first === undefined) return;
-  sample.net += sample.first - totalSkillPP(pet);
-  delete sample.first;
+function updateQingnianSamples(channel, resume = false) {
+  if (!channel || channel.due) return;
+  for (const sample of channel.samples) {
+    const current = totalSkillPP(sample.pet);
+    if (!resume) sample.change += current - sample.previous;
+    sample.previous = current;
+  }
 }
 
 function sampleQingnianEndOfRound() {
   for (const owner of [gameState.playerActive, gameState.aiActive]) {
-    const data = owner?.bloodlineData?.qingnianChannel;
-    if (!data) continue;
-    for (const [pet, sample] of data.samples) {
-      if (sample.first !== undefined) sample.last = totalSkillPP(pet);
-    }
+    updateQingnianSamples(owner?.bloodlineData?.qingnianChannel);
   }
 }
 
@@ -389,33 +360,19 @@ function finishQingnianChannel(owner, useCurrentPP) {
   if (!channel) return;
   delete data.qingnianChannel;
   owner.turnEffects = owner.turnEffects.filter(effect => effect.name !== "清念沉脉");
-  let loss = 0;
-  for (const [pet, sample] of channel.samples) {
-    const change = sample.first === undefined ? 0 : sample.first - (useCurrentPP ? totalSkillPP(pet) : sample.last);
-    loss += Math.abs(sample.net + change);
+  if (useCurrentPP) updateQingnianSamples(channel);
+  const loss = channel.samples.reduce((sum, sample) => sum + Math.abs(sample.change), 0);
+  if (isDeveloperBattle()) {
+    const changes = channel.samples.map(({pet, change}) =>
+      (pet === owner ? "施放者" : "锁定对手") + pet.name + " " + (change > 0 ? "+" : "") + change + " PP");
+    addMessage("【清念沉脉】锁定双方的 PP 净变化：" + changes.join("、") + "，应回复 " + Math.round(loss / 2) + " PP。");
   }
   const restored = gainPP(owner, owner.skills.find(skill => skill.id === "sk_qy_5"), Math.round(loss / 2), undefined, "清念沉脉·期满");
   const targetSide = channel.attackingPlayer ? "aiActive" : "playerActive";
-  const until = gameState.turnCount + 3;
+  const until = gameState.turnCount + (useCurrentPP ? 3 : 4);
   gameState.qingnianWindows[targetSide] = until;
   if (gameState[targetSide]) gameState[targetSide].qingnianWindowEnd = until;
   addMessage("清念沉脉结束，回复" + restored + "PP，开启4回合出招削弱窗口。");
-}
-
-function trackQingnianSwitch(pet, leaving) {
-  const active = [gameState.playerActive, gameState.aiActive];
-  for (const owner of active) {
-    const channel = owner?.bloodlineData?.qingnianChannel;
-    if (!channel) continue;
-    if (leaving) {
-      for (const [samplePet, sample] of channel.samples) {
-        if (owner === pet || samplePet === pet) closeQingnianSample(sample, samplePet);
-      }
-    } else {
-      const involved = owner === pet ? active : [pet];
-      for (const entrant of involved) beginQingnianSample(channel, entrant);
-    }
-  }
 }
 
 function setSkillElement(pet, source, element, turns) {
@@ -456,6 +413,46 @@ function applyQingnianSuppression(pet, skill) {
   } else {
     skill.qingnianPowerLoss = Math.min(0.5, (skill.qingnianPowerLoss || 0) + 0.3);
     addMessage("【清念沉脉】" + pet.name + " 的" + skill.name + "威力永久削弱" + Math.round(skill.qingnianPowerLoss * 100) + "%！");
+  }
+}
+
+function startSkillContinuation(owner, skillId, turns, onUse, onEnd) {
+  const turn = gameState.turnCount;
+  owner.skillContinuations.set(skillId, { start: turn, through: turn + turns - 1, lastUse: turn, onUse, onEnd });
+}
+
+function endSkillContinuation(owner, skillId) {
+  const sequence = owner.skillContinuations.get(skillId);
+  if (!sequence) return;
+  owner.skillContinuations.delete(skillId);
+  sequence.onEnd();
+}
+
+function interruptSkillContinuations(owner) {
+  for (const skillId of owner.skillContinuations.keys()) {
+    endSkillContinuation(owner, skillId);
+    addMessage("【打断】" + owner.name + "的「" + findSkill(skillId).name + "」提前结束。");
+  }
+}
+
+function triggerSkillContinuations(owner, move) {
+  const turn = gameState.turnCount;
+  for (const [skillId, sequence] of owner.skillContinuations) {
+    if (skillId === move.id || turn <= sequence.lastUse || turn > sequence.through) continue;
+    const target = getActiveOpponent(owner);
+    if (owner.isFainted() || !target || target.isFainted()) return;
+    sequence.lastUse = turn;
+    const stage = turn - sequence.start + 1;
+    addMessage("【" + move.name + "】带出「" + findSkill(skillId).name + "」第 " + stage + " 回合效果。");
+    sequence.onUse(stage, target);
+  }
+}
+
+function finishSkillContinuations() {
+  for (const owner of gameState.playerParty.concat(gameState.aiParty)) {
+    for (const [skillId, sequence] of owner.skillContinuations) {
+      if (gameState.turnCount >= sequence.through || owner.isFainted()) endSkillContinuation(owner, skillId);
+    }
   }
 }
 

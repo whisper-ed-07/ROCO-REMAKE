@@ -2,7 +2,7 @@ const DIMO_SKILLS = [
   { id: "sk_jydm_1", name: "极尽降华", element: "normal", power: 0, pp: 1, maxPp: 1, accuracy: 100, category: "status", priority: 15,
     ppRecoverySource: ["化念作刃清印", "瞬华若霜冰冻"], passiveLabel: "被动发动",
     desc: "使双方技能暂时变为光系，提高全场回复和输出。发动回合免疫外来效果，持续限伤并封禁原为神系的伤害来源技能。上场前三回合免删，删空可被动发动。",
-    detail: "① 每次上场后的前三回合免疫删 PP。被删至 0 PP 时，若仍在场且存活，回合末被动发动并触发明念。只有化念作刃清印回首格，或瞬华若霜满足冰冻与印记条件回首格，才能回复本招 PP。\n② 双方队伍所有技能视为光系 6 回合，发动时被自身标记的目标单独持续 12 回合。6 回合内双方全队的精力回复和输出伤害各提高 100%，自身免疫异常与负面强化，场地锁定为无天气、无环境。\n③ 发动回合免疫外来的正面与负面效果，自身效果照常。对手同一只宠物在本次降华期间第 3 次尝试召唤天气或环境时受到 999 点固伤。\n④ 首次发动回满精力和其他可回复技能的 PP，后续回复量为上次的 85%。每回合累计承伤上限初始为 300 点，每次再发动降低 20 点，最低为 100 点。\n⑤ 若受到原为神水、神火或神草的技能造成的实际伤害，该来源技能下一回合无法使用。同一回合该招多段伤害只算一次封技。限伤与封技合计每触发两次，获得 1 层光明之印。",
+    detail: "① 每次上场后的前三回合免疫删 PP。被删至 0 PP 时，若仍在场且存活，当即被动发动并触发明念，本回合已选的行动继续执行。只有化念作刃清印回首格，或瞬华若霜满足冰冻与印记条件回首格，才能回复本招 PP。\n② 双方队伍所有技能视为光系 6 回合，发动时被自身标记的目标单独持续 12 回合。6 回合内双方全队的精力回复和输出伤害各提高 100%，自身免疫异常与负面强化，场地锁定为无天气、无环境。\n③ 发动回合免疫外来的正面与负面效果，自身效果照常。对手同一只宠物在本次降华期间第 3 次尝试召唤天气或环境时受到 999 点固伤。\n④ 首次发动回满精力和其他可回复技能的 PP，后续回复量为上次的 85%。每回合累计承伤上限初始为 300 点，每次再发动降低 20 点，最低为 100 点。\n⑤ 若受到原为神水、神火或神草的技能造成的实际伤害，该来源技能下一回合无法使用。同一回合该招多段伤害只算一次封技。限伤与封技合计每触发两次，获得 1 层光明之印。",
     onUse: function(u, t, ctx) {
       const bd = mingnianData(u);
       const turn = gameState.turnCount;
@@ -35,8 +35,9 @@ const DIMO_SKILLS = [
     } },
   { id: "sk_jydm_2", name: "化念作刃", element: "fighting", power: 90, pp: 9, maxPp: 9, accuracy: 100, category: "physical", priority: 11,
     desc: "先手时按对方的实际出招结算闪避。后手删对方先手招 3 PP，并施加双损。四回合内回复自身，按明念标记触发额外固伤和 PP 效果。",
-    detail: "① 先手时，闪避对方后手常规非必中招式，闪避成功则本次物攻按 +2 级结算。若对方实际出招且无法闪避，倒置双方强化并删除对方各技能 2 PP。对方未出招时跳过闪避判定。\n② 后手时，删除对方本回合先手所用技能 3 PP，并使对方后续 4 回合获得双损，每次出招多消耗 1 PP。\n③ 4 回合内免疫异常与驱逐，每回合回复 30% 最大精力，并为上次被删 PP 的各技能回复 1 PP。\n④ 首段攻击标记目标时，追加（0.4 × 对方上回合输出 × 对方各项强化绝对级数之和）点固伤，自身永久免疫驱逐。光明之印少于 4 层时，对方各技能额外损失 1 PP，本次暴击则再删各 1 PP。至少 4 层时追加 999 点固伤，清除印记并回满首格，可回复极尽降华。\n⑤ 次回合与再次回合，对方技能的基础 PP 消耗翻倍，各项强化向零缩减 30%，并受到 60 点固伤。对方被标记时改为缩减 36% 并造成 72 点固伤。每回合回复自身第 2 格 1 PP，该格若是极尽降华则改回第 3 格。\n⑥ 末回合，若对方仍被标记、有至少两项负面强化且光明之印超过 2 层，追加（200 + 60% × 对方当前精力）点固伤。",
+    detail: "① 先手时，闪避对方后手常规非必中招式，闪避成功则本次物攻按 +2 级结算。若对方实际出招且无法闪避，倒置双方强化并删除对方各技能 2 PP。对方未出招时跳过闪避判定。\n② 后手时，删除对方本回合先手所用技能 3 PP，并使对方后续 4 回合获得双损，每次出招多消耗 1 PP。\n③ 4 回合内免疫异常与驱逐，每回合回复 30% 最大精力，并为上次被删 PP 的各技能回复 1 PP。后续各段由迪莫使用其他技能带出。\n④ 首段攻击标记目标时，追加（0.4 × 对方上回合输出 × 对方各项强化绝对级数之和）点固伤，自身永久免疫驱逐。光明之印少于 4 层时，对方各技能额外损失 1 PP，本次暴击则再删各 1 PP。至少 4 层时追加 999 点固伤，清除印记并回满首格，可回复极尽降华。\n⑤ 次回合与再次回合，对方技能的基础 PP 消耗翻倍，各项强化向零缩减 30%，并受到 60 点固伤。对方被标记时改为缩减 36% 并造成 72 点固伤。每回合回复自身第 2 格 1 PP，该格若是极尽降华则改回第 3 格。\n⑥ 末回合，若对方仍被标记、有至少两项负面强化且光明之印超过 2 层，追加（200 + 60% × 对方当前精力）点固伤。",
     onUse: function(u, t, ctx) {
+      endSkillContinuation(u, "sk_jydm_2");
       ctx.grantStatusImmunity(u, "化念作刃", 4, { statuses: ABNORMAL_WITHOUT_BIND });
       const through = gameState.turnCount + 3;
       u.dimoEjectImmuneThrough = Math.max(u.dimoEjectImmuneThrough ?? -1, through);
@@ -45,24 +46,24 @@ const DIMO_SKILLS = [
         ctx.doHeal(p, Math.floor((p.maxHp + (p.maxHpBonus || 0)) * 0.3));
       };
       recover(u);
-      ctx.addTurnEffect(u, "化念作刃持续", 3, function(p) {
-        recover(p);
-        const opponent = getActiveOpponent(p);
-        if (opponent && gameState.turnCount === through &&
-            p.bloodlineData?.markTarget === opponent && p.bloodlineData.marks > 2 &&
-            STAGE_FIELDS.filter(key => opponent[key] < 0).length >= 2) {
-          ctx.doFixedDamage(opponent, 200 + Math.floor(0.6 * opponent.hp), p);
+      const removeMiddleCost = ctx.setPPCostEffect(t, "化念中段", 3, { multiplier: 2 });
+      startSkillContinuation(u, "sk_jydm_2", 4, function(stage, opponent) {
+        recover(u);
+        const marked = isMingnianMarked(u) && u.bloodlineData.markTarget === opponent;
+        if (stage === 4) {
+          if (marked && u.bloodlineData.marks > 2 && STAGE_FIELDS.filter(key => opponent[key] < 0).length >= 2) {
+            ctx.doFixedDamage(opponent, 200 + Math.floor(0.6 * opponent.hp), u);
+          }
+          return;
         }
-      });
-      ctx.setPPCostEffect(t, "化念中段", 3, { multiplier: 2 });
-      ctx.addTurnEffect(u, "化念作刃削", 2, function(p) {
-        const opponent = getActiveOpponent(p);
-        if (!opponent) return;
-        const marked = isMingnianMarked(p) && p.bloodlineData.markTarget === opponent;
         ctx.transformStages(opponent, value => Math.trunc(value * (marked ? 0.64 : 0.7)));
-        const slot = p.skills[1]?.id === "sk_jydm_1" ? 2 : 1;
-        gainPP(p, p.skills[slot], 1, "sk_jydm_2");
-        ctx.doFixedDamage(opponent, marked ? 72 : 60, p);
+        const slot = u.skills[1]?.id === "sk_jydm_1" ? 2 : 1;
+        gainPP(u, u.skills[slot], 1, "sk_jydm_2");
+        ctx.doFixedDamage(opponent, marked ? 72 : 60, u);
+      }, () => {
+        ctx.revokeStatusImmunity(u, "化念作刃");
+        u.dimoEjectImmuneThrough = -1;
+        removeMiddleCost?.();
       });
       const first = gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai");
       if (first && ctx.skillAction && gameState.resolvingTurn) {

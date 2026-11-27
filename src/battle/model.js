@@ -38,6 +38,7 @@ class BattlePet {
     this.leechSeed = false; this.confuseTurns = 0; this.bindTurns = 0;
     // V2 fields
     this.shield = 0; this.marks = {}; this.turnEffects = [];
+    this.skillContinuations = new Map();
     this.qlSealMark = false;
     this.bloodline = petData.bloodline || null; this.bloodlineData = null;
     this.healMod = 1.0; this.dmgMod = 1.0; this.spdMod = 1.0;

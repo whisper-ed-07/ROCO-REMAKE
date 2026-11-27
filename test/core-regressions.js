@@ -98,7 +98,7 @@ test('R06 无存活后备的神钟受到致死段时扣 PP、倒下并判负', (
   assert.strictEqual(e.api.gameState.battleOver, true);
 });
 test('R07 新局清除降华全局状态', () => {
-  const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); e.api.findSkill('sk_jydm_1').onUse(p,a,e.api.createBattleContext()); e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); assert.strictEqual(e.api.gameState.forceSkillElement,null); assert.strictEqual(e.api.gameState.jianghuaBuff,null); assert.strictEqual(e.api.gameState.pendingJianghuaByPet?.size || 0,0);
+  const e=env(), p=built(e,'pet_jydm',jids), a=pet(e,'a'); setup(e,p,a); e.api.findSkill('sk_jydm_1').onUse(p,a,e.api.createBattleContext()); e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); assert.strictEqual(e.api.gameState.forceSkillElement,null); assert.strictEqual(e.api.gameState.jianghuaBuff,null);
 });
 test('R08 旧局自动跳过回调不能推进新局', () => {
   const e=loadEngine(html,{seed:55}), p=pet(e,'p'), a=pet(e,'a'); setup(e,p,a); p.status='sleep'; p.statusTurns=3; e.sandbox.renderBattleActions(); for(const k of ['renderBattleActions','renderBattle','updateBattleUI','spawnFloatText','showScreen']) e.sandbox[k]=()=>{}; e.api.gameState.selectedTeamIds=['pet_qy']; e.sandbox.startBattle(); e.api.gameState.opponentTeamIds=['pet_jydm']; e.sandbox.confirmOpponentAndBattle(); e.clock.advance(800); assert.strictEqual(e.api.gameState.turnCount,0);
@@ -146,10 +146,60 @@ test('沉脉保持零 PP 等待自身结算，结算后开启削弱窗口', () =
   while (e.api.gameState.turnCount < 8) turn(e, -1, -1);
   assert.strictEqual(channel.pp, 0);
   assert.strictEqual(a.qingnianWindowEnd, undefined);
-  turn(e, -1, -1);
+  const observed = [];
+  a.skills[0].pp = a.skills[0].maxPp;
+  a.skills[0].onUse = () => observed.push(channel.pp);
+  turn(e, -1, 0);
+  assert.deepEqual(observed, [0], '第九回合实际行动时仍未回复');
+  assert.equal(a.skills[0].qingnianPriorityLoss, undefined);
   assert.ok(channel.pp > 0, '自身结算回复 PP');
   assert.strictEqual(p.bloodlineData.qingnianChannel, undefined);
-  assert.strictEqual(a.qingnianWindowEnd, 12);
+  assert.strictEqual(a.qingnianWindowEnd, 13);
+  for (let round = 10; round <= 14; round++) {
+    a.skills[0].pp = a.skills[0].maxPp;
+    turn(e, -1, 0);
+    assert.equal(a.skills[0].qingnianPriorityLoss, Math.min(round - 9, 4));
+  }
+});
+
+test('沉脉后手锁定刚换上来的对手，计入发动当回合删掉的 5 PP', () => {
+  const e = env(), q = built(e, 'pet_qy', ['sk_qy_5']);
+  const outgoing = pet(e, 'outgoing'), incoming = pet(e, 'incoming');
+  setup(e, outgoing, q);
+  const state = e.api.gameState;
+  Object.assign(incoming.skills[0], { pp: 8, maxPp: 8 });
+  incoming.lastUsedSkillId = incoming.skills[0].id;
+  state.playerParty.push(incoming);
+  Object.assign(state, { field: 'dream', fieldTurns: 2, pendingPlayerAction: { kind: 'switch', user: outgoing, incoming } });
+  turn(e, -1, 0);
+  assert.equal(incoming.skills[0].pp, 3);
+  while (state.turnCount < 9) turn(e, -1, -1);
+  assert.equal(q.skills[0].pp, 6, '双方分别减少 6 和 5，11 ÷ 2 四舍五入为 6');
+});
+
+test('沉脉先手锁定离场的原对手，按第八回合末的场下 PP 结算', () => {
+  const e = env(), q = built(e, 'pet_qy', ['sk_qy_5']);
+  const locked = pet(e, 'locked'), incoming = pet(e, 'incoming');
+  setup(e, locked, q);
+  const state = e.api.gameState;
+  Object.assign(locked.skills[0], { pp: 8, maxPp: 8 });
+  locked.lastUsedSkillId = locked.skills[0].id;
+  state.playerParty.push(incoming);
+  state.pendingPlayerAction = { kind: 'switch', user: locked, incoming };
+  turn(e, -1, 0);
+  assert.equal(state.playerActive, incoming);
+  assert.equal(locked.skills[0].pp, 3);
+  while (state.turnCount < 7) turn(e, -1, -1);
+  incoming.skills[0].onUse = () => e.sandbox.gainPP(locked, locked.skills[0], 3);
+  turn(e, 0, -1);
+  assert.equal(locked.skills[0].pp, 6);
+  incoming.skills[0].onUse = () => e.api.createBattleContext().deletePP(locked, 0, 6);
+  turn(e, 0, -1);
+  assert.equal(locked.skills[0].pp, 0);
+  assert.equal(q.skills[0].pp, 4, '第八回合末清羽少 6、锁定对手少 2，替补扣费与第九回合删 PP 均不计');
+  turn(e, 0, -1);
+  assert.equal(incoming.skills[0].qingnianPriorityLoss, 1);
+  assert.equal(locked.skills[0].qingnianPriorityLoss, undefined);
 });
 
 test('清念低 PP 回满需要非零 PP 与至少一层清风之念', () => {
@@ -204,14 +254,14 @@ test('创世神钟受威力伤害后封锁攻击者下一回合血脉与回合�
   assert.equal(e.sandbox.gainPP(p,p.skills[0],1),1);
 });
 
-// 让持续期在第二个提交回合开场结束：第一回合在窗口前，第二至第五回合为窗口。
+// 压缩计时，让第一回合双方行动后结算，第二至第五回合为窗口。
 function qingnianFixture(enemySkills) {
   const e=env(), order=[];
   const p=pet(e,'owner',skill('owner-idle',()=>order.push('owner'),8,30),200), a=pet(e,'enemy',null,80);
   p.skills[0].maxPp=30; p.skills.push({...e.api.findSkill('sk_qy_5')}); a.skills=enemySkills; setup(e,p,a);
   p.maxHp=p.hp=100000; a.maxHp=a.hp=100000; e.myMath.random=()=>0.5;
   p.skills[1].onUse(p,a,e.api.createBattleContext());
-  p.turnEffects.find(x=>x.name==='清念沉脉').turnsLeft=2;
+  p.turnEffects.find(x=>x.name==='清念沉脉').turnsLeft=1;
   return {e,p,a,order};
 }
 function powerSkill(id, damageLog, fixedLog) {
@@ -266,11 +316,26 @@ test('沉脉对未命中出招生效，但零PP或受控取消的行动不触发
   s.pp=0; e.api.executeSkillTurn(p,a,s,'player'); assert.strictEqual(s.qingnianPowerLoss,0.3);
   s.pp=2; p.status='sleep'; e.api.executeSkillTurn(p,a,s,'player'); assert.strictEqual(s.qingnianPowerLoss,0.3);
 });
-test('原文明确为被动使用的极尽降华也触发沉脉', () => {
-  const e=env(), p=pet(e,'p'), a=built(e,'pet_jydm',['sk_jydm_1','sk_jydm_2','sk_jydm_3','sk_jydm_4']); setup(e,p,a);
-  a.qingnianWindowEnd=4; for(const x of [p,a]) { x.status='sleep'; x.statusTurns=1; }
-  e.api.createBattleContext().deletePP(a,0,1); assert.strictEqual(e.api.gameState.pendingJianghuaByPet.get(a),a.skills[0]);
-  turn(e); assert.strictEqual(a.skills[0].qingnianPriorityLoss,1); assert.strictEqual(e.api.gameState.pendingJianghuaByPet?.size || 0,0);
+test('先手或后手删空都立即发动降华，正常行动与沉脉削弱照常结算', () => {
+  for (const priority of [15, 5]) {
+    const e = env(), order = [];
+    const p = pet(e, 'p', skill('删降华', (owner, target, ctx) => {
+      order.push('删前');
+      ctx.deletePP(target, 0, 1);
+      assert.equal(target.bloodlineData.jianghuaCasts, 1);
+      order.push('删后');
+      ctx.applyStatus(target, 'freeze');
+      assert.equal(target.status, null);
+    }, priority));
+    const a = built(e, 'pet_jydm', ['sk_jydm_1']);
+    a.skills.push(skill('已选招', () => order.push('正常出招')));
+    setup(e, p, a);
+    a.qingnianWindowEnd = 4;
+    turn(e, 0, 1);
+    assert.deepEqual(order, priority === 15 ? ['删前','删后','正常出招'] : ['正常出招','删前','删后']);
+    assert.equal(a.skills[0].qingnianPriorityLoss, 1);
+    assert.equal(a.skills[1].useCount, 1);
+  }
 });
 
 function microSealFixture() {
@@ -291,6 +356,96 @@ function microSealFixture() {
   return { e, p, a, attack, hits };
 }
 
+test('20 秒超时从可用招随机选一格，打开换宠与刷新动作栏都不延时', () => {
+  for (const [random, expected] of [[0, '左'], [0.99, '右']]) {
+    const e = env(), p = pet(e, 'p'), a = pet(e, 'a', null);
+    const actions = [];
+    p.skills = ['空', '左', '封', '右'].map(name => skill(name, () => actions.push(name)));
+    p.skills[0].pp = 0;
+    p.skills[2].jianghuaSealedTurns = new Set([1]);
+    setup(e, p, a);
+    const state = e.api.gameState;
+    state.isPlayerTurn = true;
+    state.playerParty.push(pet(e, 'bench'));
+    e.sandbox.Date = class extends Date { static now() { return e.clock.now(); } };
+    e.myMath.random = () => random;
+    e.sandbox.startTurnTimer();
+    e.clock.advance(15000);
+    e.sandbox.showSwitchPanel();
+    assert.equal(state.waitingForSwitch, true);
+    e.sandbox.startTurnTimer();
+    e.clock.advance(4999);
+    assert.equal(state.turnCount, 0);
+    e.clock.advance(1);
+    assert.deepEqual(actions, [expected]);
+    assert.equal(state.waitingForSwitch, false);
+    assert.equal(state.playerActive, p);
+    assert.equal(p.skills.find(move => move.name === expected).pp, 4);
+    assert.ok(state.messages.some(message => message.text.includes('选招超时，随机选中「' + expected + '」')));
+  }
+});
+
+test('手动选招先于截止时，旧倒计时不会再提交一次', () => {
+  const e = env(), p = pet(e, 'p'), a = pet(e, 'a', null);
+  setup(e, p, a);
+  e.api.gameState.isPlayerTurn = true;
+  e.sandbox.Date = class extends Date { static now() { return e.clock.now(); } };
+  e.sandbox.startTurnTimer();
+  e.clock.advance(19999);
+  e.api.playerUseSkill(0);
+  e.clock.advance(1);
+  assert.equal(e.api.gameState.turnCount, 1);
+  assert.equal(p.skills[0].pp, 4);
+});
+
+for (const [petId, source, name] of [
+  ['pet_qy', 'sk_qy_2', '轻风散魂'], ['pet_qingling', 'sk_ql_3', '封灵千噬'],
+  ['pet_jydm', 'sk_jydm_2', '化念作刃'], ['pet_bmhs', 'sk_cszn', '创世之能']
+]) {
+  test(name + '只由其他出招带出当回合的段数，清翎先手可以打断', () => {
+    for (const interrupt of [false, true]) {
+      const e = env(), p = built(e, petId, [source]), q = built(e, 'pet_qy', ['sk_qy_1']);
+      setup(e, p, q);
+      p.bloodline = q.bloodline = null;
+      p.bloodlineData = { mode: '清念', qfzn: 1 };
+      q.bloodlineData = { mode: '清念', qfzn: 3 };
+      p.hp = p.maxHp = q.hp = q.maxHp = 10000;
+      q.element = 'normal';
+      p.skills.push(skill('引招', () => {}));
+      turn(e, 0, -1);
+      assert.ok(p.skillContinuations.has(source));
+      turn(e, interrupt ? 1 : -1, interrupt ? 0 : -1);
+      assert.equal(p.skillContinuations.has(source), !interrupt);
+      turn(e, 1, -1);
+      const messages = e.api.gameState.messages.map(m => m.text);
+      assert.equal(messages.some(text => text.includes('带出「' + name + '」第 2')), false);
+      assert.equal(messages.some(text => text.includes('【引招】带出「' + name + '」第 3')), !interrupt);
+      if (source === 'sk_ql_3') {
+        assert.equal(messages.some(text => text.includes('封灵千噬末回合：回复')), !interrupt);
+      }
+      if (source === 'sk_cszn') {
+        assert.equal(p.skills[0].pp, interrupt ? 2 : 0);
+        assert.equal(p.creationSpeedSources.size, 0);
+        assert.equal(q.creationSpeedSources.size, 0);
+        assert.equal(p.bloodlineData.creationActive, false);
+      }
+    }
+  });
+}
+
+test('清翎打断保留清念沉脉，清羽镜像仍能走完取样和回复', () => {
+  const e = env(), p = built(e, 'pet_qy', ['sk_qy_5']), q = built(e, 'pet_qy', ['sk_qy_1']);
+  setup(e, p, q);
+  q.bloodlineData = { mode: '清念', qfzn: 3 };
+  turn(e, 0, -1);
+  turn(e, -1, 0);
+  assert.ok(p.bloodlineData.qingnianChannel);
+  assert.equal(p.skills[0].pp, 0);
+  while (e.api.gameState.turnCount < 9) turn(e, -1, -1);
+  assert.equal(p.skills[0].pp, 4, '清羽少 6 PP，原目标少 1 PP');
+  assert.equal(q.qingnianWindowEnd, 13);
+});
+
 test('微灵封体威力免疫覆盖发动后和整个下回合，包括回合末被动', () => {
   const { e, p, a, attack, hits } = microSealFixture();
   const ctx = e.api.createBattleContext();
@@ -310,8 +465,14 @@ test('微灵封体威力免疫覆盖发动后和整个下回合，包括回合�
   a.skills.push(skill('sk_jydm_1', (u, t, c) => {
     lateHits.push(c.doDamage(u, t, 40, 'special', 'fire').damage);
   }));
-  e.api.gameState.pendingJianghuaByPet = new Map([[a, a.skills.at(-1)]]);
+  a.bloodline = { name: '明念' };
+  const attackAction = attack.onUse;
+  attack.onUse = (user, target, ctx) => {
+    attackAction(user, target, ctx);
+    e.api.gameState.afterActions.push(() => ctx.deletePP(user, user.skills.length - 1, 5));
+  };
   turn(e, 1);
+  attack.onUse = attackAction;
   assert.deepEqual(openingHits, [0], '下一回合开场');
   assert.equal(hits[1].damage, 0, '下一回合行动');
   assert.deepEqual(lateHits, [0], '下一回合末的被动仍在免疫期限内');
@@ -334,11 +495,11 @@ test('微灵封体续用刷新期限，换下后按全局回合到期', () => {
   assert.ok(e.sandbox.calcDamage(a, p, attack).damage > 0, '场下的清灵也在回合末到期');
 });
 
-test('清除回合效果时移除微灵封体的限时威力免疫', () => {
+test('打断连续技能时微灵封体的限时威力免疫继续生效', () => {
   const { e, p, a, attack } = microSealFixture();
   turn(e);
-  e.sandbox.clearTurnEffects(p);
-  assert.ok(e.sandbox.calcDamage(a, p, attack).damage > 0);
+  e.sandbox.interruptSkillContinuations(p);
+  assert.equal(e.sandbox.calcDamage(a, p, attack).damage, 0);
   assert.equal(e.sandbox.hasStatusImmunity(p, 'freeze'), true, '永久防控仍有效');
 });
 if(failed) { console.error(`${failed} regression(s) failed`); process.exitCode=1; }

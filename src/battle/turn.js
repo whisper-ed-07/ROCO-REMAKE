@@ -4,7 +4,11 @@
 function setPPCostEffect(pet, source, turns, options) {
   if (!pet || turns <= 0) return;
   const effects = pet.ppCostEffects ||= new Map();
-  effects.set(source, { ...options, throughTurn: gameState.turnCount + turns - 1 });
+  const effect = { ...options, throughTurn: gameState.turnCount + turns - 1 };
+  effects.set(source, effect);
+  return () => {
+    if (effects.get(source) === effect) effects.delete(source);
+  };
 }
 
 function getPPCostSourceLabel(source) {
@@ -204,7 +208,6 @@ function resolveTurnActions() {
   battlePresentation.roundStarted?.();
   createBattleContext().savePPState();
   processBloodlines();
-  processCreationRounds();
   applyEndOfTurnEffects(player); applyEndOfTurnEffects(ai);
   processTurnEffects(player); processTurnEffects(ai);
   resolveWanguHeals();
@@ -240,9 +243,7 @@ function resolveTurnActions() {
 
   for (const afterAction of gameState.afterActions) afterAction();
   resolveDimoFirstAttack(firstPet);
-  resolveJianghuaDeletions();
   resolveQinglingHealBatches();
-  sampleQingnianEndOfRound();
   postDamageProcessing();
   battlePresentation.refresh?.();
   checkFaints();
@@ -250,6 +251,11 @@ function resolveTurnActions() {
   for (const heal of gameState.wanguHeals) {
     if (heal.castTurn === gameState.turnCount) heal.amount = Math.abs(heal.owner.outputThisTurn - heal.opponent.outputThisTurn);
   }
+  for (const owner of [player, ai]) {
+    if (owner.bloodlineData?.qingnianChannel?.due) finishQingnianChannel(owner, false);
+  }
+  finishSkillContinuations();
+  sampleQingnianEndOfRound();
   createBattleContext().saveSnapshot();
   const participants = new Set([player, ai]);
   if (firstIncoming) participants.add(firstIncoming);
@@ -331,7 +337,10 @@ function executeSkillTurn(user, target, skill, who, action) {
   ctx.skillAction = { user, target, backhand: gameState.pendingFirstMove !== who };
   try {
     resolveSkillEffects(user, target, skill, who, action, ctx, ppChange);
-    if (action.used) user.bloodline?.onActionEnd?.(user, target, ctx, skill);
+    if (action.used) {
+      user.bloodline?.onActionEnd?.(user, target, ctx, skill);
+      triggerSkillContinuations(user, skill);
+    }
   } finally {
     ctx.skillAction = null;
   }
@@ -492,8 +501,7 @@ function clearGrantedDefenses(pet) {
 }
 
 function leaveBattlefield(pet) {
-  trackQingnianSwitch(pet, true);
-  gameState.pendingJianghuaByPet?.delete(pet);
+  updateQingnianSamples(pet.bloodlineData?.qingnianChannel);
   if (pet.bloodline?.name === "明念") endMingnian(pet);
   for (const active of [gameState.playerActive, gameState.aiActive]) {
     if (active?.bloodlineData?.markTarget === pet) endMingnian(active);
@@ -504,9 +512,10 @@ function leaveBattlefield(pet) {
 
 function callBloodlineEnter(pet) {
   if (!pet) return;
+  gameState.roundStartPP?.set(pet, totalSkillPP(pet));
+  updateQingnianSamples(pet.bloodlineData?.qingnianChannel, true);
   if (gameState.banEffects) clearGrantedDefenses(pet);
   if (pet.bloodline?.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
-  trackQingnianSwitch(pet, false);
 }
 
 function hasSwitchLock(pet) {
