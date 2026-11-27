@@ -127,7 +127,7 @@ assert.strictEqual(document.activeElement, button, '退出正文后回到血脉�
 const modeSlot = new Element(); document.body.appendChild(modeSlot);
 const makeQingyu = ids => new api.BattlePet({ ...pet('pet_qy'), skillIds: ids });
 const modeButton = () => modeSlot.querySelector('.battle-bloodline-trigger');
-const ctx = { msg() {}, playerActive: null, aiActive: null };
+const ctx = api.createBattleContext();
 for (const [first, expected] of [['sk_qy_1', '清念'], ['sk_qy_4', '残脉']]) {
   const other = first === 'sk_qy_1' ? 'sk_qy_4' : 'sk_qy_1';
   const fighter = makeQingyu([first, other]);
@@ -141,7 +141,7 @@ for (const [first, expected] of [['sk_qy_1', '清念'], ['sk_qy_4', '残脉']]) 
   const opened = preview();
   assert(opened);
   fighter.bloodlineData.turnCount = 4;
-  fighter.bloodline.onTurnStart(fighter, { ...ctx, doHeal() {} });
+  fighter.bloodline.onTurnStart(fighter, ctx);
   assert.strictEqual(fighter.bloodlineData.switchTurn, true);
   s.syncBattleBloodline(modeSlot, fighter);
   assert.strictEqual(chip.dataset.mode, expected, '切换期开始后仍显示当前形态');

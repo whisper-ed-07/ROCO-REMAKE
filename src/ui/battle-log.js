@@ -7,7 +7,7 @@ function decorateMessage(text) {
     .replace(/效果拔群/g, '<i class="tag super">克制</i>')
     .replace(/效果不佳/g, '<i class="tag weak">抵抗</i>')
     .replace(/没有效果/g, '<i class="tag immune">免疫</i>')
-    .replace(/(\d+)\s*点伤害/g, '<b class="n">$1</b> 点伤害');
+    .replace(/(\d+)\s*点(伤害|精力)/g, '<b class="n">$1</b> 点$2');
 }
 
 function renderDeveloperBattleLog(list) {
@@ -51,7 +51,6 @@ function renderBattleLog() {
   }
   var arr = gameState.messages.slice(-200);
   var filter = gameState.logFilter || "all";
-  var collapsed = null;
   var out = "";
   arr.forEach(function(raw) {
     var m = typeof raw === "string" ? { text: raw, type: classifyMessage(raw), side: "system", turn: 0 } : raw;
@@ -59,11 +58,11 @@ function renderBattleLog() {
     if (filter === "action" && type === "system") return;
     if (filter === "system" && type !== "system" && type !== "turn") return;
     if (type === "turn") {
-      collapsed = (gameState.logCollapsed && gameState.logCollapsed[m.turn]) ? m.turn : null;
-      out += '<div class="msg turn' + (collapsed !== null ? " turn-collapsed" : "") + '" data-turn="' + m.turn + '"><span class="msg-text">' + escapeHtml(m.text) + '</span><span class="turn-caret">' + (collapsed !== null ? "▸" : "▾") + '</span></div>';
+      var collapsed = !!gameState.logCollapsed?.[m.turn];
+      out += '<div class="msg turn' + (collapsed ? " turn-collapsed" : "") + '" data-turn="' + m.turn + '"><span class="msg-text">' + escapeHtml(m.text) + '</span><span class="turn-caret">' + (collapsed ? "▸" : "▾") + '</span></div>';
       return;
     }
-    var hidden = collapsed !== null && m.turn === collapsed;
+    var hidden = !!gameState.logCollapsed?.[m.turn];
     var badge = side === "player" ? '<span class="msg-side player">我</span>' : side === "ai" ? '<span class="msg-side ai">敌</span>' : '<span class="msg-side"></span>';
     out += '<div class="msg ' + type + ' side-' + side + (hidden ? " collapsed" : "") + '">' + badge + '<span class="msg-text">' + decorateMessage(m.text) + '</span></div>';
   });

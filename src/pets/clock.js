@@ -40,17 +40,16 @@ const CLOCK_SKILLS = [
     detail: "① 将双方全队的精力、PP、强化和异常回溯到 3 回合前，跳过双方所有逆流而行的 PP。每场战斗最多使用本招 2 次。开战不足 3 回合时回到开战初始。追加固伤等于双方全队合计精力在回溯前后的差值绝对值。\n② 回复己方仍存活的场下第二格宠物各技能 1 PP。若创世之能无 PP，则改回 2 PP。\n③ 本次使用后本招 PP 为 0 时，自身失去属系。下一次威力招结算时，按逆流而行的累计使用次数触发以下效果。\n④ 使用过 1 次时，追加 9999 点固伤，强制清空当前目标的全部技能 PP，回复自身各技能 1 PP。使用过 2 次时，回复自身各技能 3 PP 和 30% 最大精力。\n⑤ 若创世之能无 PP，清除并锁定在场双方的正负强化 6 回合。\n⑥ 本招免疫常规删 PP、回复 PP 和历史回溯。强制清空仍可作用于本招。",
     immuneToPP: true, noPPRecover: true, ppRewindImmune: true, useLimit: 2,
     onUse: function(user, target, ctx) {
-      ctx.msg(user.name + " 使用了逆流而行！时间倒流，逆转法则！");
       // 威力伤害
       var r = ctx.doDamage(user, target, 135, "physical", "divine_water");
-      ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness));
+      ctx.detail("计算伤害 " + r.damage + " 点。" + getEffLabel(r.effectiveness));
       const nlexSkill = user.skills.find(skill => skill.id === "sk_nlex");
       const spentLastPP = nlexSkill?.pp === 0 || (ctx.sourceSkill === nlexSkill && ctx.skillPPAfter === 0);
       // 时间回溯：双方全体宠物的精力/PP/强化/异常回到3回合前，追加精力差固伤
       var hpDiff = ctx.restoreSnapshot(3);
       if (hpDiff > 0) {
         ctx.doFixedDamage(target, hpDiff);
-        ctx.msg("状态回溯造成 " + hpDiff + " 点固定伤害！");
+        ctx.detail("状态回溯追加固定伤害的计算值为 " + hpDiff + " 点。");
       }
       var party = gameState.playerActive === user ? gameState.playerParty : gameState.aiParty;
       var bench = party.filter(function(p) { return p !== user; })[1];
@@ -88,7 +87,6 @@ const CLOCK_SKILLS = [
     desc: "先手追加固伤和恐惧，后手必暴并删 PP。可提前结束创世之能以提高威力。满足空 PP 条件时额外造成 9999 点固伤并回复 PP。",
     detail: "① 先手追加对方最大精力 30% 的固伤，并施加恐惧。\n② 后手时必中必暴，删除对方每个技能（1 + 自身负面强化的等级绝对值之和）点 PP。威力伤害被抵抗时，额外尝试清空对方上次实际使用技能的 PP。\n③ 创世之能持续期间使用时，结束其剩余效果，本招威力提高到 170，本次物攻按 +3 级结算，并回复 200 点精力。\n④ 若创世之能无 PP，且至少 2 个技能无 PP（含创世之能），自身剩余 PP 合计少于 8，则追加 9999 点固伤，并回满自身可回复技能的 PP。",
     onUse: function(user, target, ctx) {
-      ctx.msg(user.name + " 使用了灭世之威！");
       var isFirst = (gameState.pendingFirstMove === (gameState.playerActive === user ? "player" : "ai"));
       var bd = user.bloodlineData;
       var inCreation = !!(bd && bd.creationActive);
@@ -104,7 +102,7 @@ const CLOCK_SKILLS = [
         r = ctx.doDamage(user, target, basePower, "physical", "fighting", dmgOpts);
         var bonus = Math.floor(target.maxHp * 0.3);
         ctx.doFixedDamage(target, bonus);
-        ctx.msg("造成 " + r.damage + " 点伤害！追加" + bonus + "点固伤！");
+        ctx.detail("先手计算伤害 " + r.damage + " 点，追加固定伤害的计算值为 " + bonus + " 点。");
         ctx.fear(target);
       } else {
         var backOpts = Object.assign({ guaranteedCrit: true }, dmgOpts);
@@ -112,7 +110,7 @@ const CLOCK_SKILLS = [
         var negCount = 0;
         STAGE_FIELDS.forEach(function(s) { if (user[s] < 0) negCount += Math.abs(user[s]); });
         ctx.deletePP(target, -1, 1 + negCount);
-        ctx.msg("造成 " + r.damage + " 点伤害！(必爆) 删除对方全体技能" + (1+negCount) + "PP！");
+        ctx.detail("后手计算伤害 " + r.damage + " 点，尝试删除对方各技能 " + (1+negCount) + " PP。");
         if (r.effectiveness < 1) {
           var lastSlot = target.skills.findIndex(function(s) { return s.id === target.lastUsedSkillId; });
           if (lastSlot >= 0) { ctx.deletePP(target, lastSlot, target.skills[lastSlot].pp); ctx.msg("伤害被抵抗，删除对方上次使用技能PP！"); }
@@ -120,7 +118,7 @@ const CLOCK_SKILLS = [
       }
       if (inCreation) {
         ctx.doHeal(user, 200);
-        ctx.msg("回复200精力！");
+        ctx.detail("治疗按 200 点计算。");
       }
       // 创世之能PP=0且2技能PP=0且剩余PP<8
       var cszn = user.skills.find(function(s) { return s.id === "sk_cszn"; });
@@ -129,7 +127,8 @@ const CLOCK_SKILLS = [
       if (cszn && cszn.pp === 0 && zeroPPSkills.length >= 2 && totalPP < 8) {
         ctx.doFixedDamage(target, 9999);
         user.skills.forEach(function(s) { gainPP(user, s, s.maxPp, "sk_mszw"); });
-        ctx.msg("灭世之威·终焉：9999固伤！回复满技能PP！");
+        ctx.msg("终焉效果触发，追加固定伤害并尝试回满各技能 PP。");
+        ctx.detail("终焉追加固定伤害的计算值为 9999 点。");
       }
     }
   },
@@ -145,7 +144,8 @@ const CLOCK_SKILLS = [
         ctx.setDamageReduction(user, 70);
         // 倒置对方1回合治疗
         ctx.invertHealing(target, 1.0, 1);
-        ctx.msg(user.name + " 回复400HP！1回合内减少70%所受伤害！");
+        ctx.msg("本回合所受伤害减少 70%。");
+        ctx.detail("治疗按 400 点计算。");
         ctx.addTurnEffect(user, "覆体疗愈", 4,
           function(p) {
             ctx.doHeal(p, Math.floor(p.maxHp * 0.2));
@@ -181,7 +181,7 @@ const CLOCK_SKILLS = [
         ctx.addTurnEffect(user, "覆体天气", 4, function(p) {
           ctx.doHeal(p, 120);
           p.skills.forEach(function(s){ gainPP(p, s, 1, undefined, "覆体魂衣·场地回复"); });
-          ctx.msg("【覆体魂衣】天气/环境回复120精力与全体1PP！");
+          ctx.detail("覆体魂衣受天气或环境影响，治疗按 120 点计算，并尝试回复各技能 1 PP。");
         }, null);
         ctx.msg("场上存在天气/环境：防控回合内每回合回复120HP与全体1PP！");
       }
@@ -193,7 +193,6 @@ const CLOCK_SKILLS = [
     detail: "① 本招有 PP 时，自身造成的所有类型伤害降低 40%。本招免疫常规删 PP 和回 PP，时间回溯可恢复历史值。\n② 自身任一其他技能无 PP 时，本招无效。\n③ 从最近 24 回合中选出全场总 PP 最低的一份记录，使双方全队的技能 PP 一并回到该记录。该回溯可越过常规 PP 保护，跳过逆流而行的 PP。\n④ 先手时结算回溯后存活，后手时结算回溯后自身阵亡。",
     immuneToPP: true, noPPRecover: true,
     onUse: function(user, target, ctx) {
-      ctx.msg(user.name + " 释放了重衍纪元！纪元重衍，万物复苏！");
       // 检查是否有技能PP为空
       var hasEmpty = user.skills.some(function(s) { return s.pp === 0 && s.id !== "sk_cyjy"; });
       if (hasEmpty) {
@@ -244,7 +243,7 @@ const CLOCK_PET = { id: "pet_bmhs", name: "创世神钟", element: "normal", emo
           var healAmt = Math.floor(lost * pct / 100);
           if (healAmt > 0) {
             ctx.doHeal(pet, healAmt);
-            ctx.msg("【不灭魂体】第" + n + "段伤害后恢复" + healAmt + "HP(" + pct + "%已损)");
+            ctx.detail("【不灭魂体】第 " + n + " 段伤害后，按已损精力的 " + pct + "% 计算治疗，本次为 " + healAmt + " 点。");
           }
         }
       },

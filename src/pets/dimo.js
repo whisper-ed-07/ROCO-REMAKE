@@ -117,7 +117,7 @@ const DIMO_SKILLS = [
       const first = gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai");
       const inDream = gameState.field === "dream";
       const r = ctx.doDamage(u, t, power, "physical", "ice");
-      ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness));
+      ctx.detail("计算伤害 " + r.damage + " 点。" + getEffLabel(r.effectiveness));
       if (ctx.applyStatus(t, "freeze")) {
         ctx.deletePP(t, -1, 1);
         ctx.halveRecovery(t, 2);
@@ -145,9 +145,9 @@ const DIMO_SKILLS = [
   { id: "sk_jydm_5", name: "炽光若焰", element: "fire", power: 120, pp: 8, maxPp: 8, accuracy: 90, category: "special", priority: 9, semiSure: true, desc: "烧伤成功则追加多段固伤。失败则清空本招和对方同格技能的 PP，本招随后 12 回合禁回 PP。使用后可锁定瞬华环境。", detail: "① 实际威力等于（120 + 0.1 × 自身魔攻能力值），向下取整。烧伤成功时，追加 2–4 段固伤，每段 70–100 点。\n② 烧伤失败时，清空本招 PP，并尝试清空对方同一格技能的 PP。本招从发动起 12 个战斗回合无法回复 PP。\n③ 尝试召唤并锁定瞬华环境 4 回合。瞬华中，光系宠物速度提高 15%，先手出招的宠物回复 100 点精力。威力伤害被抵抗时，追加相当于原伤害 30% 的固伤。",
     onUse: function(u, t, ctx) {
       var power = Math.floor(120 + 0.1 * u.getStat("spatk"));
-      ctx.msg(u.name + " 使用了炽光若焰！实际威力" + power + "！");
+      ctx.detail("实际威力 " + power + "。");
       var r = ctx.doDamage(u, t, power, "special", "fire");
-      ctx.msg("造成 " + r.damage + " 点伤害！" + getEffLabel(r.effectiveness) + (r.isCrit ? " 命中要害！" : ""));
+      ctx.detail("计算伤害 " + r.damage + " 点。" + getEffLabel(r.effectiveness) + (r.isCrit ? " 命中要害！" : ""));
       // 烧伤效果
       if (ctx.applyStatus(t, "burn")) {
         var segs = 2 + Math.floor(Math.random() * 3); // 2~4段

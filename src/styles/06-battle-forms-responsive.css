@@ -1,21 +1,27 @@
 
 /* Battle: shrinkable columns instead of fixed widths and absolute overlays. */
 .battle-bg, [data-theme="light"] .battle-bg { background: transparent; gap: 22px; }
-.battle-top { padding: 0 0 18px; gap: 12px; border-bottom: 1px solid var(--border); align-items: center; }
-.turn-indicator { margin: 0; padding: 8px 12px; background: var(--ui-gold-soft); border: 1px solid var(--border); border-radius: 9px; font-size: 12px; letter-spacing: .5px; }
+.battle-top {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: "weather weather weather" "timer round exit";
+  align-items: center; gap: 5px 10px; padding: 0 0 12px; border-bottom: 1px solid var(--border);
+}
+.turn-indicator { grid-area: round; margin: 0; padding: 3px 10px; background: var(--ui-gold-soft); border: 1px solid var(--border); border-radius: 9px; font-size: 13px; letter-spacing: .5px; font-variant-numeric: tabular-nums; }
+.battle-top .turn-timer { grid-area: timer; }
+.battle-top .flee-btn { grid-area: exit; justify-self: end; }
 .turn-timer, [data-theme="light"] .turn-timer { flex: 1 1 150px; max-width: 210px; min-width: 0; margin: 0; background: var(--surface); border-color: var(--border); padding: 8px 12px; border-radius: 9px; }
 .turn-timer-bar { min-width: 30px; background: var(--surface2); }
-.battle-weather { align-self: center; max-width: 100%; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.battle-weather:not([hidden]) { display: flex; }
+.battle-weather { grid-area: weather; justify-self: center; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(100%, 352px); gap: 8px; }
 .w-item {
   --w-color: var(--gold);
-  display: inline-flex; align-items: center; gap: 8px; padding: 7px clamp(10px, 2vw, 17px);
+  display: inline-flex; justify-content: center; align-items: center; gap: clamp(3px, 1vw, 8px); height: 40px; padding: 0 4px;
   border: 1px solid var(--w-color); border-radius: 12px; box-shadow: var(--shadow);
   background: linear-gradient(120deg, color-mix(in srgb, var(--w-color) 16%, transparent), transparent), var(--surface);
   color: color-mix(in srgb, var(--w-color) 78%, var(--text));
   font-size: clamp(16px, 2.3vw, 19px); font-weight: 800; line-height: 1.4; white-space: nowrap;
 }
 .w-item.has-field { --w-color: var(--shield-color); }
+.w-item.w-empty { color: var(--text2); background: var(--surface); border-color: var(--border); box-shadow: none; font-size: 14px; font-weight: 500; }
 .w-icon { font-size: 1.2em; line-height: 1; }
 .w-turns {
   padding: 2px 7px; border-radius: 6px; background: var(--surface2); color: var(--text);
@@ -47,7 +53,7 @@
 .stage-pill.up { color: var(--green); background: var(--ui-teal-soft); }
 .stage-pill.down { color: var(--hp-red); }
 .status-badge { margin: 6px 4px 0 0; font-size: 11px; padding: 2px 7px; }
-.battle-bottom { display: grid; grid-template-columns: minmax(240px, .82fr) minmax(0, 1.38fr); align-items: stretch; padding: 0; gap: 20px; }
+.battle-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: stretch; padding: 0; gap: 20px; }
 .battle-log, .battle-panel { min-width: 0; display: flex; flex-direction: column; flex: none; }
 .battle-log::before, .battle-panel::before { margin: 0 0 10px; color: var(--text2); font-size: 12px; letter-spacing: 2px; }
 

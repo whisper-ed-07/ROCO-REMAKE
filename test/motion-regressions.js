@@ -49,30 +49,46 @@ first.hp = Math.floor(first.maxHp * .7); enemy.hp = Math.floor(enemy.maxHp * .6)
 s.renderBattle(app);
 const get = id => document.querySelector('#' + id), ghost = side => get(side + '-hp-bar').parentNode.querySelector('.hp-bar-ghost');
 
-// 天气和环境共用战斗首行，回合更新后收起已到期的项目。
+// 天气与环境各保留一格，回合显示在下方，选招和结算使用同一个回合编号。
 const weatherBar = get('battle-weather');
 assert.strictEqual(weatherBar.parentNode.children[0], weatherBar);
-assert.equal(weatherBar.hidden, true);
+const round = get('turn-indicator');
+assert.strictEqual(weatherBar.parentNode.children[1], round);
+assert.equal(round.textContent, '第 1 回合');
+gs.turnCount = 1;
+gs.resolvingTurn = true;
+s.updateBattleUI();
+assert.equal(round.textContent, '第 1 回合');
+gs.resolvingTurn = false;
+s.updateBattleUI();
+assert.equal(round.textContent, '第 2 回合');
+gs.battleOver = true;
+s.updateBattleUI();
+assert.equal(round.textContent, '第 1 回合');
+gs.battleOver = false;
+gs.turnCount = 0;
+assert.match(weatherBar.innerHTML, /无天气.*无环境/);
 const weatherContext = api.createBattleContext();
 weatherContext.setWeather('mist', 2);
 weatherContext.setField('dream', 1);
 s.updateBattleUI();
-assert.equal(weatherBar.hidden, false);
+assert.doesNotMatch(weatherBar.innerHTML, /无天气|无环境/);
 assert.match(weatherBar.innerHTML, /迷雾<\/span><span class="w-turns">2回合/);
 assert.match(weatherBar.innerHTML, /梦境<\/span><span class="w-turns">1回合/);
 s.tickEnvironments();
 s.updateBattleUI();
 assert.match(weatherBar.innerHTML, /迷雾<\/span><span class="w-turns">1回合/);
 assert.doesNotMatch(weatherBar.innerHTML, /梦境/);
+assert.match(weatherBar.innerHTML, /无环境/);
 s.tickEnvironments();
 s.updateBattleUI();
-assert.equal(weatherBar.hidden, true);
+assert.match(weatherBar.innerHTML, /无天气.*无环境/);
 weatherContext.setWeather('gale', 1);
 s.updateBattleUI();
 assert.match(weatherBar.innerHTML, /疾风<\/span><span class="w-turns">1回合/);
 s.tickEnvironments();
 s.updateBattleUI();
-assert.equal(weatherBar.hidden, true);
+assert.match(weatherBar.innerHTML, /无天气.*无环境/);
 gs.messages = [];
 s.renderBattleLog();
 

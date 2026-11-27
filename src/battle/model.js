@@ -132,13 +132,16 @@ class BattlePet {
       this.bloodlineData?.jianghuaThrough >= gameState.turnCount
     );
   }
-  takeDamage(dmg, source, sourceSkill) {
-    if (this.invincible || (this.externalEffectImmuneTurn === gameState.turnCount && source !== this)) return 0;
+  takeDamage(dmg, source, sourceSkill, detail = "") {
+    if (this.invincible || (this.externalEffectImmuneTurn === gameState.turnCount && source !== this)) {
+      addMessage(battlePetName(this) + " 免疫了这段伤害。", "status", battlePetSide(this));
+      return 0;
+    }
     // 致命伤害闪避（极影光幕）
     if (this.dimoLethalDodgeThrough >= gameState.turnCount && this.dodgeLethalLeft > 0 && dmg >= this.hp && this.hp > 0) {
       this.dodgeLethalLeft--;
       for (const skill of this.skills) gainPP(this, skill, 1, "sk_jydm_3");
-      addMessage(this.name + " 闪避了致命伤害！");
+      addMessage(battlePetName(this) + " 闪避了致命伤害！", "status", battlePetSide(this));
       return 0;
     }
     // 限伤检查
@@ -153,8 +156,8 @@ class BattlePet {
     if (reduction > 0) dmg = Math.floor(dmg * (100 - reduction) / 100);
     // 护盾吸收（带日志+飘字）
     if (!gameState.banEffects?.shield && this.shield > 0) {
-      if (this.shield >= dmg) { this.shield -= dmg; if (!this.shield && dmg > 0) dimoShieldBroke(this, source); addMessage(this.name + " 的护盾吸收了" + dmg + "点伤害！"); battlePresentation.floatText?.(this, dmg, "shield"); return 0; }
-      addMessage(this.name + " 的护盾吸收了" + this.shield + "点伤害，剩余" + (dmg - this.shield) + "点穿透！");
+      if (this.shield >= dmg) { this.shield -= dmg; if (!this.shield && dmg > 0) dimoShieldBroke(this, source); addMessage(battlePetName(this) + " 的护盾吸收了全部 " + dmg + " 点伤害！", "status", battlePetSide(this)); battlePresentation.floatText?.(this, dmg, "shield"); return 0; }
+      addMessage(battlePetName(this) + " 的护盾吸收了 " + this.shield + " 点伤害，剩余 " + (dmg - this.shield) + " 点穿透！", "status", battlePetSide(this));
       battlePresentation.floatText?.(this, this.shield, "shield");
       dmg -= this.shield; this.shield = 0; dimoShieldBroke(this, source);
     }
@@ -168,10 +171,14 @@ class BattlePet {
     const received = Math.min(this.hp, dmg);
     this.hp = Math.max(0, this.hp - dmg);
     if (received > 0) {
+      const cause = source && source !== this ? battlePetName(source) + (sourceSkill ? "的「" + sourceSkill.name + "」" : "") : "";
+      addMessage(battlePetName(this) + (cause ? " 被" + cause + "击中，" : " ") + "损失 " + received + " 点精力。" + detail,
+        "damage", battlePetSide(this));
       this.lastDamageSegment = received;
       sealDivineSkill(this, source, sourceSkill);
     }
-    if (dmg > 0) { this.damageTakenThisTurn.push(dmg); battlePresentation.floatText?.(this, dmg, "dmg"); }
+    if (dmg > 0) { this.damageTakenThisTurn.push(dmg); }
+    if (received > 0) battlePresentation.floatText?.(this, received, "dmg");
     const segmentIndex = this.segmentIdx++;
     if (received > 0) this.bloodline?.onAfterDamageSegment?.(this, segmentIndex, createBattleContext());
     return dmg;
@@ -186,18 +193,27 @@ class BattlePet {
     const inversion = forcedInversion || (this.healInvertTurns > 0 ? Math.max(0, this.healInvertPct) : 0);
     if (this.qinglingInvertNext && gameState.qinglingHealBatches) {
       const batch = gameState.qinglingHealBatches.get(this) || [];
-      batch.push({ effective, inversion });
+      batch.push({ effective, inversion, source: options.source });
       gameState.qinglingHealBatches.set(this, batch);
       return 0;
     }
-    return this.applyHealSegment(effective, inversion, before);
+    return this.applyHealSegment(effective, inversion, before, options.source);
   }
-  applyHealSegment(amount, inversion, before = this.hp) {
+  applyHealSegment(amount, inversion, before = this.hp, source) {
     const inverted = Math.floor(amount * inversion);
     const cap = this.maxHp + (this.maxHpBonus || 0);
     this.hp = Math.max(0, Math.min(cap, Math.max(0, this.hp - inverted) + amount - inverted));
     const change = this.hp - before;
-    if (inverted > 0) addMessage(this.name + "的治疗被倒置，精力减少" + inverted + "点！");
+    const origin = source ? "（" + source + "）" : "";
+    const actor = battlePetName(this);
+    if (inverted > 0) {
+      const result = change < 0 ? "净损失 " + -change + " 点精力" : change > 0 ? "净回复 " + change + " 点精力" : "精力没有变化";
+      addMessage(actor + " 的治疗被倒置，" + result + origin + "。", change < 0 ? "damage" : "heal", battlePetSide(this));
+    } else if (change > 0) {
+      addMessage(actor + " 回复了 " + change + " 点精力" + origin + "。", "heal", battlePetSide(this));
+    } else if (isDeveloperBattle() && before === cap) {
+      addMessage(actor + " 精力已满，本次治疗实际回复 0 点精力" + origin + "。", "heal", battlePetSide(this));
+    }
     if (change > 0) battlePresentation.floatText?.(this, change, "heal");
     return change;
   }
@@ -230,13 +246,24 @@ function classifyMessage(text) {
   if (/天气|环境|回合|换宠|换上|先手|后手|倒下了|战斗开始|逃跑|解除/.test(s)) return "system";
   return "action";
 }
-function addMessage(msg, type, side) {
+function battlePetSide(pet) {
+  if (pet && (pet === gameState.playerActive || gameState.playerParty.includes(pet))) return "player";
+  if (pet && (pet === gameState.aiActive || gameState.aiParty.includes(pet))) return "ai";
+  return "system";
+}
+
+function battlePetName(pet) {
+  const side = battlePetSide(pet);
+  return (side === "player" ? "我方" : side === "ai" ? "对方" : "") + pet.name;
+}
+
+function addMessage(msg, type, side, turn = gameState.turnCount || 0) {
   var text = String(msg);
   gameState.messages.push({
     text: text,
     type: type || classifyMessage(text),
     side: side || gameState.currentActingSide || "system",
-    turn: gameState.turnCount || 0
+    turn: turn
   });
   battlePresentation.messageAdded?.();
 }

@@ -70,7 +70,7 @@ function canSelectSkill(skill) {
 function reserveSkillAction(user, skill, turn = gameState.turnCount) {
   if (!skill) return null;
   if (skill.pp <= 0 || isSkillSealed(skill, turn)) {
-    traceSkillPP(user, skill, skill.pp, skill.pp, "第" + turn + "回合选招失败", undefined, skill.pp <= 0 ? "PP 已空" : "技能被封禁");
+    traceSkillPP(user, skill, skill.pp, skill.pp, "第" + turn + "回合选招失败", undefined, skill.pp <= 0 ? "PP 已空" : "技能被封禁", turn);
     return null;
   }
   const ppBefore = skill.pp;
@@ -78,7 +78,7 @@ function reserveSkillAction(user, skill, turn = gameState.turnCount) {
   const requestedCost = getRequiredPPCost(user, skill, breakdown);
   const ppCost = Math.min(ppBefore, requestedCost);
   setSkillPP(user, skill, ppBefore - ppCost, "第" + turn + "回合选招扣费", undefined,
-    breakdown ? describePPCost(breakdown, requestedCost, ppCost) : undefined);
+    breakdown ? describePPCost(breakdown, requestedCost, ppCost) : undefined, turn);
   return { kind: "skill", user, skill, ppBefore, ppAfter: skill.pp, ppCost, requestedCost };
 }
 
@@ -129,9 +129,6 @@ function aiDecideAndResolve(opponentMove) {
   if (gameState.battleOver || gameState.resolvingTurn) return;
   const { aiActive: ai, playerActive: player } = gameState;
   const skill = opponentMove === undefined ? chooseOpponentSkill(ai, player) : opponentMove;
-  if (!skill) {
-    addMessage(ai.name + (ai.skills.some(move => move.pp > 0) ? " 没有可用技能！" : " 所有技能PP耗尽！"));
-  }
   gameState.pendingAISkill = ai.skills.indexOf(skill);
   resolveTurn();
 }
@@ -160,6 +157,7 @@ function resolveTurnActions() {
   const selected = gameState.pendingPlayerAction;
   gameState.roundStartPP = new Map([[player, totalSkillPP(player) + (selected?.ppCost || 0)], [ai, totalSkillPP(ai)]]);
   gameState.turnCount++;
+  addMessage("━━━ 第 " + gameState.turnCount + " 回合 ━━━");
   for (const caster of gameState.jianghuaOwners || []) {
     if (caster.bloodlineData?.jianghuaThrough < gameState.turnCount) {
       syncMingnianMaxHP(caster);
@@ -184,8 +182,15 @@ function resolveTurnActions() {
   gameState.qinglingHealBatches = new Map();
   gameState.afterActions = [];
 
-  if (!playerCanAct) tickUnableToAct(player);
+  if (!playerCanAct) tickUnableToAct(player, selected?.skill);
   if (!aiCanAct) tickUnableToAct(ai);
+  for (const [pet, available, action] of [[player, playerCanAct, pAction], [ai, aiCanAct, aAction]]) {
+    if (!available || action) continue;
+    const reason = pet.skills.length && pet.skills.every(move => move.pp <= 0)
+      ? " 所有技能的 PP 已耗尽，本回合空过。"
+      : " 本回合没有选定可用行动，空过。";
+    addMessage(battlePetName(pet) + reason, "action", battlePetSide(pet));
+  }
   // 双方空过也走完整回合管线，持续效果和计时均正常推进。
   var pPrio = pAction?.kind === "switch" ? 8 : pSkill ? (pSkill.dimoFastThrough >= gameState.turnCount ? 12 : player.priorityOverride ?? pSkill.priority ?? 8) : 0;
   var aPrio = aSkill ? (aSkill.dimoFastThrough >= gameState.turnCount ? 12 : ai.priorityOverride ?? aSkill.priority ?? 8) : 0;
@@ -212,8 +217,6 @@ function resolveTurnActions() {
   processTurnEffects(player); processTurnEffects(ai);
   resolveWanguHeals();
   
-  addMessage("━━━ 第 " + gameState.turnCount + " 回合 ━━━");
-  
   // 先手值比较；平手时速度高者先动。梦境环境下整体反转：先手值低者先动，同值速度慢者先动
 
   var pSpdEff = player.getStat("spd"), aSpdEff = ai.getStat("spd");
@@ -232,14 +235,24 @@ function resolveTurnActions() {
   const firstAction = playerFirst ? pAction : aAction, secondAction = playerFirst ? aAction : pAction;
   const firstPrio = playerFirst ? pPrio : aPrio, secondPrio = playerFirst ? aPrio : pPrio;
   if (firstAction) {
-    addMessage(firstPet.name + " 先手！（先手" + fmtPriority(firstPrio) + " vs " + fmtPriority(secondPrio) + (dreamActive ? "，梦境反转！" : "") + "）");
+    const orderReason = !secondAction ? battlePetName(secondPet) + "本回合空过" :
+      "先手值 " + fmtPriority(firstPrio) + " 对 " + fmtPriority(secondPrio) +
+      (firstPrio === secondPrio ? "，有效速度 " + (playerFirst ? pSpdEff : aSpdEff) + " 对 " + (playerFirst ? aSpdEff : pSpdEff) : "") +
+      (firstPrio === secondPrio && pSpdEff === aSpdEff ? "，相同时我方先动" : "") +
+      (dreamActive ? "，梦境中先手值低者优先，同值时速度慢者优先" : "");
+    addMessage(battlePetName(firstPet) + " 先行动（" + orderReason + "）。", "system", firstSide);
   } else {
     addMessage("双方本回合没有行动。");
   }
   const firstIncoming = runTurnAction(firstAction, secondPet, firstSide);
   // 主动换宠已完成时，后出手的对手以新上场宠物为目标。
-  const secondIncoming = !player.isFainted() && !ai.isFainted()
-    ? runTurnAction(secondAction, firstIncoming || firstPet, secondSide) : null;
+  let secondIncoming = null;
+  if (!player.isFainted() && !ai.isFainted()) {
+    secondIncoming = runTurnAction(secondAction, firstIncoming || firstPet, secondSide);
+  } else if (!gameState.battleOver && secondAction?.kind === "skill") {
+    const fainted = player.isFainted() ? player : ai;
+    addMessage(battlePetName(secondPet) + " 的「" + secondAction.skill.name + "」未能使出，因为" + battlePetName(fainted) + "已倒下。", "action", secondSide);
+  }
 
   for (const afterAction of gameState.afterActions) afterAction();
   resolveDimoFirstAttack(firstPet);
@@ -315,18 +328,20 @@ function runTurnAction(action, target, who) {
 }
 
 function executeSkillTurn(user, target, skill, who, action) {
-  if (user.isFainted() || target.isFainted()) return;
+  const move = battlePetName(user) + " 的「" + skill.name + "」";
+  const blocked = reason => addMessage(move + "未能使出，" + reason + "。", "action", who);
+  if (user.isFainted() || target.isFainted()) { blocked(battlePetName(user.isFainted() ? user : target) + "已倒下"); return; }
   // 执行前复查在场与控制。选招时已经支付的 PP 不再复查或重扣。
-  if (user !== gameState.playerActive && user !== gameState.aiActive) { addMessage(user.name + " 已离场，行动取消！"); return; }
-  if (target !== gameState.playerActive && target !== gameState.aiActive) { addMessage(target.name + " 已不在场上，本次行动取消！"); return; }
-  if (!user.canAct()) { addMessage(user.name + " 无法行动！"); return; }
-  if (isSkillSealed(skill, gameState.turnCount)) { addMessage(user.name + " 的" + skill.name + "被封禁！"); return; }
+  if (user !== gameState.playerActive && user !== gameState.aiActive) { blocked("使用者已离场"); return; }
+  if (target !== gameState.playerActive && target !== gameState.aiActive) { blocked(battlePetName(target) + "已离场"); return; }
+  if (!user.canAct()) { blocked(battlePetName(user) + "因" + STATUS_LABELS[user.status] + "无法行动"); return; }
+  if (isSkillSealed(skill, gameState.turnCount)) { blocked("技能已被封禁"); return; }
   action = action || reserveSkillAction(user, skill);
-  if (!action) { addMessage(user.name + " 的" + skill.name + "已无PP，行动取消！"); return; }
-  const ppChange = "（PP " + action.ppBefore + "→" + action.ppAfter + (action.requestedCost > 1 ? " ×" + action.requestedCost : "") + "）";
+  if (!action) { blocked("技能的 PP 已耗尽"); return; }
+  const ppChange = "（选招时 PP " + action.ppBefore + " → " + action.ppAfter + "）";
   // 迷雾天气：主动行动结算前 80% 概率令自身混乱
   if (gameState.weather === "mist" && !hasStatusImmunity(user, "confuse") && Math.random() < 0.8) {
-    applyEffect(user, "confuse", { turns: 1, message: "迷雾缭绕，" + user.name + " 在行动前陷入混乱！" });
+    applyEffect(user, "confuse", { turns: 1, message: "迷雾缭绕，" + battlePetName(user) + " 在行动前陷入混乱！" });
   }
   var ctx = createBattleContext();
   ctx.sourceSkill = skill; ctx.sourceSkillOwner = user;
@@ -350,17 +365,18 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
   const isPlayer = who === "player";
   const userIsBackhand = gameState.pendingFirstMove !== who;
   const priorNilex = user.pendingNilex;
+  const move = battlePetName(user) + " 的「" + skill.name + "」";
+  const defender = battlePetName(target);
   var lastEff = 1, lastDmgVal = 0;
 
   // 混乱判定
   if (user.confuseTurns > 0) {
-    addMessage(user.name + " 处于混乱状态！");
+    addMessage(battlePetName(user) + " 处于混乱状态！", "status", who);
     if (Math.random() < 0.5) {
       var selfDmg = Math.floor(((2 * user.level / 5 + 2) * 40 * (user.getStat("atk") / user.getStat("def"))) / 50 + 2);
       user.takeDamage(selfDmg);
-      addMessage(user.name + " 攻击了自己，受到 " + selfDmg + " 点伤害！");
       user.confuseTurns--;
-      addMessage(user.name + " 混乱自伤！" + ppChange);
+      addMessage(move + " 因混乱自伤而未能使出" + ppChange + "。", "action", who);
       battlePresentation.refresh?.(); checkFaints(); return;
     }
   }
@@ -370,6 +386,7 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
   recordRoundSkillUse(action, target);
   recordDimoSkillRound(user, skill);
   if (dodged) {
+    addMessage(defender + " 以「化念作刃」闪避了" + move + ppChange + "。", "action", who);
     applyQingnianSuppression(user, skill);
     battlePresentation.refresh?.(); checkFaints();
     return;
@@ -379,7 +396,7 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
     (target.lightWindDodgeTurn === gameState.turnCount && userIsBackhand);
   if (lightWindDodges && !skill.semiSure && skill.accuracy < 100) {
     applyQingnianSuppression(user, skill);
-    addMessage(target.name + " 闪避了" + user.name + " 的非必中技能！");
+    addMessage(defender + " 以「轻风散魂」闪避了" + move + ppChange + "。", "action", who);
     return;
   }
   // 命中判定：半必中（semiSure）仅在对方"必定闪避"时 miss，其余必中
@@ -387,19 +404,19 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
   if (skill.semiSure) {
     if (target.sureDodge && !guaranteedFirst) {
       applyQingnianSuppression(user, skill);
-      addMessage(target.name + " 必定闪避了 " + user.name + " 的 " + skill.name + "！" + ppChange);
+      addMessage(defender + " 必定闪避了" + move + ppChange + "。", "action", who);
       if (skill.onMiss) skill.onMiss(user, target, ctx);
       return;
     }
   } else if (skill.accuracy < 100 && Math.random() * 100 > skill.accuracy) {
     applyQingnianSuppression(user, skill);
-    addMessage(user.name + " 的 " + skill.name + " 没有命中！" + ppChange);
+    addMessage(move + " 未命中" + defender + ppChange + "。", "action", who);
     return;
   }
   // 化念作刃先手闪避：target 有标志、本技能非必中、user 为后手 → 闪避
   if (!skill.semiSure && target.dodgeNextNonSure && skill.accuracy < 100 && userIsBackhand) {
     applyQingnianSuppression(user, skill);
-    addMessage(target.name + " 闪避了后手非必中技能！视物攻+2！" + ppChange);
+    addMessage(defender + " 闪避了后手施放的" + move + "，物攻提升 2 级" + ppChange + "。", "action", who);
     target.atkStage = Math.min(6, target.atkStage + 2);
     target.dodgeNextNonSure = false;
     battlePresentation.refresh?.(); checkFaints(); return;
@@ -414,14 +431,14 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
     addMessage("闪避失败！倒置双方强化，删除对方全体2PP！");
   }
   
-  addMessage(user.name + " 使用了 " + skill.name + ppChange + "！");
+  addMessage(battlePetName(user) + " 使用了「" + skill.name + "」" + ppChange + "。", "action", who);
   applyQingnianSuppression(user, skill);
 
   // 瞬华环境：先手出招回100精力
   var userIsFirstMove = (gameState.pendingFirstMove === (isPlayer ? "player" : "ai"));
   if (gameState.field === "shunhua" && userIsFirstMove) {
     ctx.doHeal(user, 100);
-    ctx.msg("【瞬华环境】先手出招回复100精力！");
+    ctx.detail("瞬华环境的先手治疗按 100 点计算。");
   }
   if (skill.onUse) {
     skill.onUse(user, target, ctx);
@@ -430,7 +447,6 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
   } else {
     const result = ctx.doDamage(user, target, skill.power, skill.category, skill.element);
     lastEff = result.effectiveness; lastDmgVal = result.damage;
-    addMessage("造成 " + result.damage + " 点伤害！" + getEffLabel(result.effectiveness) + (result.isCrit ? " 命中要害！" : ""));
     if (skill.effect && skill.effectChance > 0 && Math.random() * 100 < skill.effectChance) {
       var eff = getEffectiveness(getEffectiveSkillElement(user, skill.element), target.element);
       if (eff > 0) ctx.applyStatus(target, skill.effect);
@@ -441,7 +457,7 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
 
   // 迷雾天气：主动行动结算后 80% 概率令对手混乱
   if (gameState.weather === "mist" && !target.isFainted() && !hasStatusImmunity(target, "confuse") && Math.random() < 0.8) {
-    applyEffect(target, "confuse", { turns: 1, message: "迷雾缭绕，" + target.name + " 在行动后陷入混乱！" });
+    applyEffect(target, "confuse", { turns: 1, message: "迷雾缭绕，" + battlePetName(target) + " 在行动后陷入混乱！" });
   }
   // 瞬华环境：技能伤害被抵抗则追加原伤害30%固伤
   var resistEff = (ctx && ctx._lastEff !== undefined) ? ctx._lastEff : lastEff;
@@ -463,8 +479,9 @@ function resolveSkillEffects(user, target, skill, who, action, ctx, ppChange) {
 function applyLegacyStatusSkill(user, target, skill, ctx = createBattleContext()) {
   var name = skill.name;
   if (name === "祈雨") ctx.modifyStat(user, "spatk", 2);
-  else if (name === "水流环") { user.heal(Math.floor(user.maxHp / 4)); addMessage(user.name + " 回复了HP！"); }
-  else if (name === "光合作用") { user.heal(Math.floor(user.maxHp / 2)); addMessage(user.name + " 回复了大量HP！"); }
+  else if (name === "水流环" || name === "光合作用") {
+    user.heal(Math.floor(user.maxHp / (name === "水流环" ? 4 : 2)), { source: name });
+  }
   else if (name === "龙之舞") { ctx.modifyStat(user, "atk", 1); ctx.modifyStat(user, "spd", 1); }
   else if (name === "极光幕") { ctx.modifyStat(user, "def", 1); ctx.modifyStat(user, "spdef", 1); }
   else if (name === "烟雾") {
@@ -472,7 +489,7 @@ function applyLegacyStatusSkill(user, target, skill, ctx = createBattleContext()
   }
   else if (name === "冰冻之风") {
     ctx.modifyStat(target, "spd", -1);
-    var res = ctx.doDamage(user, target, 55, "special", skill.element); addMessage("造成 " + res.damage + " 点伤害！"); }
+    ctx.doDamage(user, target, 55, "special", skill.element); }
   else if (name === "寄生种子") { if (Math.random() * 100 < 90) ctx.applyStatus(target, "leech_seed"); }
   else if (skill.effect && skill.effectChance > 0 && Math.random() * 100 < skill.effectChance) ctx.applyStatus(target, skill.effect);
 }
@@ -483,11 +500,19 @@ function applyEndOfTurnEffects(pet) {
   for (const [affected, status, divisor] of [[pet.status === "burn", "烧伤", 16], [pet.poisoned, "中毒", 8]]) {
     if (!affected || pet.isFainted()) continue;
     const damage = Math.floor(pet.maxHp / divisor);
+    addMessage(battlePetName(pet) + " 的" + status + "结算伤害。", "status", battlePetSide(pet));
     createBattleContext().doFixedDamage(pet, damage);
-    addMessage(pet.name + " 因" + status + "受到 " + damage + " 点伤害！");
   }
-  if (pet.bindTurns > 0) { pet.bindTurns--; if (pet.bindTurns <= 0) addMessage(pet.name + " 解除了束缚！"); }
-  if (pet.leechSeed) { var drain = Math.floor(pet.maxHp / 8); pet.takeDamage(drain); var opp = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive; if (opp && !opp.isFainted()) opp.heal(drain); addMessage(pet.name + " 被寄生种子吸取了 " + drain + " HP！"); }
+  if (pet.bindTurns > 0) { pet.bindTurns--; if (pet.bindTurns <= 0) addMessage(battlePetName(pet) + " 解除了束缚！", "status", battlePetSide(pet)); }
+  if (pet.leechSeed) {
+    const drain = Math.floor(pet.maxHp / 8);
+    addMessage("寄生种子对" + battlePetName(pet) + "结算伤害。", "status", battlePetSide(pet));
+    pet.takeDamage(drain);
+    const opp = pet === gameState.playerActive ? gameState.aiActive : gameState.playerActive;
+    if (opp && !opp.isFainted()) {
+      opp.heal(drain, { source: "寄生" });
+    }
+  }
 }
 
 function clearGrantedDefenses(pet) {
@@ -515,7 +540,11 @@ function callBloodlineEnter(pet) {
   gameState.roundStartPP?.set(pet, totalSkillPP(pet));
   updateQingnianSamples(pet.bloodlineData?.qingnianChannel, true);
   if (gameState.banEffects) clearGrantedDefenses(pet);
-  if (pet.bloodline?.onEnter) pet.bloodline.onEnter(pet, createBattleContext());
+  if (pet.bloodline?.onEnter) {
+    const ctx = createBattleContext();
+    ctx.logOwner = pet;
+    pet.bloodline.onEnter(pet, ctx);
+  }
 }
 
 function hasSwitchLock(pet) {
@@ -534,8 +563,8 @@ function hasSwitchLock(pet) {
 }
 
 function canSwitchPet(user) {
-  if (user.bindTurns > 0) { addMessage(user.name + " 被束缚了，无法换宠！"); return false; }
-  if (hasSwitchLock(user)) { addMessage(user.name + " 无法换宠！"); return false; }
+  if (user.bindTurns > 0) { addMessage(battlePetName(user) + " 受到束缚，无法换宠！", "status", battlePetSide(user)); return false; }
+  if (hasSwitchLock(user)) { addMessage(battlePetName(user) + " 受到换宠限制，无法换宠！", "status", battlePetSide(user)); return false; }
   return true;
 }
 
@@ -552,12 +581,12 @@ function executeSwitchAction(action, who) {
   const { user, incoming } = action;
   const activeKey = who === "player" ? "playerActive" : "aiActive";
   if (gameState[activeKey] !== user || user.isFainted() || incoming.isFainted() || !canSwitchPet(user)) return null;
-  addMessage(who === "player" ? "回来吧，" + user.name + "！" : "对手收回了 " + user.name + "！");
+  addMessage(battlePetName(user) + " 主动离场。", "action", who);
   leaveBattlefield(user);
   gameState[activeKey] = incoming;
   incoming.lastDealtDamage = incoming.currentDealt || 0; incoming.currentDealt = 0;
   callBloodlineEnter(incoming);
-  addMessage(who === "player" ? "上吧，" + incoming.name + "！" : "对手换上了 " + incoming.name + "！");
+  addMessage(battlePetName(incoming) + " 替换上场。", "action", who);
   notifyActivePetChanged(who, user, incoming, "voluntary");
   return incoming;
 }
@@ -566,7 +595,7 @@ function replaceFaintedPet(pet, side) {
   const isPlayer = side === "player";
   const party = isPlayer ? gameState.playerParty : gameState.aiParty;
   leaveBattlefield(pet);
-  addMessage(pet.name + " 倒下了！");
+  addMessage(battlePetName(pet) + " 倒下了！", "system", battlePetSide(pet));
   const incoming = party.find(candidate => candidate !== pet && !candidate.isFainted());
   if (!incoming) {
     endBattle(!isPlayer);
@@ -574,7 +603,7 @@ function replaceFaintedPet(pet, side) {
   }
   gameState[isPlayer ? "playerActive" : "aiActive"] = incoming;
   callBloodlineEnter(incoming);
-  addMessage((isPlayer ? "上吧，" : "对手派出了 ") + incoming.name + "！");
+  addMessage(battlePetName(incoming) + " 因队友倒下而替补上场。", "system", side);
   notifyActivePetChanged(side, pet, incoming, "faint");
   return false;
 }

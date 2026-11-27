@@ -94,26 +94,28 @@ test('创世之能的免疫随是否携带和当前 PP 更新，状态提示显�
   assert.equal(sandbox.hasStatusImmunity(unequipped, 'freeze'), false);
   assert.equal(sandbox.hasStatusImmunity(equipped, 'freeze'), true);
   assert.equal(sandbox.hasStatusImmunity(equipped, 'burn'), false);
-  assert.match(sandbox.renderStatusBadges(equipped), /title="创世之能 · 冰冻、睡眠、恐惧、束缚"/);
+  assert.match(sandbox.renderStatusBadges(equipped), /创世之能（持续生效） · 冰冻、睡眠、恐惧、束缚/);
 
   const creation = equipped.skills[0];
   creation.pp = 0;
   assert.equal(sandbox.hasStatusImmunity(equipped, 'burn'), true);
-  assert.match(sandbox.renderStatusBadges(equipped), /title="创世之能（0 PP） · [^"]*寄生[^"]*">免疫异常/);
+  assert.match(sandbox.renderStatusBadges(equipped), /免疫全部异常<\/summary>.*创世之能（0 PP）（条件生效） · [^<]*寄生/);
   creation.pp = 1;
   assert.equal(sandbox.hasStatusImmunity(equipped, 'burn'), false);
   assert.equal(sandbox.hasStatusImmunity(equipped, 'freeze'), true);
   assert.doesNotMatch(sandbox.renderStatusBadges(equipped), /0 PP/);
 });
 
-test('同类免疫的提示保留所有生效来源和最长剩余时间', () => {
+test('同范围免疫合并剩余时间，展开后保留各来源的回合', () => {
   const { api, sandbox } = loadEngine(game);
   const pet = new api.BattlePet(api.findPet('pet_jydm'));
   const ctx = api.createBattleContext();
   ctx.grantStatusImmunity(pet, '极尽降华', 6);
   ctx.grantStatusImmunity(pet, '极影光幕', 5);
   const html = sandbox.renderStatusBadges(pet);
-  assert.match(html, /title="极尽降华、极影光幕 · [^"]+">免疫异常 6回合/);
+  assert.match(html, /免疫全部异常 6回合<\/summary>/);
+  assert.match(html, /极尽降华（6回合）/);
+  assert.match(html, /极影光幕（5回合）/);
   assert.equal((html.match(/class="status-badge immune"/g) || []).length, 1);
 });
 

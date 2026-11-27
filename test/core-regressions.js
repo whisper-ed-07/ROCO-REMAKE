@@ -421,7 +421,7 @@ for (const [petId, source, name] of [
       assert.equal(messages.some(text => text.includes('带出「' + name + '」第 2')), false);
       assert.equal(messages.some(text => text.includes('【引招】带出「' + name + '」第 3')), !interrupt);
       if (source === 'sk_ql_3') {
-        assert.equal(messages.some(text => text.includes('封灵千噬末回合：回复')), !interrupt);
+        assert.equal(messages.some(text => text.includes('封灵千噬进入末回合结算')), !interrupt);
       }
       if (source === 'sk_cszn') {
         assert.equal(p.skills[0].pp, interrupt ? 2 : 0);

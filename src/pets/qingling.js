@@ -4,7 +4,6 @@ const QINGLING_SKILLS = [
     desc: "本技能免疫常规删PP。净化回满，回复自身全体技能PP（含万念俱灰）。清除在场双方的限伤、减伤、护盾与反弹，并封锁双方全队再次获得同类效果，固有能力除外。永久防控，发动起至下回合结束免疫威力伤害。留场时，后续6回合向当时在场双方赋予微灵印记。",
     detail: "本技能免疫常规 PP 删除。\n① 净化自身的异常状态与负面强化，回复全部精力。自身携带的每个技能回复（3 + 施放前当前精力 ÷ 最大精力）点 PP，向上取整。（这次回复也适用于万念俱灰）\n② 解除当前在场双方已有的限伤、减伤、护盾和反弹（含技能效果反弹与伤害反弹）。本局剩余时间内，双方队伍的所有宠物都无法再获得这四类效果。血脉与技能被动自带的固有效果仍生效。\n③ 本局永久免疫异常状态与负面强化。从发动起至下回合结束，免疫威力伤害。\n④ 后续 6 回合内，每回合按施放者当时的已损精力计算微灵印记。当前在场双方各获得（5 + 已损精力 ÷ 50）点，向上取整，每次最多 15 点。清灵离场时停止发放。",
     onUse: function(u, t, ctx) {
-      ctx.msg(u.name + " 释放了微灵封体！");
       var cap = u.maxHp + (u.maxHpBonus || 0);
       var ratio = u.hp / cap;
       ctx.cleanseAbnormalStatuses(u);
@@ -12,7 +11,7 @@ const QINGLING_SKILLS = [
       ctx.doHeal(u, cap - u.hp);
       var ppHeal = Math.ceil(3 + ratio);
       u.skills.forEach(function(s){ gainPP(u, s, ppHeal, "sk_ql_1"); });
-      ctx.msg("净化并回复全部精力，全体技能+" + ppHeal + "PP！");
+      ctx.msg("净化自身，尝试回复各技能 " + ppHeal + " PP。");
       gameState.banEffects = { shield: true, dmgReduction: true, damageCap: true, reflect: true };
       [u, t].forEach(clearGrantedDefenses);
       ctx.msg("本局全局屏蔽：限伤/减伤/护盾/反弹效果！");
@@ -38,7 +37,7 @@ const QINGLING_SKILLS = [
       var firstZero = u.skills[0] && u.skills[0].pp <= 0;
       var isFirst = gameState.pendingFirstMove === (gameState.playerActive === u ? "player" : "ai");
       var power = getWannenPower(u);
-      ctx.msg(u.name + " 使用了万念俱灰！实际威力" + power + (firstZero ? "（首格PP=0，上限1000）" : ""));
+      ctx.detail("实际威力 " + power + (firstZero ? "（首格 PP 为 0，上限 1000）" : "") + "。");
       var res = ctx.doDamage(u, t, power, "physical", "ghost", {
         guaranteedCrit: firstZero && isFirst,
         maxDamage: firstZero ? undefined : Math.floor(t.maxHp * 0.9),
@@ -46,19 +45,20 @@ const QINGLING_SKILLS = [
       });
       var dealt = res.damage;
       if (firstZero) ctx.msg("首格PP=0：伤害不低于30%最大精力" + (isFirst ? "，先手必定暴击" : "") + "！");
-      ctx.msg("造成 " + dealt + " 点伤害！" + getEffLabel(res.effectiveness) + (res.isCrit ? " 命中要害！" : ""));
+      ctx.detail("计算伤害 " + dealt + " 点。" + getEffLabel(res.effectiveness) + (res.isCrit ? " 命中要害！" : ""));
       ctx.doHeal(u, 150);
       ctx.grantStatusImmunity(u, "万念俱灰", 6, { statuses: ABNORMAL_WITHOUT_BIND });
-      ctx.msg("回复150精力，6回合内免疫异常状态！");
+      ctx.msg("获得 6 回合异常免疫。");
       if (isFirst) {
         ctx.doFixedDamage(t, Math.floor(dealt * 0.3), u);
         ctx.transformStages(u, () => 0);
         ctx.transformStages(t, () => 0);
-        ctx.msg("先手：追加" + Math.floor(dealt * 0.3) + "固伤并强制重置双方强化！");
+        ctx.msg("先手强制重置双方强化。");
+        ctx.detail("追加固定伤害的计算值为 " + Math.floor(dealt * 0.3) + " 点。");
       } else {
         var healAmt = Math.floor(power * 1.1);
         ctx.doHeal(u, healAmt); ctx.doHeal(t, healAmt);
-        ctx.msg("后手：双方回复" + healAmt + "精力！");
+        ctx.detail("后手治疗的计算值为双方各 " + healAmt + " 点。");
         if (firstZero) {
           const slot = getRoundSkillSlot(t, true);
           if (slot >= 0) ctx.deletePP(t, slot, t.skills[slot].pp);
@@ -78,14 +78,14 @@ const QINGLING_SKILLS = [
         ctx.addShield(owner, 100);
         var firstZero = owner.skills[0] && owner.skills[0].pp <= 0;
         if (firstZero) ctx.doHeal(owner, 100);
-        ctx.msg("封灵千噬每回合：+10微灵、100护盾" + (firstZero ? "、首格PP=0回100" : "") + "！");
+        ctx.msg("获得 10 点微灵印记。");
       };
       var strike = function(owner, guaranteedCrit = false) {
         var opp = currentOpp(owner);
         if (!opp || opp.isFainted()) return;
         const power = Math.min(150, Math.floor(70 + getWannenPower(owner) * 0.2));
         var r = ctx.doDamage(owner, opp, power, "special", "ghost", { guaranteedCrit });
-        ctx.msg("封灵千噬发动！造成 " + r.damage + " 点伤害。" + (r.isCrit ? "命中要害！" : ""));
+        ctx.detail("封灵千噬计算伤害 " + r.damage + " 点。" + (r.isCrit ? "命中要害！" : ""));
         perTurn(owner);
       };
       endSkillContinuation(u, "sk_ql_3");
@@ -103,12 +103,13 @@ const QINGLING_SKILLS = [
           var extra = Math.floor((opp.lastTurnOutput || 0) * 0.6);
           if (extra > 0 && !opp.isFainted()) {
             const hit = createBattleContext().doDamage(u, opp, extra, "physical", "ghost");
-            ctx.msg("封灵千噬次回合：追加" + hit.damage + "点物理伤害。");
+            ctx.detail("封灵千噬次回合追加物理伤害，计算值为 " + hit.damage + " 点。");
           }
         } else {
           ctx.doHeal(u, Math.floor((u.maxHp + (u.maxHpBonus || 0)) * 0.3));
           u.skills.forEach(function(s){ gainPP(u, s, 1, undefined, "封灵千噬·末回合"); });
-          ctx.msg("封灵千噬末回合：回复30%精力与全体技能1PP！");
+          ctx.msg("封灵千噬进入末回合结算，尝试回复各技能 1 PP。");
+          ctx.detail("封灵千噬末回合治疗按最大精力的 30% 计算。");
           var txw = u.skills.find(function(s){ return s.id === "sk_ql_4"; });
           if (txw && txw.pp === txw.maxPp) {
             var opp2 = currentOpp(u);
@@ -135,7 +136,6 @@ const QINGLING_SKILLS = [
     onUse: function(u, t, ctx) {
       var selfSk = u.skills.find(function(s){ return s.id === "sk_ql_4"; });
       if (selfSk && selfSk.ppLocked) { selfSk.ppLocked = false; ctx.msg("太虚灵威解除PP锁定。"); }
-      ctx.msg(u.name + " 释放了太虚灵威！");
       if (!ctx.applyStatus(t, "fear")) {
         ctx.deletePP(t, -1, 2);
         ctx.setPPCostEffect(t, "太虚灵威", 3, { extra: 1 });
@@ -157,7 +157,6 @@ const QINGLING_SKILLS = [
     desc: "召唤迷雾 12 回合。成功时按万念俱灰实时威力追加固伤，失败时重置双方强化。微灵超过 300 时，按施放回合的输出差治疗下一回合的在场对手。",
     detail: "① 尝试召唤迷雾 12 回合。召唤失败时，强制重置双方强化。\n② 召唤成功时，追加万念俱灰实时威力减 20 点的固伤，最低 0 点，上限 349 点。未携带万念俱灰时，其参与计算的威力取 150。\n③ 随后以 20 威力发动攻击。\n④ 微灵印记超过 300 时，记录施放回合双方各自的总输出。下一回合按两者差值的绝对值，治疗对方届时在场的宠物。施放者换下后仍结算。",
     onUse: function(u, t, ctx) {
-      ctx.msg(u.name + " 释放了万古遗恨！");
       var bd = u.bloodlineData || {};
       var wjPower = getWannenPower(u);
       var ok = ctx.setWeather("mist", 12);
@@ -168,10 +167,10 @@ const QINGLING_SKILLS = [
       } else {
         var fd = Math.min(349, Math.floor(wjPower - 20));
         if (fd > 0) ctx.doFixedDamage(t, fd, u);
-        ctx.msg("迷雾天气降临12回合！追加" + Math.max(0, fd) + "点固伤！");
+        ctx.detail("迷雾追加固定伤害的计算值为 " + Math.max(0, fd) + " 点。");
       }
       var r = ctx.doDamage(u, t, 20, "physical", "ghost");
-      ctx.msg("造成 " + r.damage + " 点伤害！");
+      ctx.detail("计算伤害 " + r.damage + " 点。");
       var ml = bd.microLing || 0;
       const healTarget = ml > 300 ? skillEffectTarget(ctx, t, "heal") : null;
       if (healTarget) {
@@ -203,7 +202,7 @@ const QINGLING_PET = { id: "pet_qingling", name: "清灵", element: "ghost", emo
         var bd = pet.bloodlineData = pet.bloodlineData || {};
         if (skill.category === "status") {
           ctx.doHeal(pet, 200);
-          ctx.msg("【清念灵体】使用变化技：回复200精力！");
+          ctx.detail("【清念灵体】使用变化技能后，治疗按 200 点计算。");
           if (skill.pp <= 4) {
             const source = "清念灵体·变化招（" + skill.name + "）";
             for (const move of pet.skills) {
@@ -257,8 +256,7 @@ function resolveQinglingHealBatches() {
     }
     segments.forEach((segment, index) => {
       if (target.isFainted()) return;
-      const result = target.applyHealSegment(segment.effective, index === highest ? 1 : segment.inversion);
-      if (result > 0) addMessage(target.name + " 回复了" + result + "HP");
+      target.applyHealSegment(segment.effective, index === highest ? 1 : segment.inversion, target.hp, segment.source);
     });
   }
 }
@@ -270,7 +268,7 @@ function resolveWanguHeals() {
     const target = gameState[heal.targetSide];
     if (target && !target.isFainted() && heal.amount > 0) {
       ctx.doHeal(target, heal.amount);
-      ctx.msg("万古遗恨：按施放回合双方输出差给予对方" + heal.amount + "点治疗。");
+      ctx.detail("万古遗恨按施放回合的双方输出差计算治疗，本次为 " + heal.amount + " 点。");
     }
     return false;
   });

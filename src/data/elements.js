@@ -147,6 +147,7 @@ function getEffectiveness(atkEl, defEl) { return TYPE_CHART[atkEl]?.[defEl] ?? 1
 function getEffLabel(val) { if (val >= 2) return "效果拔群！"; if (val <= 0.5 && val > 0) return "效果不佳..."; if (val === 0) return "没有效果！"; return ""; }
 
 const GALE_WEATHER = "gale";
+const FIELD_DISPLAY = { dream: ["🌙", "梦境"], shunhua: ["✨", "瞬华"] };
 const WEATHER_DISPLAY = {
   sunny: ["☀", "暴晒"],
   rainy: ["🌧", "暴雨"],

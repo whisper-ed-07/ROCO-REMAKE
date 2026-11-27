@@ -9,7 +9,6 @@ const QINGYU_SKILLS = [
     onUse: function(u, t, ctx) {
       var bd = u.bloodlineData || {};
       var q = bd.qfzn || 0, inQ = bd.mode === "清念";
-      ctx.msg(u.name + " 释放了清翎覆尘！");
       if (q < 3 || !inQ) {
         u.immuneBackhand = true;
         ctx.addTurnEffect(u, "清翎护盾", 2, function(p) {
@@ -26,7 +25,8 @@ const QINGYU_SKILLS = [
         u.skills.forEach(function(s){ gainPP(u, s, Math.ceil(s.maxPp * 0.3), "sk_qy_1"); });
         ctx.interruptSkillContinuations(t);
         ctx.grantStatusImmunity(u, "清翎覆尘", 12, { stats: true });
-        ctx.msg("清念：净化回满，其他技能+30%PP，打断对方连续发动的技能，12回合免疫！");
+        ctx.msg("清念净化自身，打断对方的连续技能，获得 12 回合异常免疫。");
+        ctx.detail("清念尝试回满自身精力，并按其他技能各自最大 PP 的 30% 回复 PP。");
       }
       if (!bd.qyFirstUse) {
         bd.qyFirstUse = true;
@@ -197,7 +197,8 @@ const QINGYU_SKILLS = [
       [...new Set([u, recipient].filter(Boolean))].forEach(function(p) { STAGE_FIELDS.forEach(function(k){ total += Math.abs(p[k] || 0); p[k] = 0; }); });
       var healAmt = total * 60;
       ctx.doHeal(t, healAmt);
-      ctx.msg("清除双方强化，对敌方治疗" + healAmt + "！");
+      ctx.msg("清除双方强化。");
+      ctx.detail("对对方的治疗按 " + healAmt + " 点计算。");
       if (healAmt < 240) { var last = t.skills.find(function(s){ return s.id === t.lastUsedSkillId; }); if (last) ctx.deletePP(t, t.skills.indexOf(last), 5); ctx.msg("治疗<240：额外删对方上次技能5PP！"); }
       u.skills.forEach(function(s){ gainPP(u, s, 3, undefined, "清念沉脉·发动"); });
       var self = u.skills.find(function(s){ return s.id === "sk_qy_5"; });
@@ -225,7 +226,8 @@ const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "�
         var opp = ctx.playerActive === pet ? ctx.aiActive : ctx.playerActive;
         if (bd.switchTurn) {
           ctx.doHeal(pet, 99);
-          ctx.msg("【血脉切换期】回复99HP！使用翼系→清念 / 冰系→残脉");
+          ctx.msg("血脉切换期使用翼系技能进入清念，使用冰系技能进入残脉。");
+          ctx.detail("【血脉切换期】治疗按 99 点计算。");
           return;
         }
         if (bd.healCount >= 2) { bd.qfzn += Math.floor(bd.healCount / 2); bd.healCount = bd.healCount % 2; }
@@ -279,7 +281,7 @@ const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "�
       onAfterDamageSegment: function(pet) {
         var bd = pet.bloodlineData;
         if (!bd || bd.mode !== "残脉") return;
-        if (pet.hp > 200) pet.heal(Math.floor((pet.maxHp + (pet.maxHpBonus || 0)) * 0.3));
+        if (pet.hp > 200) pet.heal(Math.floor((pet.maxHp + (pet.maxHpBonus || 0)) * 0.3), { source: "残脉" });
       },
       onSkillUse: function(pet, target, ctx, skill) {
         var bd = pet.bloodlineData;
@@ -319,11 +321,11 @@ const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "�
             ctx.msg("【清念】速度-25%（3回合），减伤" + reduction + "%（4回合）" + (canStack?"（可叠加）":"") + "！");
           } else ctx.msg("【清念】速度-25%（3回合）！");
           // (3) 4回合每回合回复10%最大精力
-          ctx.addTurnEffect(pet, "清念翼愈", 4, function(p){ ctx.doHeal(p, Math.floor(p.maxHp * 0.1)); ctx.msg("【清念】回复10%最大精力！"); }, null);
+          ctx.addTurnEffect(pet, "清念翼愈", 4, function(p){ ctx.doHeal(p, Math.floor(p.maxHp * 0.1)); ctx.detail("清念翼愈的治疗按最大精力的 10% 计算。"); }, null);
           // 对敌方治疗：0.2×双方已损精力之和
           var lostSum = (pet.maxHp - pet.hp) + (opp ? (opp.maxHp - opp.hp) : 0);
           var oppHeal = Math.ceil(0.2 * lostSum);
-          if (opp && !opp.isFainted() && oppHeal > 0) { ctx.doHeal(opp, oppHeal); ctx.msg("【清念】对敌方治疗" + oppHeal + "HP！"); }
+          if (opp && !opp.isFainted() && oppHeal > 0) { ctx.doHeal(opp, oppHeal); ctx.detail("【清念】对对方的治疗按 " + oppHeal + " 点计算。"); }
         }
         // 冰系技能触发血脉效果（仅残脉态）
         if (element === "ice" && bd.mode === "残脉") {
@@ -337,7 +339,8 @@ const QINGYU_PET = { id: "pet_qy", name: "清羽", element: "flying", emoji: "�
             if (pet.lastIceSkillTurn !== undefined && gameState.turnCount - pet.lastIceSkillTurn < 2) iceHeal = Math.floor(iceHeal * 0.7);
             pet.lastIceSkillTurn = gameState.turnCount;
             ctx.doHeal(pet, iceHeal);
-            ctx.msg("【冰系】净化自身，回复" + iceHeal + "精力" + (iceHeal < 300 ? "（间隔惩罚-30%）" : "") + "！");
+            ctx.msg("冰系技能净化自身。");
+            ctx.detail("冰系技能的治疗按 " + iceHeal + " 点计算" + (iceHeal < 300 ? "（间隔惩罚 −30%）" : "") + "。");
           }
           // (2) 删除对方全体1PP；技能PP=1时额外删(3+双方强化数×2)PP并清除双方强化
           ctx.deletePP(opp, -1, 1, "残脉·冰系招式");

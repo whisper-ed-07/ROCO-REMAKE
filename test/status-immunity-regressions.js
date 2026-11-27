@@ -23,7 +23,7 @@ test('光幕刷新后旧光幕到期，状态栏与残风临霜均保留防控',
   tick(f, 2);
   f.e.api.executeSkillTurn(f.p, f.a, f.p.skills[0], 'player');
   tick(f, 3);
-  assert.match(f.e.sandbox.renderStatusBadges(f.p), /免疫异常 2回合/);
+  assert.match(f.e.sandbox.renderStatusBadges(f.p), /免疫全部异常 2回合/);
   f.ctx.modifyStat(f.p, 'spatk', -1);
   assert.strictEqual(f.p.spatkStage, 0);
   const next = new f.e.api.BattlePet(f.e.api.findPet('pet_qy'));
@@ -125,7 +125,7 @@ test('通用净化清除寄生并阻止再次施加', () => {
     assert.equal(f.p.status, null, id);
     assert.equal(f.p.bindTurns, 0, id);
     assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), false, id);
-    assert.match(f.e.sandbox.renderStatusBadges(f.p), /免疫异常/);
+    assert.match(f.e.sandbox.renderStatusBadges(f.p), /免疫(?:全部)?异常/);
   }
 });
 
@@ -154,7 +154,9 @@ test('通用防控拦截寄生种子，防控到期后可重新施加', () => {
   seed();
   assert.equal(f.p.leechSeed, false);
   assert.ok(f.e.api.gameState.messages.some(m => m.text.includes('免疫了寄生')));
-  assert.match(f.e.sandbox.renderStatusBadges(f.p), /title="化念作刃 · [^"]*寄生[^"]*">免疫异常 4回合/);
+  const badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.match(badges, /免疫异常 4回合<\/summary>/);
+  assert.match(badges, /化念作刃（4回合） · [^<]*寄生/);
   tick(f, 4);
   seed();
   assert.equal(f.p.leechSeed, true);
@@ -217,6 +219,96 @@ test('被防控挡住的新异常不会清除同组已有异常', () => {
   f.ctx.grantStatusImmunity(f.p, '测试免疫寄生', 2, { statuses: ['leech_seed'] });
   assert.equal(f.ctx.applyStatus(f.p, 'leech_seed'), false);
   assert.equal(f.p.poisoned, true);
+});
+
+test('单个免疫徽章体现覆盖范围，明念与多来源各自保留准确回合', () => {
+  const f = fixture('pet_jydm', ['sk_jydm_3']);
+  f.e.api.gameState.resolvingTurn = true;
+  f.e.sandbox.advanceMingnian(f.p, f.a, f.ctx, f.p.skills[0]);
+  f.ctx.grantStatusImmunity(f.p, '含 < 的测试防控', 5, {
+    statuses: ['burn', 'freeze', 'paralyze', 'poison', 'sleep', 'deep_sleep', 'confuse', 'fear', 'leech_seed'],
+    stats: true
+  });
+  let badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.strictEqual((badges.match(/data-status-group="immune"/g) || []).length, 1);
+  assert.match(badges, /免疫全部异常 4回合<\/summary>/);
+  assert.match(badges, /明念（4回合） · [^<]*魔攻、速度的负面强化/);
+  assert.match(badges, /含 &lt; 的测试防控（5回合） · [^<]*全部负面强化/);
+  assert.doesNotMatch(f.e.sandbox.renderStatusBadges(f.a), /明念|测试防控/);
+  tick(f, 4);
+  badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.match(badges, /免疫异常 1回合<\/summary>/);
+  assert.doesNotMatch(badges, /明念|免疫全部异常/);
+});
+
+test('绝对回合效果随结算、选招及战斗结束显示，普通持续时长保持原计时', () => {
+  const f = fixture('pet_jydm', ['sk_jydm_3']);
+  const state = f.e.api.gameState;
+  const badges = () => f.e.sandbox.renderStatusBadges(f.p);
+  state.turnCount = 7;
+  state.resolvingTurn = true;
+  Object.assign(f.p, { powerDamageImmuneThroughTurn: 8, dimoFrostRecoveryThrough: 8,
+    statLockedThrough: 7, dimoEjectImmuneThrough: 7, externalEffectImmuneTurn: 7,
+    immuneBackhandEffects: true, immuneBackhand: true, invincible: true,
+    blockPPRecoveryOnTurn: 8, hp: 1, lightWindThroughTurn: 7 });
+  f.e.sandbox.advanceMingnian(f.p, f.a, f.ctx, f.p.skills[0]);
+  f.p.bloodlineData.markThrough = 7;
+  f.ctx.grantStatusImmunity(f.p, '常规防控', 3);
+  assert.match(badges(), /免疫威力伤害 2回合/);
+  assert.match(badges(), /回复减半 2回合/);
+  assert.match(badges(), /明念（1回合）/);
+  for (const effect of ['强化锁定', '免疫驱逐', '免疫伤害', '免疫外来效果', '免疫后手效果', '限伤 150']) {
+    assert.ok(badges().includes(effect + ' 1回合'), effect);
+  }
+  assert.match(badges(), /下回合禁止回复 PP/);
+
+  state.resolvingTurn = false;
+  const selection = badges();
+  assert.match(selection, /免疫威力伤害 1回合/);
+  assert.match(selection, /回复减半 1回合/);
+  assert.match(selection, /常规防控（3回合）/);
+  assert.match(selection, />禁止回复 PP 1回合/);
+  assert.doesNotMatch(selection, /明念|强化锁定|免疫驱逐|免疫伤害|免疫外来效果|免疫后手|限伤/);
+
+  state.battleOver = true;
+  const final = badges();
+  assert.match(final, /免疫威力伤害 2回合/);
+  assert.match(final, /强化锁定 1回合/);
+  assert.match(final, /明念（1回合）/);
+  assert.doesNotMatch(final, /禁止回复 PP/);
+});
+
+test('被动异常免疫的条件生效后扩展范围，PP 恢复后立即收窄', () => {
+  const f = fixture('pet_bmhs', ['sk_cszn']);
+  let badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.match(badges, /免疫部分异常<\/summary>/);
+  assert.match(badges, /创世之能（持续生效） · 冰冻、睡眠、恐惧、束缚/);
+  f.p.skills[0].pp = 0;
+  badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.match(badges, /免疫全部异常<\/summary>/);
+  assert.match(badges, /创世之能（0 PP）（条件生效）/);
+  assert.strictEqual((badges.match(/data-status-group="immune"/g) || []).length, 1);
+  f.p.skills[0].pp = 1;
+  assert.doesNotMatch(f.e.sandbox.renderStatusBadges(f.p), /创世之能（0 PP）/);
+});
+
+test('状态栏显示有效精力上限、限伤减伤与持续效果', () => {
+  const f = fixture('pet_jydm', ['sk_jydm_3']);
+  Object.assign(f.p, { hp: 80, maxHp: 100, maxHpBonus: 60, damageCap: 80,
+    damageCapThreshold: 90, damageCapTurns: 2, passiveDamageReduction: 20,
+    damageReduction: 40, damageReductionTurns: 3, healInvertPct: 0.5, healInvertTurns: 4 });
+  f.ctx.addTurnEffect(f.p, '测试持续回精', 2);
+  assert.strictEqual(f.e.sandbox.battleMaxHp(f.p), 160);
+  assert.strictEqual(f.e.sandbox.hpPercent(f.p), 50);
+  let badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.match(badges, /限伤 80 2回合/);
+  assert.match(badges, /减伤 40% 3回合/);
+  assert.match(badges, /治疗倒置 50% 4回合/);
+  assert.match(badges, /测试持续回精 · 2回合/);
+  f.e.api.gameState.banEffects = { damageCap: true, dmgReduction: true };
+  badges = f.e.sandbox.renderStatusBadges(f.p);
+  assert.doesNotMatch(badges, /限伤|减伤 40%/);
+  assert.match(badges, /减伤 20%<\/span>/);
 });
 
 if (failed) { console.error(`${failed} regression(s) failed`); process.exitCode=1; }

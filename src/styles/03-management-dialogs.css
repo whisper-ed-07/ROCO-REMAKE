@@ -21,6 +21,47 @@
 .add-btn { padding: 16px; border: 2px dashed var(--border); border-radius: var(--radius); background: transparent; color: var(--text2); cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s ease; text-align: center; }
 @media (hover: hover) { .add-btn:hover { border-color: var(--accent); color: var(--accent); } }
 
+#mgmt-list .mgmt-pet { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+.mgmt-pet-toggle {
+  display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 44px;
+  padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer;
+}
+.mgmt-pet-toggle .mgmt-item-detail { display: block; }
+.mgmt-pet-disclosure { display: flex; flex-shrink: 0; align-items: center; gap: 4px; color: var(--text2); font-size: 13px; }
+.mgmt-pet-toggle[aria-expanded="true"] .mgmt-pet-disclosure { color: var(--gold); }
+.mgmt-pet-toggle[aria-expanded="true"] .mgmt-pet-disclosure span { transform: rotate(180deg); }
+.mgmt-pet-profile { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border); padding-top: 14px; }
+.mgmt-pet-profile h3 { margin: 0 0 8px; font-size: 14px; color: var(--text); }
+.mgmt-pet-profile h3:not(:first-child) { margin-top: 14px; }
+.mgmt-base-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(65px, 1fr)); gap: 6px; margin: 0; }
+.mgmt-base-stats div { padding: 6px 4px; border: 1px solid var(--border); border-radius: 8px; text-align: center; }
+.mgmt-base-stats dt { color: var(--text2); font-size: 12px; }
+.mgmt-base-stats dd { margin: 0; font-weight: 700; }
+.mgmt-profile-skills { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0; }
+.mgmt-profile-skills li { max-width: 100%; }
+.mgmt-profile-skills button, .mgmt-bloodline summary {
+  min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface2); color: var(--text); cursor: pointer;
+}
+#mgmt-list .mgmt-item-actions button { min-height: 44px; }
+.mgmt-profile-skills button { overflow-wrap: anywhere; }
+.mgmt-skill-order { display: inline-block; margin-right: 6px; color: var(--gold); font-weight: 800; font-variant-numeric: tabular-nums; }
+.mgmt-bloodline { margin-top: 14px; }
+.mgmt-bloodline summary { font-size: 14px; line-height: 26px; color: var(--gold); }
+.mgmt-bloodline pre { margin: 10px 0 0; font: inherit; font-size: 14px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mgmt-pet-toggle:focus-visible, .mgmt-profile-skills button:focus-visible, .mgmt-bloodline summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (hover: hover) {
+  .mgmt-pet-toggle:hover .mgmt-item-name { color: var(--gold); }
+  .mgmt-profile-skills button:hover, .mgmt-bloodline summary:hover { border-color: var(--gold); }
+}
+@media (max-width: 420px) {
+  #mgmt-list .mgmt-pet { column-gap: 8px; }
+  .mgmt-pet-toggle { gap: 6px; }
+  #mgmt-list .mgmt-pet-toggle .mgmt-item-info { flex: 1; }
+  #mgmt-list .mgmt-pet:has(.del-pet-btn) { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  #mgmt-list .mgmt-pet:has(.del-pet-btn) .mgmt-item-actions { justify-self: end; }
+}
+
 /* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
 .modal-overlay.show { display: flex; }

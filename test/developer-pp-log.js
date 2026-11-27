@@ -36,7 +36,57 @@ test('测试日志记录后手被冰冻前已支付的 PP，并区分应扣和�
   assert.match(ppLog(), /我方场上清灵第1格「万念俱灰」 1 → 0（−1 PP）｜第1回合选招扣费[^]*?应扣 4 PP，基础消耗 ×2（化念中段），额外 \+2 PP（极影光幕·三损），剩余 PP 不足，实扣 1 PP/);
   const lines = state.messages.map(message => message.text);
   const paidAt = lines.findIndex(line => line.includes('万念俱灰」 1 → 0'));
-  assert.ok(lines.findIndex(line => line.includes('清灵 无法行动')) > paidAt);
+  assert.ok(lines.findIndex(line => line.includes('我方清灵 的「万念俱灰」未能使出，我方清灵因冰冻无法行动')) > paidAt);
+  assert.equal(state.messages[paidAt].turn, 1);
+});
+
+test('镜像对战会标明技能来源和伤害目标，记录护盾后的实扣精力', () => {
+  const { api, p, a, state } = fixture(['sk_ql_2'], ['sk_qy_4']);
+  a.name = p.name;
+  a.shield = 25;
+  a.hp = 20;
+  state.turnCount = 2;
+  api.executeSkillTurn(p, a, p.skills[0], 'player');
+  const text = state.messages.map(message => message.text).join('\n');
+  assert.match(text, /我方清灵 使用了「万念俱灰」/);
+  assert.match(text, /对方清灵 的护盾吸收了 25 点伤害/);
+  assert.match(text, /对方清灵 被我方清灵的「万念俱灰」击中，损失 20 点精力/);
+  assert.match(text, /【我方清灵 · 万念俱灰】计算伤害/);
+  assert.ok(state.messages.filter(message => message.type === 'damage').every(message => message.turn === 2));
+});
+
+test('普通战斗在威力免疫与治疗倒置时显示实况', () => {
+  const { api, p, a, state } = fixture(['sk_ql_2'], ['sk_qy_4']);
+  state.battleMode = 'solo';
+  state.turnCount = 2;
+  state.pendingFirstMove = 'player';
+  a.powerDamageImmuneThroughTurn = 2;
+  p.healInvertTurns = 2;
+  p.healInvertPct = 1;
+  const before = p.hp;
+  api.executeSkillTurn(p, a, p.skills[0], 'player');
+  assert.equal(p.hp, before - 150);
+  const text = state.messages.map(message => message.text).join('\n');
+  assert.match(text, /对方清羽 免疫了威力伤害/);
+  assert.match(text, /我方清灵 的治疗被倒置，净损失 150 点精力/);
+  assert.equal(state.messages.find(m => m.text.includes('净损失 150 点精力')).type, 'damage');
+  assert.match(text, /我方清灵 · 万念俱灰】获得 6 回合异常免疫/);
+  assert.doesNotMatch(text, /计算伤害|实际威力|回复150精力/);
+});
+
+test('治疗倒置后仍有净回复时只记一次，血脉直接回复也显示来源', () => {
+  const { api, p, a, state } = fixture(['sk_ql_2'], ['sk_qy_4']);
+  p.hp -= 150;
+  p.healInvertTurns = 2;
+  p.healInvertPct = .25;
+  api.createBattleContext().doHeal(p, 100);
+  assert.deepEqual(Array.from(state.messages.filter(m => m.type === 'heal'), m => m.text),
+    ['我方清灵 的治疗被倒置，净回复 50 点精力。']);
+  a.bloodline.onEnter(a, api.createBattleContext());
+  a.bloodlineData.mode = '残脉';
+  a.hp -= 30;
+  a.bloodline.onAfterDamageSegment(a);
+  assert.equal(state.messages.at(-1).text, '对方清羽 回复了 30 点精力（残脉）。');
 });
 
 test('删 PP 逐格记录实扣、免删、保护、空 PP 和反弹', () => {

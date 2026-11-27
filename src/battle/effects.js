@@ -1,8 +1,9 @@
 // ---------- BLOODLINE & TURN EFFECT PROCESSING ----------
 function processBloodlines() {
-  var ctx = createBattleContext();
   [gameState.playerActive, gameState.aiActive].forEach(function(pet) {
     if (pet && !pet.isFainted() && pet.bloodline && pet.bloodline.onTurnStart) {
+      const ctx = createBattleContext();
+      ctx.logOwner = pet;
       pet.bloodline.onTurnStart(pet, ctx);
     }
   });
@@ -109,7 +110,7 @@ function dimoAttack(u, t, ctx, dodgeResult) {
     ctx.deletePP(t, -1, 2);
   }
   const damage = ctx.doDamage(u, t, 90, "physical", "fighting", dodgeResult ? { atkStageOverride: 2 } : undefined);
-  ctx.msg("【化念作刃】造成" + damage.damage + "点伤害！");
+  ctx.detail("化念作刃计算伤害 " + damage.damage + " 点。");
   const bd = mingnianData(u);
   if (!isMingnianMarked(u) || bd.markTarget !== t) return;
   const stages = STAGE_FIELDS.reduce((total, key) => total + Math.abs(t[key]), 0);
@@ -264,11 +265,13 @@ function resolveNilexFollowup(user, target, ctx, pending) {
     ctx.doFixedDamage(target, 9999, user);
     ctx.forceClearPP(target, "逆流而行·终结");
     for (const skill of user.skills) gainPP(user, skill, 1, "sk_nlex", "逆流而行·终结");
-    ctx.msg("【逆流而行】终结：9999固伤，强制清空对方PP，自身全体回复1PP！");
+    ctx.msg("逆流而行的终结效果发动，强制清空对方的 PP，并尝试回复自身各技能 1 PP。");
+    ctx.detail("终结追加固定伤害的计算值为 9999 点。");
   } else if (pending.cnt === 2) {
     for (const skill of user.skills) gainPP(user, skill, 3, "sk_nlex", "逆流而行·后续回复");
     ctx.doHeal(user, Math.floor((user.maxHp + (user.maxHpBonus || 0)) * 0.3));
-    ctx.msg("【逆流而行】回溯：自身全体回复3PP与30%精力！");
+    ctx.msg("逆流而行的回溯效果发动，尝试回复自身各技能 3 PP。");
+    ctx.detail("回溯治疗按最大精力的 30% 计算。");
   }
 }
 
@@ -431,7 +434,7 @@ function endSkillContinuation(owner, skillId) {
 function interruptSkillContinuations(owner) {
   for (const skillId of owner.skillContinuations.keys()) {
     endSkillContinuation(owner, skillId);
-    addMessage("【打断】" + owner.name + "的「" + findSkill(skillId).name + "」提前结束。");
+    addMessage("【打断】" + battlePetName(owner) + "的「" + findSkill(skillId).name + "」提前结束。", "status", battlePetSide(owner));
   }
 }
 
@@ -443,7 +446,7 @@ function triggerSkillContinuations(owner, move) {
     if (owner.isFainted() || !target || target.isFainted()) return;
     sequence.lastUse = turn;
     const stage = turn - sequence.start + 1;
-    addMessage("【" + move.name + "】带出「" + findSkill(skillId).name + "」第 " + stage + " 回合效果。");
+    addMessage(battlePetName(owner) + "【" + move.name + "】带出「" + findSkill(skillId).name + "」第 " + stage + " 回合效果。", "action", battlePetSide(owner));
     sequence.onUse(stage, target);
   }
 }

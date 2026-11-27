@@ -115,7 +115,37 @@ function pageSetup() {
     const log = get('#battle-messages');
     return [log.getBoundingClientRect().height, parseFloat(getComputedStyle(log).fontSize)];
   };
-  Object.assign(window, { get, eq, click, root, choice, selected, font, layout, enterBattle, logMetrics });
+  const checkBattleHeader = () => {
+    const weather = get('#battle-weather');
+    const round = get('#turn-indicator');
+    const box = node => node.getBoundingClientRect();
+    const center = node => box(node).left + box(node).width / 2;
+    eq(round.textContent, '第 1 回合', '初次选招的回合数');
+    const context = createBattleContext();
+    eq(weather.textContent, '无天气无环境', '开场保留两个空位');
+    const slots = () => [...weather.children].map(node => {
+      const { x, y, width, height } = box(node);
+      return [x, y, width, height];
+    });
+    const initial = JSON.stringify(slots());
+    const arena = get('.battle-row');
+    eq(Math.abs(center(weather) - center(arena)) < 1, true, '天气栏在对战区域正中');
+    eq(Math.abs(center(round) - center(weather)) < 1 && box(round).top >= box(weather).bottom, true, '回合号在天气栏正下方');
+    const arenaTop = box(arena).top;
+    context.setWeather('gale', 2);
+    context.setField('dream', 2);
+    updateBattleUI();
+    eq(weather.textContent.includes('疾风') && weather.textContent.includes('梦境'), true, '天气与环境同时显示');
+    eq(JSON.stringify(slots()), initial, '场地生效后各自位置尺寸稳定');
+    eq(box(arena).top, arenaTop, '天气变化不推移宠物');
+    for (const node of weather.children) eq(node.scrollWidth <= node.clientWidth, true, '场地名称与时限均装入格内');
+    tickEnvironments();
+    tickEnvironments();
+    updateBattleUI();
+    eq(weather.textContent, '无天气无环境', '场地到期恢复空位');
+    eq(JSON.stringify(slots()), initial, '场地到期位置稳定');
+  };
+  Object.assign(window, { get, eq, click, root, choice, selected, font, layout, enterBattle, logMetrics, checkBattleHeader });
 }
 
 async function test(browserConnection, origin) {
@@ -289,6 +319,8 @@ async function test(browserConnection, origin) {
   const standard = await inspect(() => {
     click('#settings-back');
     enterBattle();
+    checkBattleHeader();
+    eq(get('#battle-messages').tabIndex, 0, '单机日志可用键盘滚动');
     spawnFloatText(gameState.playerActive, 42, 'dmg');
     eq(get('#player-sprite .float-text').textContent, '-42', '默认显示伤害飘字');
     return logMetrics();
@@ -306,7 +338,7 @@ async function test(browserConnection, origin) {
     eq(document.querySelector('.float-text'), null, '关闭后不生成飘字');
     return logMetrics();
   });
-  assert.ok(adjusted[0] > standard[0], '扩大日志使实际区域变高');
+  assert.ok(standard[0] >= 300 && adjusted[0] > standard[0], '桌面默认日志至少 300px，扩大设置进一步增加高度');
   assert.ok(adjusted[1] > standard[1], '大号日志使实际文字变大');
 
   await size(320);
@@ -320,15 +352,28 @@ async function test(browserConnection, origin) {
     eq(get('#mode-solo').getAttribute('aria-pressed'), 'false', '单机模式取消选中');
     eq(get('#btn-battle .menu-action-title').textContent, '开始测试', '测试入口');
     enterBattle();
+    checkBattleHeader();
     const viewport = document.documentElement.clientWidth;
     const logBounds = get('#battle-messages').getBoundingClientRect();
     eq(logBounds.left >= 0 && logBounds.right <= viewport, true, '窄屏日志位于视口内');
+    eq(logBounds.height >= 265, true, '窄屏的扩大日志高度');
     stopTurnTimer();
     eq(gameState.battleMode, 'developer', '测试模式进入实际对战');
     eq(gameState.messages[0].text, '━━━ 战斗开始 ━━━', '保留开局');
     click('.skill-btn');
     stopTurnTimer();
     eq(gameState.turnCount, 1, '正常选招并结算对手');
+    eq(get('#turn-indicator').textContent, '第 2 回合', '双方行动完毕后显示下次选招的回合');
+    grantStatusImmunity(gameState.playerActive, '短期防控', 2);
+    grantStatusImmunity(gameState.playerActive, '长期防控', 5);
+    updateBattleUI();
+    const badges = get('#player-status').querySelectorAll('details[data-status-group="immune"]');
+    eq(badges.length, 1, '多来源防控只显示一个徽章');
+    badges[0].querySelector('summary').click();
+    eq(badges[0].open && badges[0].innerText.includes('短期防控（2回合）') && badges[0].innerText.includes('长期防控（5回合）'), true, '展开查看两个来源及各自的时限');
+    grantStatusImmunity(gameState.playerActive, '短期防控', 3);
+    updateBattleUI();
+    eq(get('#player-status details[data-status-group="immune"]').open, true, '刷新时仍可继续阅读防控详情');
     eq(gameState.messages.some(({ text }) => /^【PP】我方场上.*选招扣费/.test(text)), true, '实战逐格 PP 日志已记入');
     gameState.logFilter = 'system';
     gameState.logCollapsed[1] = true;
@@ -426,6 +471,25 @@ async function test(browserConnection, origin) {
     gameState.playerActive = player;
     renderBattleActions();
     stopTurnTimer();
+    click('#flee-btn');
+    click('#flee-confirm');
+    click('#btn-pets');
+    const cards = [...document.querySelectorAll('.mgmt-pet')];
+    for (const pet of DEFAULT_PETS) {
+      const card = cards.find(node => node.querySelector('.mgmt-item-name').textContent === pet.name);
+      card.querySelector('.mgmt-pet-toggle').click();
+      const profile = card.querySelector('.mgmt-pet-profile');
+      eq(profile.hidden, false, pet.name + ' 的资料可展开');
+      eq(profile.querySelectorAll('.mgmt-base-stats dd').length, 6, '六项种族值');
+      const bloodline = profile.querySelector('.mgmt-bloodline');
+      bloodline.querySelector('summary').click();
+      eq(bloodline.open, true, '局外可点开血脉');
+      eq(bloodline.querySelector('pre').textContent, BLOODLINE_ORIGINALS[pet.id], pet.name + ' 的血脉逐字对应原文');
+      const move = profile.querySelector('[data-profile-skill]');
+      move.click();
+      eq(get('.skill-detail-original').textContent, ORIGINAL_SKILL_TEXT[move.dataset.profileSkill], '局外技能原文');
+      click('#skill-detail-close');
+    }
   });
 
   await inspect(() => localStorage.setItem('roco_theme', 'light'));
@@ -539,7 +603,7 @@ async function main() {
     const content = asset?.content ?? (route === '/game' ? game.html : '<!doctype html><title>ROCO 测试</title><body></body>');
     response.setHeader('Content-Type', (asset?.contentType ?? 'text/html') + '; charset=utf-8');
     // 保持测试只访问本机。字体仍可验证实际 CSS 字体链。
-    response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
+    response.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
     response.end(content);
   });
   let processHandle;

@@ -31,6 +31,12 @@ function element() {
     if (!children.has(selector)) children.set(selector, element());
     return children.get(selector);
   };
+  node.remove = () => {
+    const parent = node.parentNode;
+    if (parent === node || !parent) return;
+    parent.children = parent.children.filter(child => child !== node);
+    node.parentNode = null;
+  };
   return node;
 }
 
@@ -38,11 +44,19 @@ function openEngine(saved = {}) {
   const { api, sandbox } = loadEngine(htmlPath);
   const root = element();
   const body = element();
-  body.insertAdjacentHTML = (where, markup) => { body.innerHTML = markup; };
+  body.insertAdjacentHTML = (where, markup) => {
+    body.innerHTML = markup;
+    const layer = element();
+    layer.id = markup.match(/^<div[^>]* id="([^"]+)"/)[1];
+    body.appendChild(layer);
+  };
+  const getElementById = id => body.children.find(child => child.id === id) ?? null;
+  root.querySelector('#app').inert = false;
   const alerts = [];
   Object.assign(sandbox.document, {
     body,
-    querySelector: root.querySelector,
+    querySelector: selector => (selector.startsWith('#') ? getElementById(selector.slice(1)) : null) ?? root.querySelector(selector),
+    getElementById,
     createElement: element
   });
   sandbox.alert = message => alerts.push(message);
@@ -89,12 +103,15 @@ function equipTest() {
   const ids = Array.from(p.skillIds);
   e.sandbox.showPetForm(p);
   assert.match(e.body.innerHTML, /编辑宠物/);
+  assert.equal(e.root.querySelector('#app').inert, true);
   e.fill({
     '#fp-name': '已改名', '#fp-emoji': '🧪', '#fp-element': p.element, '#fp-level': 88,
     '#fp-hp': 550, '#fp-atk': 432, '#fp-def': 415, '#fp-spatk': 400, '#fp-spdef': 380, '#fp-spd': 343,
     '#fp-skill-0': ids[0], '#fp-skill-1': ids[1], '#fp-skill-2': ids[2], '#fp-skill-3': ids[3]
   });
   e.root.querySelector('#form-save').click();
+  assert.equal(e.root.querySelector('#app').inert, false);
+  assert.equal(e.sandbox.document.getElementById('modal-overlay'), null);
   const edited = e.api.findPet(p.id);
   const stats = JSON.parse(JSON.stringify(edited.baseStats));
   assert.equal(edited.name, '已改名');
@@ -116,6 +133,7 @@ function equipTest() {
   e.sandbox.preferences.motion = 'reduce';
   notice.querySelector('#skill-limit-confirm').click();
   assert.equal(e.root.querySelector('#app').inert, false);
+  assert.equal(e.sandbox.document.getElementById('skill-limit-overlay'), null);
   clickSkill(ids[0]);
   clickSkill(ids[4]);
   e.detail.querySelector('left:' + ids[4]).click();

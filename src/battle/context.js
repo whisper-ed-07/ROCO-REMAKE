@@ -40,17 +40,17 @@ function skillEffectTarget(ctx, target, kind) {
   const action = ctx?.skillAction;
   if (!action || target === action.user) return target;
   if (target.externalEffectImmuneTurn === gameState.turnCount) {
-    addMessage(target.name + " 免疫了外来技能效果！");
+    addMessage(battlePetName(target) + " 免疫了外来技能效果！", "status", battlePetSide(target));
     return null;
   }
   if (!action.backhand || target !== action.target) return target;
   if (target.reflectBackhand && !gameState.banEffects?.reflect) {
-    if (!action.reflected) addMessage(target.name + " 反弹了后手技能效果！");
+    if (!action.reflected) addMessage(battlePetName(target) + " 反弹了后手技能效果！", "status", battlePetSide(target));
     action.reflected = true;
     return action.user;
   }
   if (target.immuneBackhandEffects || (target.immuneBackhand && kind === "damage")) {
-    addMessage(target.name + " 免疫了后手技能效果！");
+    addMessage(battlePetName(target) + " 免疫了后手技能效果！", "status", battlePetSide(target));
     return null;
   }
   return target;
@@ -69,7 +69,11 @@ function createBattleContext() {
       el = getEffectiveSkillElement(att, el);
       if (!(power > 0)) return { damage: 0, effectiveness: 1, isCrit: false };
       wakeFromPowerHit(def);
-      if (power > 0 && hasPowerDamageImmunity(def)) { this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0; return { damage: 0, effectiveness: 1, isCrit: false }; }
+      if (hasPowerDamageImmunity(def)) {
+        addMessage(battlePetName(def) + " 免疫了威力伤害。", "status", battlePetSide(def));
+        this._lastEff = 1; this._lastDmg = 0; att.lastOutputDmg = 0;
+        return { damage: 0, effectiveness: 1, isCrit: false };
+      }
       var isPhysical = cat === "physical";
       var atkStat = isPhysical ? (opts.atkStageOverride ? att.atk * ((2+opts.atkStageOverride)/2) : att.getStat("atk")) : att.getStat("spatk");
       var defStat = isPhysical ? def.getStat("def") : def.getStat("spdef");
@@ -99,7 +103,8 @@ function createBattleContext() {
       att.currentDealt += dmg;
       att.outputThisTurn = (att.outputThisTurn || 0) + dmg;
       att.lastOutputDmg = dmg;
-      const received = def.takeDamage(dmg, att, this.sourceSkillOwner === att ? this.sourceSkill : null);
+      const received = def.takeDamage(dmg, att, this.sourceSkillOwner === att ? this.sourceSkill : null,
+        (eff === 0 ? "" : getEffLabel(eff)) + (isCrit ? " 命中要害！" : ""));
       if (received > 0 && isMingnianMarked(att) && att.bloodlineData.markTarget === def && !def.isFainted()) applyMingnianDamage(this, att, def);
       return { damage: dmg, effectiveness: eff, isCrit: isCrit };
     },
@@ -122,10 +127,21 @@ function createBattleContext() {
     doHeal: function(target, amount, options) {
       target = skillEffectTarget(this, target, "heal");
       if (!target) return;
-      var healed = target.heal(Math.floor(amount), options);
-      if (healed > 0) addMessage(target.name + " 回复了" + healed + "HP");
+      target.heal(Math.floor(amount), options);
     },
-    addShield: function(target, amount) { if (gameState.banEffects && gameState.banEffects.shield) { addMessage("护盾已被微灵封体永久限制！"); return; } var amt = Math.floor(amount); target.shield += amt; if (amt > 0) battlePresentation.floatText?.(target, amt, "shield"); },
+    addShield: function(target, amount) {
+      const side = battlePetSide(target);
+      if (gameState.banEffects?.shield) {
+        addMessage(battlePetName(target) + " 无法获得护盾，护盾已被微灵封体永久限制。", "status", side);
+        return;
+      }
+      const amt = Math.floor(amount);
+      target.shield += amt;
+      if (amt > 0) {
+        addMessage(battlePetName(target) + " 获得 " + amt + " 点护盾（当前 " + target.shield + " 点）。", "status", side);
+        battlePresentation.floatText?.(target, amt, "shield");
+      }
+    },
     grantStatusImmunity: grantStatusImmunity,
     revokeStatusImmunity: revokeStatusImmunity,
     applyStatus: function(pet, effect, options) {
@@ -194,7 +210,7 @@ function createBattleContext() {
       if (target[key] !== undefined) {
         var before = target[key];
         target[key] = Math.max(-6, Math.min(6, target[key] + stages));
-        addMessage(target.name + " 的" + STAGE_LABELS[stat] + " " + (target[key]>=0?"+":"") + target[key] + "级（" + (before>=0?"+":"") + before + "→" + (target[key]>=0?"+":"") + target[key] + "）！");
+        addMessage(battlePetName(target) + " 的" + STAGE_LABELS[stat] + " " + (target[key]>=0?"+":"") + target[key] + "级（" + (before>=0?"+":"") + before + "→" + (target[key]>=0?"+":"") + target[key] + "）！", "status", battlePetSide(target));
       }
     },
     deletePP: function(pet, slot, amount, source = this.sourceSkill?.name) {
@@ -226,6 +242,10 @@ function createBattleContext() {
         changed.push({ skill, slot: index, amount });
       }
       if (changed.length > 0) {
+        if (!isDeveloperBattle()) {
+          const losses = changed.map(({ skill, amount }) => "「" + skill.name + "」−" + amount + " PP");
+          addMessage(battlePetName(target) + " 的技能失去 PP" + (source ? "（" + ppSourceName(source) + "）" : "") + "，" + losses.join("、") + "。", "status", battlePetSide(target));
+        }
         target.lastPPDeletedSkills = changed.map(result => result.skill);
         target.lastPPDeletedSkill = changed[0].skill;
         recoverFromJianghuaDeletion(target, changed);
@@ -335,15 +355,34 @@ function createBattleContext() {
       return true;
     },
     setCritPrevention: function(pet) { pet.preventCritNext = true; },
-    setWeather: function(type, turns) { if (jianghuaBlocksSummon(this, "天气")) return false; if (gameState.field) { addMessage("环境在场，天气无法降临！"); return false; } gameState.weather = type; gameState.weatherTurns = turns; addMessage("天气变更为" + (WEATHER_DISPLAY[type]?.[1] || type) + "！持续"+turns+"回合"); return true; },
+    setWeather: function(type, turns) {
+      if (jianghuaBlocksSummon(this, "天气")) return false;
+      const name = WEATHER_DISPLAY[type]?.[1] || type;
+      if (gameState.field) {
+        addMessage("场上已有" + (FIELD_DISPLAY[gameState.field]?.[1] || "其他") + "环境，无法召唤" + name + "天气。", "system");
+        return false;
+      }
+      gameState.weather = type;
+      gameState.weatherTurns = turns;
+      addMessage("天气变更为" + name + "，持续 " + turns + " 回合。", "system");
+      return true;
+    },
     mayClearField: function() { return !(gameState.fieldLockedThrough >= gameState.turnCount); },
     setField: function(type, turns, options = {}) {
-      if (jianghuaBlocksSummon(this, "环境") || (gameState.fieldLockedThrough >= gameState.turnCount && (!options.locked || gameState.field !== type))) return false;
+      if (jianghuaBlocksSummon(this, "环境")) return false;
+      const name = FIELD_DISPLAY[type]?.[1] || type;
+      if (gameState.fieldLockedThrough >= gameState.turnCount && (!options.locked || gameState.field !== type)) {
+        addMessage("场上环境已锁定，无法召唤" + name + "。", "system");
+        return false;
+      }
       if (options.locked) {
+        if (gameState.weather) addMessage("召唤" + name + "环境，清除了场上的" + (WEATHER_DISPLAY[gameState.weather]?.[1] || gameState.weather) + "天气。", "system");
         gameState.weather = null; gameState.weatherTurns = 0;
         gameState.fieldLockedThrough = gameState.turnCount + turns - 1;
       }
-      gameState.field = type; gameState.fieldTurns = turns; addMessage("环境变更为" + ({"dream":"梦境","shunhua":"瞬华"}[type]||type) + "！持续"+turns+"回合");
+      gameState.field = type;
+      gameState.fieldTurns = turns;
+      addMessage("环境变更为" + name + "，" + (options.locked ? "锁定 " : "持续 ") + turns + " 回合。", "system");
       return true;
     },
     addCritBonus: function(target, amount, turns) { target.critRateBonus = (target.critRateBonus || 0) + amount; var self = this; setTimeout(function() { target.critRateBonus = Math.max(0, (target.critRateBonus || 0) - amount); }, turns * 1000 || 2000); },
@@ -353,7 +392,7 @@ function createBattleContext() {
       if (!target) return;
       target.healInvertPct = pct;
       target.healInvertTurns = turns;
-      addMessage(target.name + "的治疗被倒置" + Math.round(pct * 100) + "%持续" + turns + "回合！");
+      addMessage(battlePetName(target) + " 获得治疗倒置效果，倒置比例为 " + Math.round(pct * 100) + "%，持续 " + turns + " 回合。", "status", battlePetSide(target));
     },
     setPPCostEffect: function(pet, source, turns, options) {
       const slot = options.skill ? pet.skills.indexOf(options.skill) : -1;
@@ -372,7 +411,16 @@ function createBattleContext() {
       const target = skillEffectTarget(this, pet, "switch");
       if (target) (target.switchLockSources ||= new Map()).set(source, gameState.turnCount + turns - 1);
     },
-    msg: function(text) { addMessage(text); },
+    msg: function(text) {
+      const owner = this.sourceSkillOwner || this.logOwner;
+      if (!owner) { addMessage(text); return; }
+      const skill = this.sourceSkill?.name;
+      const label = battlePetName(owner) + (skill && !text.startsWith("【") && !text.includes(skill) ? " · " + skill : "");
+      addMessage("【" + label + "】" + text, classifyMessage(text), battlePetSide(owner));
+    },
+    detail: function(text) {
+      if (isDeveloperBattle()) this.msg(text);
+    },
     get playerActive() { return gameState.playerActive; },
     get aiActive() { return gameState.aiActive; },
     get playerParty() { return gameState.playerParty; },
@@ -383,7 +431,7 @@ function createBattleContext() {
 // 测试模式记录单个技能槽的 PP 结算，普通战斗仍用原有事件说明。
 function ppSourceName(source) { return DEFAULT_SKILLS.find(item => item.id === source)?.name || source; }
 
-function traceSkillPP(pet, skill, before, after, action, source, detail) {
+function traceSkillPP(pet, skill, before, after, action, source, detail, turn) {
   if (!isDeveloperBattle() || !pet) return;
   const player = gameState.playerActive === pet || gameState.playerParty.includes(pet);
   const ai = !player && (gameState.aiActive === pet || gameState.aiParty.includes(pet));
@@ -395,7 +443,7 @@ function traceSkillPP(pet, skill, before, after, action, source, detail) {
   const label = source && ppSourceName(source);
   addMessage("【PP】" + position + pet.name + (slot < 0 ? "" : "第" + (slot + 1) + "格") + "「" + skill.name + "」 " +
     before + " → " + after + "（" + change + "）｜" + action +
-    (label ? " · " + label : "") + (detail ? "｜" + detail : ""), "action", player ? "player" : ai ? "ai" : "system");
+    (label ? " · " + label : "") + (detail ? "｜" + detail : ""), "action", player ? "player" : ai ? "ai" : "system", turn);
 }
 
 function traceBlockedPPSlots(pet, slot, action, source, detail) {
@@ -414,7 +462,7 @@ function restoreHistoricalPP(pet, skill, value, turn, source) {
   setSkillPP(pet, skill, value, "回溯到第" + turn + "回合", source);
 }
 
-function setSkillPP(pet, skill, value, action, source, detail) {
+function setSkillPP(pet, skill, value, action, source, detail, turn) {
   if (skill.useLimit) {
     const remaining = Math.max(0, skill.useLimit - (skill.useCount || 0));
     if (value > remaining) {
@@ -425,7 +473,7 @@ function setSkillPP(pet, skill, value, action, source, detail) {
   }
   const before = skill.pp;
   skill.pp = value;
-  if (before !== value || detail) traceSkillPP(pet, skill, before, value, action, source, detail);
+  if (before !== value || detail) traceSkillPP(pet, skill, before, value, action, source, detail, turn);
   return value - before;
 }
 

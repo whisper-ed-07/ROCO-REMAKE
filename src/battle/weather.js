@@ -1,6 +1,9 @@
 // ---------- WEATHER SYSTEM ----------
 function processField() {
-  if (gameState.field && gameState.fieldTurns <= 0) { gameState.field = null; addMessage("环境消散了..."); }
+  if (gameState.field && gameState.fieldTurns <= 0) {
+    addMessage((FIELD_DISPLAY[gameState.field]?.[1] || gameState.field) + "环境已结束。", "system");
+    gameState.field = null;
+  }
 }
 
 // 天气/环境计时在回合末统一递减，保证"持续 N 回合"恰好结算 N 次
@@ -13,11 +16,18 @@ function tickEnvironments() {
   });
   if (gameState.weather) {
     gameState.weatherTurns--;
-    if (gameState.weatherTurns <= 0) { gameState.weather = null; gameState.weatherTurns = 0; addMessage("天气消散了..."); }
+    if (gameState.weatherTurns <= 0) {
+      addMessage((WEATHER_DISPLAY[gameState.weather]?.[1] || gameState.weather) + "天气已结束。", "system");
+      gameState.weather = null;
+      gameState.weatherTurns = 0;
+    }
   }
   if (gameState.field) {
     gameState.fieldTurns--;
-    if (gameState.fieldTurns <= 0) { gameState.field = null; gameState.fieldTurns = 0; addMessage("环境消散了..."); }
+    if (gameState.fieldTurns <= 0) {
+      gameState.fieldTurns = 0;
+      processField();
+    }
   }
   if (gameState.forceSkillElement) {
     gameState.forceSkillElementTurns--;
@@ -44,16 +54,16 @@ function processWeather() {
     case "sandstorm":
       [p,a].forEach(function(pet) {
         if (pet && !pet.isFainted() && ["earth","steel","rock"].indexOf(pet.element) < 0) {
+          addMessage("沙暴侵袭" + battlePetName(pet) + "！", "status", battlePetSide(pet));
           createBattleContext().doFixedDamage(pet, Math.floor(pet.maxHp / 16));
-          addMessage("沙暴侵袭" + pet.name + "！");
         }
       });
       break;
     case "hailstorm":
       [p,a].forEach(function(pet) {
         if (pet && !pet.isFainted() && pet.element !== "ice") {
+          addMessage("冰雹砸落" + battlePetName(pet) + "！", "status", battlePetSide(pet));
           createBattleContext().doFixedDamage(pet, Math.floor(pet.maxHp / 16));
-          addMessage("冰雹砸落" + pet.name + "！");
         }
       });
       break;

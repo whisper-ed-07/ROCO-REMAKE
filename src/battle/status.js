@@ -92,33 +92,36 @@ function wakeFromPowerHit(pet) {
   if (pet.status !== "sleep") return;
   pet.status = null;
   pet.statusTurns = 0;
-  addMessage(pet.name + " 被威力技能击中后醒来！");
+  addMessage(battlePetName(pet) + " 被威力技能击中后醒来！", "status", battlePetSide(pet));
 }
 
-function tickUnableToAct(pet) {
+function tickUnableToAct(pet, skill) {
+  const name = battlePetName(pet);
+  const side = battlePetSide(pet);
+  const action = skill ? name + "的「" + skill.name + "」未能使出" : name + "本回合空过";
+  const reason = action + "，原因是" + STATUS_LABELS[pet.status];
   if (["sleep", "deep_sleep", "fear"].includes(pet.status)) {
-    const status = pet.status;
     pet.statusTurns--;
     if (pet.statusTurns <= 0) {
       pet.status = null;
       pet.statusTurns = 0;
-      addMessage(pet.name + " 解除了" + STATUS_LABELS[status] + "！");
-    } else addMessage(pet.name + " 因" + STATUS_LABELS[status] + "无法行动！");
+      addMessage(reason + "，该异常在本回合解除。", "status", side);
+    } else addMessage(reason + "。", "status", side);
   } else if (pet.status === "freeze") {
     if (Math.random() < 0.2) {
       pet.status = null;
       pet.statusTurns = 0;
-      addMessage(pet.name + " 解冻了！");
-    } else addMessage(pet.name + " 被冰冻了，无法行动！");
+      addMessage(reason + "，该异常在本回合解除。", "status", side);
+    } else addMessage(reason + "。", "status", side);
   } else if (pet.status === "paralyze") {
-    addMessage(pet.name + " 因麻痹无法行动！");
+    addMessage(reason + "。", "status", side);
   }
 }
 
 function applyEffect(pet, effect, options = {}) {
   if (!Object.hasOwn(STATUS_MESSAGES, effect)) return false;
   if (hasStatusImmunity(pet, effect)) {
-    addMessage(pet.name + "免疫了" + STATUS_LABELS[effect] + "！");
+    addMessage(battlePetName(pet) + " 免疫了" + STATUS_LABELS[effect] + "！", "status", battlePetSide(pet));
     return false;
   }
   // 页游互斥组：烧伤与控制同组，寄生与中毒同组，束缚独立。
@@ -144,7 +147,8 @@ function applyEffect(pet, effect, options = {}) {
     if (effect === "deep_sleep") pet.deepSleepToken = version;
   }
   (pet.abnormalVersions ||= new Map()).set(effect, version);
-  addMessage(options.message || pet.name + " " + STATUS_MESSAGES[effect] + "！");
+  addMessage(options.message || battlePetName(pet) + " " + STATUS_MESSAGES[effect] +
+    (turns > 0 ? "（" + turns + " 回合）" : "") + "！", "status", battlePetSide(pet));
   return true;
 }
 

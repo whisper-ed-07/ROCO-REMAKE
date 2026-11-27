@@ -3,10 +3,7 @@ setBattlePresentation({
     document.querySelectorAll("#battle-actions button").forEach(button => { button.disabled = true; });
   },
   awaitingAction() { renderBattleActions(); },
-  roundStarted() {
-    const indicator = document.querySelector("#turn-indicator");
-    if (indicator) indicator.style.display = "none";
-  },
+  roundStarted() { updateBattleHeader(); },
   timerStopped() {
     const timer = document.querySelector("#turn-timer");
     if (timer) timer.style.display = "none";
@@ -29,8 +26,8 @@ setBattlePresentation({
 });
 
 function showBattleResult(playerWin, fled) {
+  updateBattleUI();
   if (isDeveloperBattle()) {
-    renderBattleLog();
     const leave = document.querySelector("#flee-btn");
     if (leave) { leave.textContent = "返回主菜单"; leave.title = "返回主菜单"; }
   }
@@ -51,6 +48,24 @@ function displayedPercent(node, fallback) {
   }
   var value = parseFloat(node.style.width); return isFinite(value) ? value : fallback;
 }
+function updateBattleHeader() {
+  const indicator = document.querySelector("#turn-indicator");
+  const weather = document.querySelector("#battle-weather");
+  if (indicator) {
+    const label = "第 " + Math.max(1, battleDisplayTurn()) + " 回合";
+    if (indicator.textContent !== label) indicator.textContent = label;
+  }
+  if (!weather) return;
+  function slot(label, kind, value, turns) {
+    if (!value) return '<span class="w-item w-empty">无' + label + '</span>';
+    return '<span class="w-item has-' + kind + '" aria-label="' + label + '，' + value[1] + '，剩余' + turns + '回合"><span class="w-icon" aria-hidden="true">' +
+      value[0] + '</span><span>' + value[1] + '</span><span class="w-turns">' + turns + '回合</span></span>';
+  }
+  setMarkupIfChanged(weather,
+    slot("天气", "weather", WEATHER_DISPLAY[gameState.weather], gameState.weatherTurns) +
+    slot("环境", "field", FIELD_DISPLAY[gameState.field], gameState.fieldTurns));
+}
+
 function renderBattle(app) {
   closeBloodlinePreview();
   var p = gameState.playerActive, a = gameState.aiActive;
@@ -73,13 +88,12 @@ function renderBattle(app) {
   var pEl = ELEMENTS[p.element] || noElement, aEl = ELEMENTS[a.element] || noElement;
   const logTools = fullLog ? '<span class="developer-log-count" id="developer-log-count">完整日志</span>' :
     '<button class="log-tab active" data-filter="all">全部</button><button class="log-tab" data-filter="action">行动</button><button class="log-tab" data-filter="system">系统</button>';
-  const logAttributes = fullLog ? ' tabindex="0" role="region" aria-label="完整战斗日志"' : "";
+  const logAttributes = ' tabindex="0" role="region" aria-label="' + (fullLog ? "完整战斗日志" : "战斗日志") + '"';
   var html =
     '<div class="battle-bg screen active">' +
-    '<div class="battle-weather" id="battle-weather" role="status" hidden></div>' +
-    // 顶栏：回合指示 + 倒计时 + 逃跑
     '<div class="battle-top">' +
-      '<div class="turn-indicator" id="turn-indicator" style="display:none"></div>' +
+      '<div class="battle-weather" id="battle-weather" role="status" aria-label="天气与环境"></div>' +
+      '<div class="turn-indicator" id="turn-indicator"></div>' +
       '<div class="turn-timer" id="turn-timer" style="display:none"><span>\u23F3</span><div class="turn-timer-bar"><div class="turn-timer-fill" id="turn-timer-fill" style="width:100%"></div></div><span id="turn-timer-text">20s</span></div>' +
       '<button class="flee-btn" id="flee-btn" title="' + leaveLabel + '">' + (leaveLabel === "逃跑" ? "\u{1F3C3} " : "") + leaveLabel + '</button>' +
     '</div>' +
@@ -88,11 +102,11 @@ function renderBattle(app) {
       '<div class="battle-side player-side">' +
         '<div class="pet-sprite player" id="player-sprite">' + p.emoji + '</div>' +
         '<div class="pet-info-card" id="player-info" style="border-left:3px solid ' + pEl.color + '">' +
-          '<div class="pet-info-top"><span class="pet-info-name">' + p.name + '</span><span class="pet-info-lv">Lv.' + p.level + '</span><span class="pet-info-element" style="background:' + pEl.bg + ';color:' + pEl.color + '">' + elemIcon(p.element) + pEl.name + '</span></div>' +
+          '<div class="pet-info-top"><span class="pet-info-side">我方</span><span class="pet-info-name">' + escapeHtml(p.name) + '</span><span class="pet-info-lv">Lv.' + p.level + '</span><span class="pet-info-element" style="background:' + pEl.bg + ';color:' + pEl.color + '">' + elemIcon(p.element) + pEl.name + '</span></div>' +
           '<div class="battle-bloodline-slot"></div>' +
           '<div class="hp-bar-outer"><div class="hp-bar-ghost" style="width:' + pGhost + '%"></div><div class="hp-bar-inner" id="player-hp-bar" style="width:' + pStart + '%"></div></div>' +
           '<div id="player-shield"></div>' +
-          '<div class="hp-text" id="player-hp-text">' + p.hp + '/' + p.maxHp + '</div>' +
+          '<div class="hp-text" id="player-hp-text">' + p.hp + '/' + battleMaxHp(p) + '</div>' +
           '<div class="marks-display" id="player-marks"></div>' +
           '<div id="player-status"></div>' +
           '<div class="stages-bar" id="player-stages"></div>' +
@@ -102,11 +116,11 @@ function renderBattle(app) {
       '<div class="battle-side enemy-side">' +
         '<div class="pet-sprite opponent" id="ai-sprite">' + a.emoji + '</div>' +
         '<div class="pet-info-card" id="ai-info" style="border-left:3px solid ' + aEl.color + '">' +
-          '<div class="pet-info-top"><span class="pet-info-name">' + a.name + '</span><span class="pet-info-lv">Lv.' + a.level + '</span><span class="pet-info-element" style="background:' + aEl.bg + ';color:' + aEl.color + '">' + elemIcon(a.element) + aEl.name + '</span></div>' +
+          '<div class="pet-info-top"><span class="pet-info-side">对方</span><span class="pet-info-name">' + escapeHtml(a.name) + '</span><span class="pet-info-lv">Lv.' + a.level + '</span><span class="pet-info-element" style="background:' + aEl.bg + ';color:' + aEl.color + '">' + elemIcon(a.element) + aEl.name + '</span></div>' +
           '<div class="battle-bloodline-slot"></div>' +
           '<div class="hp-bar-outer"><div class="hp-bar-ghost" style="width:' + aGhost + '%"></div><div class="hp-bar-inner" id="ai-hp-bar" style="width:' + aStart + '%"></div></div>' +
           '<div id="ai-shield"></div>' +
-          '<div class="hp-text" id="ai-hp-text">' + a.hp + '/' + a.maxHp + '</div>' +
+          '<div class="hp-text" id="ai-hp-text">' + a.hp + '/' + battleMaxHp(a) + '</div>' +
           '<div class="marks-display" id="ai-marks"></div>' +
           '<div id="ai-status"></div>' +
           '<div class="stages-bar" id="ai-stages"></div>' +
@@ -135,7 +149,7 @@ function renderBattle(app) {
   var copyBtn = document.querySelector("#log-copy");
   if (copyBtn) copyBtn.addEventListener("click", copyBattleLog);
   var msgsEl = document.querySelector("#battle-messages");
-  if (fullLog && msgsEl) msgsEl.onscroll = function() {
+  if (msgsEl) msgsEl.onscroll = function() {
     if (jumpBtn) jumpBtn.hidden = msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 40;
   };
   if (!fullLog && msgsEl) msgsEl.addEventListener("click", function(e) {
@@ -271,7 +285,7 @@ function skillMetaText(skill) {
   if (skill.power) parts.push("基础威力 " + Math.round(getSkillPower(skill, skill.power) * 100) / 100);
   return parts.join(" · ");
 }
-function showSkillDetail(skill, trigger) {
+function showSkillDetail(skill, trigger, options = {}) {
   if (!skill) return;
   closeBloodlinePreview();
   var old = document.getElementById('skill-detail-overlay');
@@ -279,7 +293,7 @@ function showSkillDetail(skill, trigger) {
   var returnFocus = trigger || document.activeElement;
   var ov = document.createElement('div'); ov.className = 'modal-overlay show'; ov.id = 'skill-detail-overlay';
   var builtin = DEFAULT_SKILLS.find(function(s) { return s.id === skill.id; });
-  const original = gameState.screen === "battle" && Object.hasOwn(ORIGINAL_SKILL_TEXT, skill.id)
+  const original = (gameState.screen === "battle" || options.useOriginal) && Object.hasOwn(ORIGINAL_SKILL_TEXT, skill.id)
     ? ORIGINAL_SKILL_TEXT[skill.id] : undefined;
   const bodyLabel = original === undefined ? '技能机制正文' : '技能原文';
   let description = original === undefined
